@@ -9,5 +9,14 @@ data class AppSettings(
     val animationsEnabled: Boolean = true,
     val visualEffectsEnabled: Boolean = true,
     val vibrationEnabled: Boolean = true,
-    val themeMode: ThemeMode = ThemeMode.AUTO
+    val themeMode: ThemeMode = ThemeMode.AUTO,
+    /** Local user profile name, used to match role fields (Recepção, Sonoplastia, etc.) for reminders. */
+    val myName: String = "",
+    val remindersEnabled: Boolean = true,
+    val notifyDayBefore: Boolean = true,
+    val notifyHoursBefore: Boolean = true,
+    val reminderHoursBeforeLead: Int = 3,
+    /** Standalone (default, fully local) vs connected to a shared church workspace once a backend exists. */
+    val syncMode: SyncMode = SyncMode.STANDALONE,
+    val workspaceName: String = ""
 )

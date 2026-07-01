@@ -9,4 +9,10 @@ class SettingsRepository(private val dataStore: SettingsDataStore) {
     val settingsFlow: Flow<AppSettings> = dataStore.settingsFlow
 
     suspend fun update(settings: AppSettings) = dataStore.update(settings)
+
+    val notifiedReminderKeysFlow: Flow<Set<String>> = dataStore.notifiedKeysFlow
+
+    suspend fun markReminderNotified(key: String) = dataStore.markNotified(key)
+
+    suspend fun pruneReminderKeys(validScaleIds: Set<Long>) = dataStore.pruneNotifiedKeys(validScaleIds)
 }

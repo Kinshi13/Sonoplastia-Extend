@@ -4,11 +4,14 @@ import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.escalachurch.app.domain.model.AppFont
 import com.escalachurch.app.domain.model.AppSettings
 import com.escalachurch.app.domain.model.FontSizeOption
+import com.escalachurch.app.domain.model.SyncMode
 import com.escalachurch.app.domain.model.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -27,6 +30,14 @@ class SettingsDataStore(private val context: Context) {
         val VISUAL_EFFECTS_ENABLED = booleanPreferencesKey("visual_effects_enabled")
         val VIBRATION_ENABLED = booleanPreferencesKey("vibration_enabled")
         val THEME_MODE = stringPreferencesKey("theme_mode")
+        val MY_NAME = stringPreferencesKey("my_name")
+        val REMINDERS_ENABLED = booleanPreferencesKey("reminders_enabled")
+        val NOTIFY_DAY_BEFORE = booleanPreferencesKey("notify_day_before")
+        val NOTIFY_HOURS_BEFORE = booleanPreferencesKey("notify_hours_before")
+        val REMINDER_HOURS_LEAD = intPreferencesKey("reminder_hours_lead")
+        val NOTIFIED_KEYS = stringSetPreferencesKey("notified_reminder_keys")
+        val SYNC_MODE = stringPreferencesKey("sync_mode")
+        val WORKSPACE_NAME = stringPreferencesKey("workspace_name")
     }
 
     val settingsFlow: Flow<AppSettings> = context.dataStore.data.map { prefs ->
@@ -41,7 +52,15 @@ class SettingsDataStore(private val context: Context) {
             visualEffectsEnabled = prefs[Keys.VISUAL_EFFECTS_ENABLED] ?: true,
             vibrationEnabled = prefs[Keys.VIBRATION_ENABLED] ?: true,
             themeMode = prefs[Keys.THEME_MODE]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
-                ?: ThemeMode.AUTO
+                ?: ThemeMode.AUTO,
+            myName = prefs[Keys.MY_NAME] ?: "",
+            remindersEnabled = prefs[Keys.REMINDERS_ENABLED] ?: true,
+            notifyDayBefore = prefs[Keys.NOTIFY_DAY_BEFORE] ?: true,
+            notifyHoursBefore = prefs[Keys.NOTIFY_HOURS_BEFORE] ?: true,
+            reminderHoursBeforeLead = prefs[Keys.REMINDER_HOURS_LEAD] ?: 3,
+            syncMode = prefs[Keys.SYNC_MODE]?.let { runCatching { SyncMode.valueOf(it) }.getOrNull() }
+                ?: SyncMode.STANDALONE,
+            workspaceName = prefs[Keys.WORKSPACE_NAME] ?: ""
         )
     }
 
@@ -55,6 +74,32 @@ class SettingsDataStore(private val context: Context) {
             prefs[Keys.VISUAL_EFFECTS_ENABLED] = settings.visualEffectsEnabled
             prefs[Keys.VIBRATION_ENABLED] = settings.vibrationEnabled
             prefs[Keys.THEME_MODE] = settings.themeMode.name
+            prefs[Keys.MY_NAME] = settings.myName
+            prefs[Keys.REMINDERS_ENABLED] = settings.remindersEnabled
+            prefs[Keys.NOTIFY_DAY_BEFORE] = settings.notifyDayBefore
+            prefs[Keys.NOTIFY_HOURS_BEFORE] = settings.notifyHoursBefore
+            prefs[Keys.REMINDER_HOURS_LEAD] = settings.reminderHoursBeforeLead
+            prefs[Keys.SYNC_MODE] = settings.syncMode.name
+            prefs[Keys.WORKSPACE_NAME] = settings.workspaceName
+        }
+    }
+
+    /** Keys already notified (e.g. "scaleId:DAY_BEFORE"), so the periodic worker never repeats a reminder. */
+    val notifiedKeysFlow: Flow<Set<String>> = context.dataStore.data.map { it[Keys.NOTIFIED_KEYS] ?: emptySet() }
+
+    suspend fun markNotified(key: String) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.NOTIFIED_KEYS] = (prefs[Keys.NOTIFIED_KEYS] ?: emptySet()) + key
+        }
+    }
+
+    /** Drops notified keys for reminder kinds no longer relevant, keeping the stored set from growing forever. */
+    suspend fun pruneNotifiedKeys(validScaleIds: Set<Long>) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[Keys.NOTIFIED_KEYS] ?: emptySet()
+            prefs[Keys.NOTIFIED_KEYS] = current.filter { key ->
+                key.substringBefore(':').toLongOrNull() in validScaleIds
+            }.toSet()
         }
     }
 }

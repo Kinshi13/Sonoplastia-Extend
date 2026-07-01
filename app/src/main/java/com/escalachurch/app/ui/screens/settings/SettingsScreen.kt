@@ -26,6 +26,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.escalachurch.app.di.appViewModel
+import com.escalachurch.app.ui.components.AppTextField
+import com.escalachurch.app.ui.components.SecondaryButton
 import com.escalachurch.app.domain.model.AppFont
 import com.escalachurch.app.domain.model.FontSizeOption
 import com.escalachurch.app.domain.model.ThemeMode
@@ -42,6 +44,30 @@ fun SettingsScreen() {
     ) {
         item {
             Text("Configurações", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+        }
+
+        item {
+            SettingsSection(title = "Lembretes de escala") {
+                Text(
+                    "Informe seu nome como ele aparece nas escalas para receber um aviso quando estiver escalado(a).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(10.dp))
+                AppTextField(value = settings.myName, onValueChange = { viewModel.update { s -> s.copy(myName = it) } }, label = "Meu nome")
+                Spacer(Modifier.height(4.dp))
+                SwitchRow("Ativar lembretes", settings.remindersEnabled) { checked ->
+                    viewModel.update { it.copy(remindersEnabled = checked) }
+                }
+                if (settings.remindersEnabled) {
+                    SwitchRow("Avisar 1 dia antes", settings.notifyDayBefore) { checked ->
+                        viewModel.update { it.copy(notifyDayBefore = checked) }
+                    }
+                    SwitchRow("Avisar poucas horas antes", settings.notifyHoursBefore) { checked ->
+                        viewModel.update { it.copy(notifyHoursBefore = checked) }
+                    }
+                }
+            }
         }
 
         item {
@@ -104,6 +130,26 @@ fun SettingsScreen() {
                     onValueChange = { value -> viewModel.update { it.copy(effectsVolume = value) } },
                     colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary, activeTrackColor = MaterialTheme.colorScheme.primary)
                 )
+            }
+        }
+
+        item {
+            SettingsSection(title = "Modo de uso") {
+                val isStandalone = settings.syncMode == com.escalachurch.app.domain.model.SyncMode.STANDALONE
+                Text(
+                    if (isStandalone) "Modo pessoal (local) — os dados ficam só neste aparelho."
+                    else "Conectado à igreja: ${settings.workspaceName}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Em breve: um administrador poderá montar a escala e cada pessoa incluída recebe o aviso automaticamente, sem poder alterar a escala principal.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(12.dp))
+                SecondaryButton(text = "Conectar à minha igreja (em breve)", enabled = false, onClick = {})
             }
         }
 

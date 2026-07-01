@@ -5,6 +5,8 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import com.escalachurch.app.data.SeedData
 import com.escalachurch.app.di.AppContainer
+import com.escalachurch.app.notification.ReminderNotifier
+import com.escalachurch.app.notification.ReminderWorker
 import kotlinx.coroutines.launch
 
 class EscalaChurchApp : Application() {
@@ -19,5 +21,8 @@ class EscalaChurchApp : Application() {
         ProcessLifecycleOwner.get().lifecycleScope.launch {
             SeedData.populateIfEmpty(container)
         }
+
+        ReminderNotifier.ensureChannel(this)
+        ReminderWorker.schedule(this)
     }
 }
