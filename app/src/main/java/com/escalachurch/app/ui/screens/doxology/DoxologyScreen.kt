@@ -31,7 +31,7 @@ import com.escalachurch.app.ui.components.SecondaryButton
 
 @Composable
 fun DoxologyScreen() {
-    val viewModel = appViewModel { container -> DoxologyViewModel(container.doxologyRepository) }
+    val viewModel = appViewModel { container -> DoxologyViewModel(container.doxologyRepository, container.adminSession) }
     val state by viewModel.uiState.collectAsState()
 
     var editingTarget by remember { mutableStateOf<DoxologyEditTarget?>(null) }
@@ -55,10 +55,12 @@ fun DoxologyScreen() {
             EmptyState(
                 icon = Icons.Filled.MusicOff,
                 title = "Nenhuma programação futura cadastrada",
-                message = "Adicione a ordem do culto para a próxima programação.",
+                message = if (state.isAdmin) "Adicione a ordem do culto para a próxima programação." else "Fale com um administrador para cadastrar a doxologia.",
                 modifier = Modifier.weight(1f)
             ) {
-                PrimaryButton(text = "Adicionar doxologia", onClick = { editingTarget = DoxologyEditTarget(null) })
+                if (state.isAdmin) {
+                    PrimaryButton(text = "Adicionar doxologia", onClick = { editingTarget = DoxologyEditTarget(null) })
+                }
             }
         } else {
             Column(
@@ -75,18 +77,20 @@ fun DoxologyScreen() {
             Spacer(Modifier.height(16.dp))
 
             val current: DoxologyItem? = state.items.getOrNull(currentPage)
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                SecondaryButton(
-                    text = "Editar",
-                    modifier = Modifier.weight(1f),
-                    enabled = current != null,
-                    onClick = { current?.let { editingTarget = DoxologyEditTarget(it) } }
-                )
-                PrimaryButton(
-                    text = "Adicionar doxologia",
-                    modifier = Modifier.weight(1f),
-                    onClick = { editingTarget = DoxologyEditTarget(null) }
-                )
+            if (state.isAdmin) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    SecondaryButton(
+                        text = "Editar",
+                        modifier = Modifier.weight(1f),
+                        enabled = current != null,
+                        onClick = { current?.let { editingTarget = DoxologyEditTarget(it) } }
+                    )
+                    PrimaryButton(
+                        text = "Adicionar doxologia",
+                        modifier = Modifier.weight(1f),
+                        onClick = { editingTarget = DoxologyEditTarget(null) }
+                    )
+                }
             }
         }
     }

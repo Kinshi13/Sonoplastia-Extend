@@ -8,3 +8,15 @@ sealed class AppDestination(val route: String) {
     data object Calendar : AppDestination("calendar")
     data object Settings : AppDestination("settings")
 }
+
+/**
+ * Secondary destinations, deliberately kept out of the bottom navigation bar (per design
+ * guidance: don't overcrowd it) - reached instead via icons on Início/Configurações.
+ */
+object SecondaryDestination {
+    const val GENERAL_SCALE_ROUTE = "general_scale?date={date}"
+    const val ANNOUNCEMENTS_ROUTE = "announcements"
+
+    fun generalScaleRoute(date: java.time.LocalDate?): String =
+        "general_scale?date=${date?.toString() ?: ""}"
+}

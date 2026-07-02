@@ -29,21 +29,35 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.escalachurch.app.domain.model.ScaleItem
+import com.escalachurch.app.domain.model.SourceType
 import com.escalachurch.app.ui.components.AppTextField
 import com.escalachurch.app.ui.components.ConfirmDialog
 import com.escalachurch.app.ui.components.DatePickerField
 import com.escalachurch.app.ui.components.PrimaryButton
+import com.escalachurch.app.ui.components.ScaleCard
 import com.escalachurch.app.ui.components.SecondaryButton
 import com.escalachurch.app.ui.components.TimePickerField
 
+/**
+ * Create/edit form for a [ScaleItem]. [isAdmin] decides both what gets saved (OFFICIAL when
+ * admin, PERSONAL otherwise) and whether editing is even allowed: a member opening an existing
+ * OFFICIAL scale only ever sees a read-only preview - official data can't be changed without
+ * unlocking "Modo administrador" first (see AdminSession).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScaleEditScreen(
     existing: ScaleItem?,
+    isAdmin: Boolean,
     onSave: (ScaleItem) -> Unit,
     onDelete: (() -> Unit)?,
     onBack: () -> Unit
 ) {
+    if (!isAdmin && existing?.sourceType == SourceType.OFFICIAL) {
+        ReadOnlyOfficialScale(existing, onBack)
+        return
+    }
+
     var title by remember { mutableStateOf(existing?.title ?: "") }
     var date by remember { mutableStateOf(existing?.date) }
     var startTime by remember { mutableStateOf(existing?.startTime) }
@@ -59,6 +73,7 @@ fun ScaleEditScreen(
     var showTitleError by remember { mutableStateOf(false) }
     var showDateError by remember { mutableStateOf(false) }
     var showTimeError by remember { mutableStateOf(false) }
+    var showRolesError by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -81,6 +96,20 @@ fun ScaleEditScreen(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            if (isAdmin) {
+                Text(
+                    "Esta escala será salva como Oficial e ficará visível para todos na Escala Geral.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            } else {
+                Text(
+                    "Programação pessoal - visível só para você.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
             AppTextField(
                 value = title,
                 onValueChange = { title = it; showTitleError = false },
@@ -117,11 +146,18 @@ fun ScaleEditScreen(
             }
 
             Text("Funções", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-            AppTextField(value = reception, onValueChange = { reception = it }, label = "Recepção")
-            AppTextField(value = sound, onValueChange = { sound = it }, label = "Sonoplastia")
-            AppTextField(value = preaching, onValueChange = { preaching = it }, label = "Pregação")
-            AppTextField(value = conducting, onValueChange = { conducting = it }, label = "Regência")
-            AppTextField(value = musicalMessage, onValueChange = { musicalMessage = it }, label = "Mensagem musical")
+            AppTextField(value = reception, onValueChange = { reception = it; showRolesError = false }, label = "Recepção")
+            AppTextField(value = sound, onValueChange = { sound = it; showRolesError = false }, label = "Sonoplastia")
+            AppTextField(value = preaching, onValueChange = { preaching = it; showRolesError = false }, label = "Pregação")
+            AppTextField(value = conducting, onValueChange = { conducting = it; showRolesError = false }, label = "Regência")
+            AppTextField(value = musicalMessage, onValueChange = { musicalMessage = it; showRolesError = false }, label = "Mensagem musical")
+            if (showRolesError) {
+                Text(
+                    "Preencha ao menos uma função para a escala oficial",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
 
             AppTextField(
                 value = notes,
@@ -144,10 +180,12 @@ fun ScaleEditScreen(
                 onClick = {
                     val d = date
                     val st = startTime
+                    val hasAnyRole = listOf(reception, sound, preaching, conducting, musicalMessage).any { it.isNotBlank() }
                     var hasError = false
                     if (title.isBlank()) { showTitleError = true; hasError = true }
                     if (d == null) { showDateError = true; hasError = true }
                     if (st == null) { showTimeError = true; hasError = true }
+                    if (isAdmin && !hasAnyRole) { showRolesError = true; hasError = true }
                     if (hasError) return@PrimaryButton
 
                     onSave(
@@ -164,6 +202,7 @@ fun ScaleEditScreen(
                             musicalMessagePerson = musicalMessage,
                             notes = notes,
                             isSpecialEvent = isSpecial,
+                            sourceType = if (isAdmin) SourceType.OFFICIAL else SourceType.PERSONAL,
                             createdAt = existing?.createdAt ?: System.currentTimeMillis()
                         )
                     )
@@ -190,5 +229,37 @@ fun ScaleEditScreen(
             },
             onDismiss = { showDeleteConfirm = false }
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReadOnlyOfficialScale(scale: ScaleItem, onBack: () -> Unit) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Escala oficial") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(20.dp)
+        ) {
+            Text(
+                "Apenas administradores podem editar escalas oficiais. Entre em \"Modo administrador\" nas Configurações para alterar.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(16.dp))
+            ScaleCard(scale)
+        }
     }
 }

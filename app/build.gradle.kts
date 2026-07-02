@@ -85,6 +85,9 @@ dependencies {
     // WorkManager (periodic reminder checks)
     implementation("androidx.work:work-runtime-ktx:2.9.1")
 
+    // Coil (loads local image URIs for Anúncios - swap for remote URLs once Storage is wired up)
+    implementation("io.coil-kt:coil-compose:2.6.0")
+
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 

@@ -12,6 +12,8 @@ class ScaleRepository(private val dao: ScaleDao) {
     fun observeAll(): Flow<List<ScaleItem>> =
         dao.observeAll().map { list -> list.map { it.toDomain() } }
 
+    suspend fun getById(id: Long): ScaleItem? = dao.getById(id)?.toDomain()
+
     suspend fun save(item: ScaleItem): Long = dao.upsert(item.toEntity())
 
     suspend fun update(item: ScaleItem) = dao.update(item.toEntity())

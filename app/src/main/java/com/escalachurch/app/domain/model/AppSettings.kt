@@ -18,5 +18,19 @@ data class AppSettings(
     val reminderHoursBeforeLead: Int = 3,
     /** Standalone (default, fully local) vs connected to a shared church workspace once a backend exists. */
     val syncMode: SyncMode = SyncMode.STANDALONE,
-    val workspaceName: String = ""
+    val workspaceName: String = "",
+    /** Notify when an official scale/announcement relevant to the user's classes changes. */
+    val changeNotificationsEnabled: Boolean = true,
+    /** true = only changes matching selectedClasses; false = every official change. */
+    val notifyOnlyMyClasses: Boolean = true,
+    /** Show the "Nova alteração" pop-up on app open when there are unseen relevant changes. */
+    val showNewsPopupOnOpen: Boolean = true,
+    /**
+     * SHA-256 hex hash of the local admin PIN, or null if no PIN was set yet.
+     * TODO(auth): temporary local-only gate; replace with real authentication
+     * (Firebase Auth / Supabase Auth / API própria) issuing a verified admin role.
+     */
+    val adminPinHash: String? = null,
+    /** Epoch millis of the last time the user opened Anúncios; drives the "Novo" badge/count. */
+    val lastSeenAnnouncementsAt: Long = 0L
 )

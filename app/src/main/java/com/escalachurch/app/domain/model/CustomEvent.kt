@@ -15,6 +15,8 @@ data class CustomEvent(
     val repeatRule: RepeatRule = RepeatRule.NONE,
     /** Id linking recurring/duplicated occurrences generated together, for grouped edits. */
     val groupId: String? = null,
+    /** PERSONAL by default (created via Programar by a member); an admin can mark one OFFICIAL. */
+    val sourceType: SourceType = SourceType.PERSONAL,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )

@@ -38,6 +38,11 @@ class SettingsDataStore(private val context: Context) {
         val NOTIFIED_KEYS = stringSetPreferencesKey("notified_reminder_keys")
         val SYNC_MODE = stringPreferencesKey("sync_mode")
         val WORKSPACE_NAME = stringPreferencesKey("workspace_name")
+        val CHANGE_NOTIFICATIONS_ENABLED = booleanPreferencesKey("change_notifications_enabled")
+        val NOTIFY_ONLY_MY_CLASSES = booleanPreferencesKey("notify_only_my_classes")
+        val SHOW_NEWS_POPUP_ON_OPEN = booleanPreferencesKey("show_news_popup_on_open")
+        val ADMIN_PIN_HASH = stringPreferencesKey("admin_pin_hash")
+        val LAST_SEEN_ANNOUNCEMENTS_AT = androidx.datastore.preferences.core.longPreferencesKey("last_seen_announcements_at")
     }
 
     val settingsFlow: Flow<AppSettings> = context.dataStore.data.map { prefs ->
@@ -60,7 +65,12 @@ class SettingsDataStore(private val context: Context) {
             reminderHoursBeforeLead = prefs[Keys.REMINDER_HOURS_LEAD] ?: 3,
             syncMode = prefs[Keys.SYNC_MODE]?.let { runCatching { SyncMode.valueOf(it) }.getOrNull() }
                 ?: SyncMode.STANDALONE,
-            workspaceName = prefs[Keys.WORKSPACE_NAME] ?: ""
+            workspaceName = prefs[Keys.WORKSPACE_NAME] ?: "",
+            changeNotificationsEnabled = prefs[Keys.CHANGE_NOTIFICATIONS_ENABLED] ?: true,
+            notifyOnlyMyClasses = prefs[Keys.NOTIFY_ONLY_MY_CLASSES] ?: true,
+            showNewsPopupOnOpen = prefs[Keys.SHOW_NEWS_POPUP_ON_OPEN] ?: true,
+            adminPinHash = prefs[Keys.ADMIN_PIN_HASH],
+            lastSeenAnnouncementsAt = prefs[Keys.LAST_SEEN_ANNOUNCEMENTS_AT] ?: 0L
         )
     }
 
@@ -81,6 +91,15 @@ class SettingsDataStore(private val context: Context) {
             prefs[Keys.REMINDER_HOURS_LEAD] = settings.reminderHoursBeforeLead
             prefs[Keys.SYNC_MODE] = settings.syncMode.name
             prefs[Keys.WORKSPACE_NAME] = settings.workspaceName
+            prefs[Keys.CHANGE_NOTIFICATIONS_ENABLED] = settings.changeNotificationsEnabled
+            prefs[Keys.NOTIFY_ONLY_MY_CLASSES] = settings.notifyOnlyMyClasses
+            prefs[Keys.SHOW_NEWS_POPUP_ON_OPEN] = settings.showNewsPopupOnOpen
+            if (settings.adminPinHash != null) {
+                prefs[Keys.ADMIN_PIN_HASH] = settings.adminPinHash
+            } else {
+                prefs.remove(Keys.ADMIN_PIN_HASH)
+            }
+            prefs[Keys.LAST_SEEN_ANNOUNCEMENTS_AT] = settings.lastSeenAnnouncementsAt
         }
     }
 

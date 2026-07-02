@@ -2,6 +2,7 @@ package com.escalachurch.app.ui.screens.calendar
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.escalachurch.app.data.repository.AnnouncementRepository
 import com.escalachurch.app.data.repository.CustomEventRepository
 import com.escalachurch.app.data.repository.DoxologyRepository
 import com.escalachurch.app.data.repository.ScaleRepository
@@ -17,14 +18,16 @@ import java.time.Year
 class CalendarViewModel(
     scaleRepository: ScaleRepository,
     doxologyRepository: DoxologyRepository,
-    customEventRepository: CustomEventRepository
+    customEventRepository: CustomEventRepository,
+    announcementRepository: AnnouncementRepository
 ) : ViewModel() {
 
     val entries: StateFlow<List<AgendaEntry>> = combine(
         scaleRepository.observeAll(),
         doxologyRepository.observeAll(),
-        customEventRepository.observeAll()
-    ) { scales, doxologies, events ->
+        customEventRepository.observeAll(),
+        announcementRepository.observeActive()
+    ) { scales, doxologies, events, announcements ->
         val holidays = (Year.now().value - 1..Year.now().value + 1)
             .flatMap { BrazilianHolidays.forYear(it) }
             .map { AgendaEntry.Holiday(it) }
@@ -32,6 +35,7 @@ class CalendarViewModel(
         (scales.map { AgendaEntry.Scale(it) } +
             doxologies.map { AgendaEntry.Doxology(it) } +
             events.map { AgendaEntry.Event(it) } +
+            announcements.filter { it.relatedEventDate != null }.map { AgendaEntry.AnnouncementEntry(it) } +
             holidays)
             .sortedWith(compareBy({ it.date }, { it.startTime }))
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

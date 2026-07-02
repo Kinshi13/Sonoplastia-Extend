@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.escalachurch.app.domain.model.ProgramType
 import com.escalachurch.app.domain.model.ScaleItem
+import com.escalachurch.app.domain.model.SourceType
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -22,6 +23,7 @@ data class ScaleEntity(
     val musicalMessagePerson: String,
     val notes: String,
     val isSpecialEvent: Boolean,
+    val sourceType: SourceType,
     val createdAt: Long,
     val updatedAt: Long
 )
@@ -40,6 +42,7 @@ fun ScaleEntity.toDomain() = ScaleItem(
     musicalMessagePerson = musicalMessagePerson,
     notes = notes,
     isSpecialEvent = isSpecialEvent,
+    sourceType = sourceType,
     createdAt = createdAt,
     updatedAt = updatedAt
 )
@@ -58,6 +61,7 @@ fun ScaleItem.toEntity() = ScaleEntity(
     musicalMessagePerson = musicalMessagePerson,
     notes = notes,
     isSpecialEvent = isSpecialEvent,
+    sourceType = sourceType,
     createdAt = createdAt,
     updatedAt = updatedAt
 )

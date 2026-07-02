@@ -5,6 +5,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.escalachurch.app.domain.model.DoxologyItem
 import com.escalachurch.app.domain.model.ProgramStep
+import com.escalachurch.app.domain.model.SourceType
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -15,6 +16,7 @@ data class DoxologyEntity(
     val startTime: LocalTime,
     val title: String,
     val notes: String,
+    val sourceType: SourceType,
     val createdAt: Long,
     val updatedAt: Long
 )
@@ -57,6 +59,7 @@ fun DoxologyEntity.toDomain(steps: List<ProgramStep>) = DoxologyItem(
     title = title,
     notes = notes,
     programOrder = steps.sortedBy { it.order },
+    sourceType = sourceType,
     createdAt = createdAt,
     updatedAt = updatedAt
 )
@@ -67,6 +70,7 @@ fun DoxologyItem.toEntity() = DoxologyEntity(
     startTime = startTime,
     title = title,
     notes = notes,
+    sourceType = sourceType,
     createdAt = createdAt,
     updatedAt = updatedAt
 )

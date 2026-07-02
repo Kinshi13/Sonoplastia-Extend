@@ -1,6 +1,7 @@
 package com.escalachurch.app.ui.screens.home
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,8 +9,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.EventNote
+import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.EventBusy
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,20 +26,36 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.escalachurch.app.di.appViewModel
 import com.escalachurch.app.domain.model.ScaleItem
 import com.escalachurch.app.ui.components.CardCarousel
+import com.escalachurch.app.ui.components.ChangeNewsDialog
 import com.escalachurch.app.ui.components.EmptyState
 import com.escalachurch.app.ui.components.PrimaryButton
 import com.escalachurch.app.ui.components.ScaleCard
 import com.escalachurch.app.ui.components.SecondaryButton
 
 @Composable
-fun HomeScreen() {
-    val viewModel = appViewModel { container -> HomeViewModel(container.scaleRepository) }
+fun HomeScreen(
+    onOpenGeneralScale: (java.time.LocalDate?) -> Unit = {},
+    onOpenAnnouncements: () -> Unit = {}
+) {
+    val viewModel = appViewModel { container ->
+        HomeViewModel(
+            container.scaleRepository,
+            container.generalScaleRepository,
+            container.userProfileRepository,
+            container.changeLogRepository,
+            container.adminSession,
+            container.settingsRepository
+        )
+    }
     val state by viewModel.uiState.collectAsState()
+    val pendingNews by viewModel.pendingNewsEntry.collectAsState()
 
     var editingTarget by remember { mutableStateOf<EditTarget?>(null) }
     var currentPage by remember { mutableIntStateOf(0) }
@@ -40,6 +63,7 @@ fun HomeScreen() {
     editingTarget?.let { target ->
         ScaleEditScreen(
             existing = target.item,
+            isAdmin = state.isAdmin,
             onSave = { item ->
                 viewModel.save(item)
                 editingTarget = null
@@ -51,7 +75,12 @@ fun HomeScreen() {
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
-        Text("Próxima Escala", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("Próxima Escala", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+            IconButton(onClick = onOpenAnnouncements) {
+                Icon(Icons.Filled.Campaign, contentDescription = "Anúncios", tint = MaterialTheme.colorScheme.primary)
+            }
+        }
         Spacer(Modifier.height(20.dp))
 
         if (state.scales.isEmpty()) {
@@ -73,14 +102,22 @@ fun HomeScreen() {
                     initialPage = state.startIndex ?: 0,
                     onPageChanged = { currentPage = it }
                 ) { scale ->
-                    ScaleCard(scale)
+                    ScaleCard(scale, highlightClasses = state.myClasses)
                 }
             }
 
             Spacer(Modifier.height(16.dp))
 
             val current: ScaleItem? = state.scales.getOrNull(currentPage)
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                IconButton(
+                    onClick = { onOpenGeneralScale(current?.date) },
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(CircleShape)
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.EventNote, contentDescription = "Escala Geral", tint = MaterialTheme.colorScheme.primary)
+                }
                 SecondaryButton(
                     text = "Editar",
                     modifier = Modifier.weight(1f),
@@ -94,6 +131,18 @@ fun HomeScreen() {
                 )
             }
         }
+    }
+
+    pendingNews?.let { entry ->
+        ChangeNewsDialog(
+            title = entry.title,
+            message = entry.message,
+            onViewScale = {
+                viewModel.dismissNews(markSeen = true)
+                onOpenGeneralScale(entry.relatedDateIso?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() })
+            },
+            onDismiss = { viewModel.dismissNews(markSeen = true) }
+        )
     }
 }
 

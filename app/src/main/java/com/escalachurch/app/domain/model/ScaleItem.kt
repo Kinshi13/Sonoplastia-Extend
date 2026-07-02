@@ -20,6 +20,8 @@ data class ScaleItem(
     val musicalMessagePerson: String = "",
     val notes: String = "",
     val isSpecialEvent: Boolean = false,
+    /** OFFICIAL scales come from Escala Geral and are admin-only; PERSONAL ones belong to a member. */
+    val sourceType: SourceType = SourceType.OFFICIAL,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 ) {
@@ -27,4 +29,13 @@ data class ScaleItem(
     fun hasAnyAssignment(): Boolean =
         listOf(receptionPerson, soundPerson, preachingPerson, conductingPerson, musicalMessagePerson)
             .any { it.isNotBlank() }
+
+    /** Which functions of this scale currently have someone assigned, per matching [UserClass]. */
+    fun assignedRolesByClass(): Map<UserClass, String> = buildMap {
+        if (soundPerson.isNotBlank()) put(UserClass.SONOPLASTA, soundPerson)
+        if (conductingPerson.isNotBlank()) put(UserClass.REGENTE, conductingPerson)
+        if (musicalMessagePerson.isNotBlank()) put(UserClass.CANTOR, musicalMessagePerson)
+        if (preachingPerson.isNotBlank()) put(UserClass.PREGADOR, preachingPerson)
+        if (receptionPerson.isNotBlank()) put(UserClass.RECEPCIONISTA, receptionPerson)
+    }
 }

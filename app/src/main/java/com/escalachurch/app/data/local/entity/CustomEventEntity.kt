@@ -5,6 +5,7 @@ import androidx.room.PrimaryKey
 import com.escalachurch.app.domain.model.CustomEvent
 import com.escalachurch.app.domain.model.ProgramType
 import com.escalachurch.app.domain.model.RepeatRule
+import com.escalachurch.app.domain.model.SourceType
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -19,6 +20,7 @@ data class CustomEventEntity(
     val eventType: ProgramType,
     val repeatRule: RepeatRule,
     val groupId: String?,
+    val sourceType: SourceType,
     val createdAt: Long,
     val updatedAt: Long
 )
@@ -33,6 +35,7 @@ fun CustomEventEntity.toDomain() = CustomEvent(
     eventType = eventType,
     repeatRule = repeatRule,
     groupId = groupId,
+    sourceType = sourceType,
     createdAt = createdAt,
     updatedAt = updatedAt
 )
@@ -47,6 +50,7 @@ fun CustomEvent.toEntity() = CustomEventEntity(
     eventType = eventType,
     repeatRule = repeatRule,
     groupId = groupId,
+    sourceType = sourceType,
     createdAt = createdAt,
     updatedAt = updatedAt
 )

@@ -11,6 +11,7 @@ data class DoxologyItem(
     val title: String,
     val notes: String = "",
     val programOrder: List<ProgramStep> = emptyList(),
+    val sourceType: SourceType = SourceType.OFFICIAL,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )

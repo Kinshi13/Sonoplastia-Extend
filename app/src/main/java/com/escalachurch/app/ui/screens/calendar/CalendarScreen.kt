@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import com.escalachurch.app.di.appViewModel
 import com.escalachurch.app.domain.model.AgendaEntry
 import com.escalachurch.app.ui.components.MonthCalendar
+import com.escalachurch.app.ui.components.SourceBadge
 import com.escalachurch.app.ui.components.dayOfWeekLabel
 import com.escalachurch.app.ui.components.toDisplayString
 import java.time.LocalDate
@@ -40,7 +41,7 @@ import java.time.YearMonth
 @Composable
 fun CalendarScreen() {
     val viewModel = appViewModel { container ->
-        CalendarViewModel(container.scaleRepository, container.doxologyRepository, container.customEventRepository)
+        CalendarViewModel(container.scaleRepository, container.doxologyRepository, container.customEventRepository, container.announcementRepository)
     }
     val entries by viewModel.entries.collectAsState()
 
@@ -48,7 +49,10 @@ fun CalendarScreen() {
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
 
     val markedDates = remember(entries) { entries.map { it.date }.toSet() }
-    val dayEntries = remember(entries, selectedDate) { entries.filter { it.date == selectedDate } }
+    val dayEntries = remember(entries, selectedDate) {
+        // Ordem pedida: Escalas, Doxologia, Eventos, Anúncios (feriados por último).
+        entries.filter { it.date == selectedDate }.sortedBy { entryCategoryRank(it) }
+    }
 
     Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
         Text("Calendário", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
@@ -97,7 +101,16 @@ private fun entryKey(entry: AgendaEntry): String = when (entry) {
     is AgendaEntry.Scale -> "scale-${entry.scale.id}"
     is AgendaEntry.Doxology -> "doxology-${entry.doxology.id}"
     is AgendaEntry.Event -> "event-${entry.event.id}"
+    is AgendaEntry.AnnouncementEntry -> "announcement-${entry.announcement.id}"
     is AgendaEntry.Holiday -> "holiday-${entry.holiday.name}-${entry.holiday.date}"
+}
+
+private fun entryCategoryRank(entry: AgendaEntry): Int = when (entry) {
+    is AgendaEntry.Scale -> 0
+    is AgendaEntry.Doxology -> 1
+    is AgendaEntry.Event -> 2
+    is AgendaEntry.AnnouncementEntry -> 3
+    is AgendaEntry.Holiday -> 4
 }
 
 @Composable
@@ -106,7 +119,14 @@ private fun AgendaEntryRow(entry: AgendaEntry) {
         is AgendaEntry.Scale -> "Escala" to MaterialTheme.colorScheme.primary
         is AgendaEntry.Doxology -> "Doxologia" to MaterialTheme.colorScheme.secondary
         is AgendaEntry.Event -> entry.event.eventType.label to MaterialTheme.colorScheme.tertiary
+        is AgendaEntry.AnnouncementEntry -> "Anúncio" to MaterialTheme.colorScheme.primary
         is AgendaEntry.Holiday -> "Feriado nacional" to MaterialTheme.colorScheme.error
+    }
+    val sourceType = when (entry) {
+        is AgendaEntry.Scale -> entry.scale.sourceType
+        is AgendaEntry.Doxology -> entry.doxology.sourceType
+        is AgendaEntry.Event -> entry.event.sourceType
+        else -> null
     }
 
     Card(
@@ -127,7 +147,10 @@ private fun AgendaEntryRow(entry: AgendaEntry) {
                 Text(entry.title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
                 Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (entry !is AgendaEntry.Holiday) {
+            if (sourceType != null) {
+                SourceBadge(sourceType, modifier = Modifier.padding(end = 8.dp))
+            }
+            if (entry !is AgendaEntry.Holiday && entry !is AgendaEntry.AnnouncementEntry) {
                 Text(
                     entry.startTime.toDisplayString(),
                     style = MaterialTheme.typography.bodyMedium,

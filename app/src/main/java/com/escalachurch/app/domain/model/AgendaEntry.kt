@@ -39,4 +39,10 @@ sealed class AgendaEntry {
         override val startTime: LocalTime = LocalTime.MIDNIGHT
         override val title get() = holiday.name
     }
+
+    data class AnnouncementEntry(val announcement: Announcement) : AgendaEntry() {
+        override val date get() = announcement.relatedEventDate ?: LocalDate.MIN
+        override val startTime: LocalTime = LocalTime.MIDNIGHT
+        override val title get() = announcement.title
+    }
 }

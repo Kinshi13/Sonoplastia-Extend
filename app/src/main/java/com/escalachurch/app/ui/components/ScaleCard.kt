@@ -1,5 +1,6 @@
 package com.escalachurch.app.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -25,17 +27,28 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.escalachurch.app.domain.model.ScaleItem
+import com.escalachurch.app.domain.model.SourceType
+import com.escalachurch.app.domain.model.UserClass
 import com.escalachurch.app.ui.theme.CardShape
 import com.escalachurch.app.ui.theme.SpecialGold
 
-/** Flash-card representation of a single [ScaleItem], used on the Início screen. */
+/**
+ * Flash-card representation of a single [ScaleItem], used on the Início screen.
+ *
+ * [highlightClasses] softly highlights the role rows that match the viewer's selected
+ * [UserClass]es (e.g. a Sonoplasta sees the Sonoplastia row stand out), and [recentlyUpdated]
+ * shows a small "atualizado" indicator when this scale has an unseen change-log entry.
+ */
 @Composable
 fun ScaleCard(
     scale: ScaleItem,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    highlightClasses: Set<UserClass> = emptySet(),
+    recentlyUpdated: Boolean = false
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -49,9 +62,16 @@ fun ScaleCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Próxima Escala", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-                if (scale.isSpecialEvent) {
-                    SpecialBadge()
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Próxima Escala", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                    if (recentlyUpdated) {
+                        Spacer(Modifier.width(6.dp))
+                        UpdatedDot()
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    SourceBadge(scale.sourceType)
+                    if (scale.isSpecialEvent) SpecialBadge()
                 }
             }
 
@@ -77,11 +97,11 @@ fun ScaleCard(
 
             Spacer(Modifier.height(20.dp))
 
-            RoleRow(Icons.Filled.Groups, "Recepção", scale.receptionPerson)
-            RoleRow(Icons.Filled.Speaker, "Sonoplastia", scale.soundPerson)
-            RoleRow(Icons.Filled.RecordVoiceOver, "Pregação", scale.preachingPerson)
-            RoleRow(Icons.Filled.Church, "Regência", scale.conductingPerson)
-            RoleRow(Icons.Filled.MusicNote, "Mensagem musical", scale.musicalMessagePerson)
+            RoleRow(Icons.Filled.Groups, "Recepção", scale.receptionPerson, UserClass.RECEPCIONISTA in highlightClasses)
+            RoleRow(Icons.Filled.Speaker, "Sonoplastia", scale.soundPerson, UserClass.SONOPLASTA in highlightClasses)
+            RoleRow(Icons.Filled.RecordVoiceOver, "Pregação", scale.preachingPerson, UserClass.PREGADOR in highlightClasses)
+            RoleRow(Icons.Filled.Church, "Regência", scale.conductingPerson, UserClass.REGENTE in highlightClasses)
+            RoleRow(Icons.Filled.MusicNote, "Mensagem musical", scale.musicalMessagePerson, UserClass.CANTOR in highlightClasses)
 
             if (scale.notes.isNotBlank()) {
                 Spacer(Modifier.height(16.dp))
@@ -94,11 +114,34 @@ fun ScaleCard(
 }
 
 @Composable
-private fun RoleRow(icon: ImageVector, label: String, person: String) {
+private fun UpdatedDot() {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        androidx.compose.foundation.layout.Box(
+            modifier = Modifier
+                .height(6.dp)
+                .width(6.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.error)
+        )
+        Spacer(Modifier.width(4.dp))
+        Text("Atualizado", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+    }
+}
+
+@Composable
+private fun RoleRow(icon: ImageVector, label: String, person: String, highlighted: Boolean = false) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp),
+            .padding(vertical = 6.dp)
+            .let {
+                if (highlighted) {
+                    it
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                } else it
+            },
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.height(20.dp))

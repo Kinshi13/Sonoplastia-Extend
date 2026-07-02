@@ -6,13 +6,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.escalachurch.app.ui.components.EscalaBottomNavBar
+import com.escalachurch.app.ui.screens.announcements.AnnouncementsScreen
 import com.escalachurch.app.ui.screens.calendar.CalendarScreen
 import com.escalachurch.app.ui.screens.doxology.DoxologyScreen
+import com.escalachurch.app.ui.screens.generalscale.GeneralScaleScreen
 import com.escalachurch.app.ui.screens.home.HomeScreen
 import com.escalachurch.app.ui.screens.program.ProgramScreen
 import com.escalachurch.app.ui.screens.settings.SettingsScreen
@@ -31,18 +35,23 @@ fun EscalaChurchNavGraph() {
         else -> AppDestination.Home
     }
 
+    val isSecondaryScreen = currentRoute == SecondaryDestination.GENERAL_SCALE_ROUTE ||
+        currentRoute == SecondaryDestination.ANNOUNCEMENTS_ROUTE
+
     Scaffold(
         bottomBar = {
-            EscalaBottomNavBar(
-                currentDestination = currentDestination,
-                onNavigate = { destination ->
-                    navController.navigate(destination.route) {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
+            if (!isSecondaryScreen) {
+                EscalaBottomNavBar(
+                    currentDestination = currentDestination,
+                    onNavigate = { destination ->
+                        navController.navigate(destination.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
-                }
-            )
+                )
+            }
         }
     ) { padding ->
         NavHost(
@@ -50,11 +59,37 @@ fun EscalaChurchNavGraph() {
             startDestination = AppDestination.Home.route,
             modifier = Modifier.padding(padding)
         ) {
-            composable(AppDestination.Home.route) { HomeScreen() }
+            composable(AppDestination.Home.route) {
+                HomeScreen(
+                    onOpenGeneralScale = { date -> navController.navigate(SecondaryDestination.generalScaleRoute(date)) },
+                    onOpenAnnouncements = { navController.navigate(SecondaryDestination.ANNOUNCEMENTS_ROUTE) }
+                )
+            }
             composable(AppDestination.Doxology.route) { DoxologyScreen() }
             composable(AppDestination.Program.route) { ProgramScreen() }
             composable(AppDestination.Calendar.route) { CalendarScreen() }
-            composable(AppDestination.Settings.route) { SettingsScreen() }
+            composable(AppDestination.Settings.route) {
+                SettingsScreen(
+                    onOpenGeneralScale = { navController.navigate(SecondaryDestination.generalScaleRoute(null)) },
+                    onOpenAnnouncements = { navController.navigate(SecondaryDestination.ANNOUNCEMENTS_ROUTE) }
+                )
+            }
+            composable(
+                SecondaryDestination.GENERAL_SCALE_ROUTE,
+                arguments = listOf(navArgument("date") { type = NavType.StringType; defaultValue = "" })
+            ) { entry ->
+                val dateArg = entry.arguments?.getString("date").orEmpty()
+                GeneralScaleScreen(
+                    initialDate = dateArg.takeIf { it.isNotBlank() }?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(SecondaryDestination.ANNOUNCEMENTS_ROUTE) {
+                AnnouncementsScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenCalendarDate = { navController.navigate(AppDestination.Calendar.route) }
+                )
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.escalachurch.app.ui.screens.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -9,10 +10,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.EventNote
+import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -22,20 +32,37 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.escalachurch.app.di.appViewModel
-import com.escalachurch.app.ui.components.AppTextField
-import com.escalachurch.app.ui.components.SecondaryButton
 import com.escalachurch.app.domain.model.AppFont
 import com.escalachurch.app.domain.model.FontSizeOption
 import com.escalachurch.app.domain.model.ThemeMode
+import com.escalachurch.app.ui.components.AdminPinDialog
+import com.escalachurch.app.ui.components.AppTextField
+import com.escalachurch.app.ui.components.SecondaryButton
+import com.escalachurch.app.ui.components.UserClassChips
+import kotlinx.coroutines.launch
 
 @Composable
-fun SettingsScreen() {
-    val viewModel = appViewModel { container -> SettingsViewModel(container.settingsRepository) }
+fun SettingsScreen(
+    onOpenGeneralScale: () -> Unit = {},
+    onOpenAnnouncements: () -> Unit = {}
+) {
+    val viewModel = appViewModel { container ->
+        SettingsViewModel(container.settingsRepository, container.userProfileRepository, container.adminSession)
+    }
     val settings by viewModel.settings.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
+    val scope = rememberCoroutineScopeCompat()
+
+    var showPinDialog by remember { mutableStateOf(false) }
+    var pinDialogIsSetup by remember { mutableStateOf(false) }
+    var pinError by remember { mutableStateOf<String?>(null) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(20.dp),
@@ -44,6 +71,105 @@ fun SettingsScreen() {
     ) {
         item {
             Text("Configurações", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+        }
+
+        item {
+            SettingsSection(title = "Classe de usuário") {
+                Text(
+                    "Selecione suas funções na igreja para receber destaques e avisos quando a escala mudar.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(10.dp))
+                UserClassChips(selected = uiState.profile.selectedClasses, onToggle = { viewModel.toggleClass(it) })
+                if (uiState.profile.selectedClasses.isEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Você ainda não selecionou suas classes.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        item {
+            SettingsSection(title = "Escala e Anúncios") {
+                NavRow(icon = Icons.AutoMirrored.Filled.EventNote, label = "Escala geral", onClick = onOpenGeneralScale)
+                NavRow(icon = Icons.Filled.Campaign, label = "Anúncios", onClick = onOpenAnnouncements)
+            }
+        }
+
+        item {
+            SettingsSection(title = "Notificações de alterações") {
+                SwitchRow("Ativar notificações de alterações", settings.changeNotificationsEnabled) { checked ->
+                    viewModel.update { it.copy(changeNotificationsEnabled = checked) }
+                }
+                if (settings.changeNotificationsEnabled) {
+                    Text(
+                        "Escopo",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = settings.notifyOnlyMyClasses,
+                            onClick = { viewModel.update { it.copy(notifyOnlyMyClasses = true) } },
+                            label = { Text("Só das minhas classes") }
+                        )
+                        FilterChip(
+                            selected = !settings.notifyOnlyMyClasses,
+                            onClick = { viewModel.update { it.copy(notifyOnlyMyClasses = false) } },
+                            label = { Text("Todas as alterações") }
+                        )
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+                SwitchRow("Mostrar pop-up de novidades ao abrir o app", settings.showNewsPopupOnOpen) { checked ->
+                    viewModel.update { it.copy(showNewsPopupOnOpen = checked) }
+                }
+            }
+        }
+
+        item {
+            SettingsSection(title = "Modo administrador") {
+                Text(
+                    "Protege a edição de escalas oficiais, doxologia e anúncios com um PIN local neste aparelho. " +
+                        "Solução temporária de MVP - autenticação real será adicionada futuramente.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(10.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        if (uiState.isAdmin) Icons.Filled.LockOpen else Icons.Filled.Lock,
+                        contentDescription = null,
+                        tint = if (uiState.isAdmin) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.height(18.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        if (uiState.isAdmin) "Modo administrador ativo" else "Modo administrador inativo",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                if (uiState.isAdmin) {
+                    SecondaryButton(text = "Sair do modo administrador", onClick = { scope.launch { viewModel.adminSession.lock() } })
+                } else {
+                    SecondaryButton(
+                        text = "Entrar no modo administrador",
+                        onClick = {
+                            scope.launch {
+                                pinDialogIsSetup = !viewModel.adminSession.hasPinConfigured()
+                                pinError = null
+                                showPinDialog = true
+                            }
+                        }
+                    )
+                }
+            }
         }
 
         item {
@@ -166,6 +292,52 @@ fun SettingsScreen() {
                 }
             }
         }
+    }
+
+    if (showPinDialog) {
+        AdminPinDialog(
+            isSettingNewPin = pinDialogIsSetup,
+            errorMessage = pinError,
+            onConfirm = { pin ->
+                scope.launch {
+                    if (pinDialogIsSetup) {
+                        viewModel.adminSession.setPin(pin)
+                        viewModel.adminSession.unlock(pin)
+                        showPinDialog = false
+                    } else {
+                        val ok = viewModel.adminSession.unlock(pin)
+                        if (ok) {
+                            showPinDialog = false
+                        } else {
+                            pinError = "PIN incorreto"
+                        }
+                    }
+                }
+            },
+            onDismiss = { showPinDialog = false }
+        )
+    }
+}
+
+@Composable
+private fun rememberCoroutineScopeCompat() = androidx.compose.runtime.rememberCoroutineScope()
+
+@Composable
+private fun NavRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.height(20.dp))
+            Spacer(Modifier.width(12.dp))
+            Text(label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+        }
+        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
