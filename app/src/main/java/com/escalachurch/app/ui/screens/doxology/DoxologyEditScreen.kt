@@ -38,18 +38,31 @@ import com.escalachurch.app.domain.model.ProgramStep
 import com.escalachurch.app.ui.components.AppTextField
 import com.escalachurch.app.ui.components.ConfirmDialog
 import com.escalachurch.app.ui.components.DatePickerField
+import com.escalachurch.app.ui.components.DoxologyCard
 import com.escalachurch.app.ui.components.PrimaryButton
 import com.escalachurch.app.ui.components.SecondaryButton
 import com.escalachurch.app.ui.components.TimePickerField
 
+/**
+ * Create/edit form for a [DoxologyItem]. All doxologies are official (admin-managed) today, so
+ * [isAdmin] is a hard gate: a non-admin caller only ever gets a read-only preview, never the
+ * form - this mirrors ScaleEditScreen's guarantee that members can't edit official data, even
+ * if a future navigation path reaches this screen directly.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DoxologyEditScreen(
     existing: DoxologyItem?,
+    isAdmin: Boolean,
     onSave: (DoxologyItem) -> Unit,
     onDelete: (() -> Unit)?,
     onBack: () -> Unit
 ) {
+    if (!isAdmin) {
+        ReadOnlyOfficialDoxology(existing, onBack)
+        return
+    }
+
     var title by remember { mutableStateOf(existing?.title ?: "Ordem do Culto") }
     var date by remember { mutableStateOf(existing?.date) }
     var startTime by remember { mutableStateOf(existing?.startTime) }
@@ -165,6 +178,7 @@ fun DoxologyEditScreen(
                             title = title,
                             notes = notes,
                             programOrder = steps.mapIndexed { i, s -> s.copy(order = i + 1) },
+                            sourceType = com.escalachurch.app.domain.model.SourceType.OFFICIAL,
                             createdAt = existing?.createdAt ?: System.currentTimeMillis()
                         )
                     )
@@ -184,6 +198,33 @@ fun DoxologyEditScreen(
             onConfirm = { showDeleteConfirm = false; onDelete() },
             onDismiss = { showDeleteConfirm = false }
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReadOnlyOfficialDoxology(doxology: DoxologyItem?, onBack: () -> Unit) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Doxologia oficial") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar") }
+                }
+            )
+        }
+    ) { padding ->
+        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(20.dp)) {
+            Text(
+                "Apenas administradores podem criar ou editar a doxologia oficial. Entre em \"Modo administrador\" nas Configurações para alterar.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (doxology != null) {
+                Spacer(Modifier.height(16.dp))
+                DoxologyCard(doxology)
+            }
+        }
     }
 }
 

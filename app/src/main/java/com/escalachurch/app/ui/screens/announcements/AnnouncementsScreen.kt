@@ -53,6 +53,7 @@ fun AnnouncementsScreen(
     if (isEditing) {
         AnnouncementEditScreen(
             existing = editingTarget?.item,
+            isAdmin = state.isAdmin,
             onSave = { viewModel.save(it); isEditing = false },
             onDelete = editingTarget?.item?.let { item -> { viewModel.delete(item); isEditing = false } },
             onBack = { isEditing = false }

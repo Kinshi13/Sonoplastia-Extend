@@ -17,7 +17,16 @@ import com.escalachurch.app.domain.model.ChangeLogEntry
 
 private const val CHANNEL_ID = "escala_changes"
 
-/** Fires a local notification right when an admin saves a change relevant to the user's classes. */
+/**
+ * Fires a local notification right when an admin saves a change relevant to the user's classes.
+ *
+ * TODO(push): this only works because the change and the notification happen on the same
+ * device (admin edits -> ChangeLogRepository.record -> this fires immediately). Once other
+ * members are on separate devices/accounts, replace this on-device trigger with Firebase Cloud
+ * Messaging (or an equivalent push service): the backend would create the ChangeLogEntry and
+ * send a push per affected class/device, and this object would just render whatever payload
+ * arrives instead of being called synchronously from the save path.
+ */
 object ChangeNotifier {
 
     fun ensureChannel(context: Context) {

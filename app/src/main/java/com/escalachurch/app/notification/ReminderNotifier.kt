@@ -16,7 +16,14 @@ import com.escalachurch.app.domain.util.ScaleMatch
 
 private const val CHANNEL_ID = "escala_reminders"
 
-/** Creates the notification channel and shows "you're on the scale" reminders. */
+/**
+ * Creates the notification channel and shows "you're on the scale" reminders.
+ *
+ * TODO(push): reminders are computed locally today by [com.escalachurch.app.notification.ReminderWorker]
+ * polling the local database. Once a backend exists, consider moving the scheduling server-side
+ * (e.g. a scheduled Cloud Function) and delivering via Firebase Cloud Messaging, so reminders
+ * keep firing even if the app isn't opened for a while and battery-saver doesn't delay WorkManager.
+ */
 object ReminderNotifier {
 
     fun ensureChannel(context: Context) {

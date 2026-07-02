@@ -11,6 +11,7 @@ import com.escalachurch.app.security.AdminSession
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -48,7 +49,9 @@ class SettingsViewModel(
 
     fun toggleClass(userClass: UserClass) {
         viewModelScope.launch {
-            val current = uiState.value.profile.selectedClasses
+            // Read fresh from the store (not the cached uiState) so two quick taps never race
+            // and silently drop a selection.
+            val current = userProfileRepository.profileFlow.first().selectedClasses
             val updated = if (userClass in current) current - userClass else current + userClass
             userProfileRepository.updateClasses(updated)
         }

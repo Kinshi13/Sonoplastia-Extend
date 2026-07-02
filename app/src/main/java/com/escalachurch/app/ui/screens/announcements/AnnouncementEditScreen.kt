@@ -40,14 +40,26 @@ import com.escalachurch.app.ui.components.PrimaryButton
 import com.escalachurch.app.ui.components.SecondaryButton
 import com.escalachurch.app.ui.components.UserClassChips
 
+/**
+ * Create/edit form for an [Announcement]. All announcements are official (admin-only per spec),
+ * so [isAdmin] is a hard gate - a non-admin caller is bounced straight back, even if a future
+ * navigation path reaches this screen directly (today AnnouncementsScreen already only offers
+ * this screen to admins, but this keeps the guarantee at the source, not just at the call site).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AnnouncementEditScreen(
     existing: Announcement?,
+    isAdmin: Boolean,
     onSave: (Announcement) -> Unit,
     onDelete: (() -> Unit)?,
     onBack: () -> Unit
 ) {
+    if (!isAdmin) {
+        androidx.compose.runtime.LaunchedEffect(Unit) { onBack() }
+        return
+    }
+
     var title by remember { mutableStateOf(existing?.title ?: "") }
     var description by remember { mutableStateOf(existing?.description ?: "") }
     var mediaType by remember { mutableStateOf(existing?.mediaType ?: MediaType.NONE) }
@@ -59,14 +71,18 @@ fun AnnouncementEditScreen(
     var showTitleError by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
+            persistReadPermission(context, uri)
             mediaType = MediaType.IMAGE
             mediaUrl = uri.toString()
         }
     }
     val videoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
+            persistReadPermission(context, uri)
             mediaType = MediaType.VIDEO
             mediaUrl = uri.toString()
         }
@@ -169,5 +185,20 @@ fun AnnouncementEditScreen(
             onConfirm = { showDeleteConfirm = false; onDelete() },
             onDismiss = { showDeleteConfirm = false }
         )
+    }
+}
+
+/**
+ * Without this, the read grant for a picked image/video URI only lasts for the current process -
+ * the media would silently break (fail to load) the next time the app is opened. Not every
+ * content provider supports persistable grants, so failures here are safe to ignore.
+ *
+ * TODO(storage): once Firebase Storage / Supabase Storage is wired up, uploads should happen
+ * right after picking and mediaUrl should store the resulting remote download URL instead of a
+ * local content URI - this whole permission concern goes away at that point.
+ */
+private fun persistReadPermission(context: android.content.Context, uri: android.net.Uri) {
+    runCatching {
+        context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
 }

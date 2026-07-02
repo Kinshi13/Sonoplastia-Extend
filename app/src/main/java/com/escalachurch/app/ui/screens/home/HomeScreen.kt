@@ -87,10 +87,16 @@ fun HomeScreen(
             EmptyState(
                 icon = Icons.Filled.EventBusy,
                 title = "Nenhuma escala futura cadastrada",
-                message = "Adicione a primeira escala para começar a organizar a programação da igreja.",
+                message = if (state.isAdmin) {
+                    "Adicione a primeira escala para começar a organizar a programação da igreja."
+                } else {
+                    "Fale com um administrador para cadastrar a escala, ou crie uma programação pessoal em \"Programar\"."
+                },
                 modifier = Modifier.weight(1f)
             ) {
-                PrimaryButton(text = "Adicionar escala", onClick = { editingTarget = EditTarget(null) })
+                if (state.isAdmin) {
+                    PrimaryButton(text = "Adicionar escala", onClick = { editingTarget = EditTarget(null) })
+                }
             }
         } else {
             Column(
@@ -119,16 +125,18 @@ fun HomeScreen(
                     Icon(Icons.AutoMirrored.Filled.EventNote, contentDescription = "Escala Geral", tint = MaterialTheme.colorScheme.primary)
                 }
                 SecondaryButton(
-                    text = "Editar",
+                    text = if (state.isAdmin) "Editar" else "Ver detalhes",
                     modifier = Modifier.weight(1f),
                     enabled = current != null,
                     onClick = { current?.let { editingTarget = EditTarget(it) } }
                 )
-                PrimaryButton(
-                    text = "Adicionar escala",
-                    modifier = Modifier.weight(1f),
-                    onClick = { editingTarget = EditTarget(null) }
-                )
+                if (state.isAdmin) {
+                    PrimaryButton(
+                        text = "Adicionar escala",
+                        modifier = Modifier.weight(1f),
+                        onClick = { editingTarget = EditTarget(null) }
+                    )
+                }
             }
         }
     }

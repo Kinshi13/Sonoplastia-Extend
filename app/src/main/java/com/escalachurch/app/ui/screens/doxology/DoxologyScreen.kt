@@ -40,6 +40,7 @@ fun DoxologyScreen() {
     editingTarget?.let { target ->
         DoxologyEditScreen(
             existing = target.item,
+            isAdmin = state.isAdmin,
             onSave = { item -> viewModel.save(item); editingTarget = null },
             onDelete = target.item?.let { item -> { viewModel.delete(item); editingTarget = null } },
             onBack = { editingTarget = null }

@@ -1,19 +1,27 @@
 package com.escalachurch.app.ui.components
 
+import android.net.Uri
+import android.widget.VideoView
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -22,11 +30,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
 import com.escalachurch.app.domain.model.Announcement
 import com.escalachurch.app.domain.model.MediaType
@@ -117,28 +130,74 @@ fun AnnouncementCard(
     }
 }
 
+/** Images always render at a fixed 4:3 ratio; videos get their own player so the layout never breaks. */
 @Composable
 private fun MediaPreview(announcement: Announcement) {
-    androidx.compose.foundation.layout.Box(
+    val mediaUrl = announcement.mediaUrl ?: return
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(4f / 3f)
             .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
     ) {
-        AsyncImage(
-            model = announcement.mediaUrl,
-            contentDescription = announcement.title,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxWidth().aspectRatio(4f / 3f)
+        when (announcement.mediaType) {
+            MediaType.IMAGE -> AsyncImage(
+                model = mediaUrl,
+                contentDescription = announcement.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            MediaType.VIDEO -> androidx.compose.runtime.key(mediaUrl) { VideoPreview(mediaUrl) }
+            MediaType.NONE -> Unit
+        }
+    }
+}
+
+/**
+ * Minimal video player for the 4:3 media slot: never autoplays (and never with sound until the
+ * viewer explicitly taps play), shows the first frame as a still, and offers a simple play/pause
+ * toggle - matching "controles básicos de play/pause" and "evitar autoplay com som".
+ */
+@Composable
+private fun VideoPreview(uri: String) {
+    var isPlaying by remember(uri) { mutableStateOf(false) }
+    var videoView by remember(uri) { mutableStateOf<VideoView?>(null) }
+
+    Box(modifier = Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black)) {
+        AndroidView(
+            factory = { context ->
+                VideoView(context).apply {
+                    setVideoURI(Uri.parse(uri))
+                    setOnPreparedListener { player ->
+                        player.isLooping = false
+                        // Show the first frame as a still without starting playback (no autoplay).
+                        seekTo(1)
+                    }
+                    setOnCompletionListener { isPlaying = false }
+                    videoView = this
+                }
+            },
+            onRelease = { it.stopPlayback() },
+            modifier = Modifier.fillMaxSize()
         )
-        if (announcement.mediaType == MediaType.VIDEO) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .size(56.dp)
+                .clip(CircleShape)
+                .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.45f))
+                .clickable {
+                    val view = videoView ?: return@clickable
+                    if (isPlaying) view.pause() else view.start()
+                    isPlaying = !isPlaying
+                },
+            contentAlignment = Alignment.Center
+        ) {
             Icon(
-                Icons.Filled.PlayCircle,
-                contentDescription = "Reproduzir vídeo",
+                if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                contentDescription = if (isPlaying) "Pausar vídeo" else "Reproduzir vídeo",
                 tint = androidx.compose.ui.graphics.Color.White,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .height(56.dp)
+                modifier = Modifier.height(32.dp)
             )
         }
     }

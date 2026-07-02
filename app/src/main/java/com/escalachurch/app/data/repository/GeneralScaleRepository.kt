@@ -35,18 +35,21 @@ class GeneralScaleRepository(
     suspend fun saveOfficial(item: ScaleItem) {
         val before = if (item.id != 0L) scaleRepository.getById(item.id) else null
         val toSave = item.copy(sourceType = SourceType.OFFICIAL)
-        scaleRepository.save(toSave)
+        // Room's upsert returns the generated id for new rows (item.id was 0) - without capturing
+        // it, a newly-created scale's ChangeLogEntry would be recorded with entityId = 0.
+        val savedId = scaleRepository.save(toSave)
+        val saved = toSave.copy(id = savedId)
 
-        val affected = ChangeDetector.affectedClasses(before, toSave)
+        val affected = ChangeDetector.affectedClasses(before, saved)
         if (affected.isEmpty()) return
 
         val entry = ChangeLogEntry(
             entityType = ChangeLogEntityType.SCALE,
-            entityId = toSave.id,
+            entityId = saved.id,
             affectedClasses = affected,
             title = "Nova alteração na sua escala",
-            message = ChangeDetector.summaryMessage(toSave, affected),
-            relatedDateIso = toSave.date.toString()
+            message = ChangeDetector.summaryMessage(saved, affected),
+            relatedDateIso = saved.date.toString()
         )
         val id = changeLogRepository.record(entry)
 
