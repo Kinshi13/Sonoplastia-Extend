@@ -64,7 +64,10 @@ fun HomeScreen() {
                 PrimaryButton(text = "Adicionar escala", onClick = { editingTarget = EditTarget(null) })
             }
         } else {
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                verticalArrangement = Arrangement.Center
+            ) {
                 CardCarousel(
                     items = state.scales,
                     initialPage = state.startIndex ?: 0,

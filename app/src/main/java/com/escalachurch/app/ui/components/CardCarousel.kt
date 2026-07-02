@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,6 +27,10 @@ import androidx.compose.ui.unit.dp
  * Doxologia screens: swiping right moves to future items, swiping left goes
  * back to past ones. [initialPage] should already point at the resolved
  * "next item" index so the very first frame shows the right card.
+ *
+ * [sidePadding] insets the pager from the screen edges so the card's rounded
+ * corners and shadow always have breathing room and are never clipped by the
+ * viewport - without it, a full-bleed page reads as "cut off" at the sides.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -33,6 +38,7 @@ fun <T> CardCarousel(
     items: List<T>,
     initialPage: Int,
     modifier: Modifier = Modifier,
+    sidePadding: androidx.compose.ui.unit.Dp = 10.dp,
     onPageChanged: (Int) -> Unit = {},
     pageContent: @Composable (T) -> Unit
 ) {
@@ -48,6 +54,7 @@ fun <T> CardCarousel(
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = sidePadding),
             pageSpacing = 16.dp
         ) { page ->
             pageContent(items[page])

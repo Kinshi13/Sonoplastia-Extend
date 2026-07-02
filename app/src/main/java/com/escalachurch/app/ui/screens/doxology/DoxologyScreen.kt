@@ -61,7 +61,10 @@ fun DoxologyScreen() {
                 PrimaryButton(text = "Adicionar doxologia", onClick = { editingTarget = DoxologyEditTarget(null) })
             }
         } else {
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                verticalArrangement = Arrangement.Center
+            ) {
                 CardCarousel(
                     items = state.items,
                     initialPage = state.startIndex ?: 0,
