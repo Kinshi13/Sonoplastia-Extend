@@ -133,6 +133,15 @@ create policy "shared_files: admin write" on shared_files for insert
 create policy "shared_files: admin delete" on shared_files for delete
   using (exists (select 1 from profiles where id = auth.uid() and is_admin));
 
+-- Grants: RLS policies above only control *which rows* a role can see/touch - Postgres also
+-- requires the role to be granted the privilege to attempt the operation on the table at all.
+-- Without these, PostgREST returns "permission denied for table X" even though the RLS policies
+-- are otherwise satisfied.
+grant usage on schema public to anon, authenticated;
+grant select on public.scales, public.doxologies, public.announcements, public.shared_files to anon, authenticated;
+grant insert, update, delete on public.scales, public.doxologies, public.announcements, public.shared_files to authenticated;
+grant select, insert on public.profiles to authenticated;
+
 -- Realtime: let clients subscribe to live changes on these tables.
 alter publication supabase_realtime add table scales, doxologies, announcements, shared_files;
 
