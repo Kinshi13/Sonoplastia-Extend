@@ -1,5 +1,6 @@
-import Link from "next/link";
+import { Calendar, BookOpen, Megaphone, FolderOpen } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { CardLink } from "@/components/Card";
 
 export const revalidate = 0;
 
@@ -13,10 +14,10 @@ export default async function AdminDashboardPage() {
     ]);
 
   const cards = [
-    { href: "/admin/escalas", label: "Escalas", count: scalesCount ?? 0 },
-    { href: "/admin/doxologia", label: "Doxologia", count: doxologiesCount ?? 0 },
-    { href: "/admin/anuncios", label: "Anúncios", count: announcementsCount ?? 0 },
-    { href: "/admin/sonoplastia", label: "Arquivos (Sonoplastia)", count: null },
+    { href: "/admin/escalas", label: "Escalas", count: scalesCount ?? 0, icon: Calendar },
+    { href: "/admin/doxologia", label: "Doxologia", count: doxologiesCount ?? 0, icon: BookOpen },
+    { href: "/admin/anuncios", label: "Anúncios", count: announcementsCount ?? 0, icon: Megaphone },
+    { href: "/admin/sonoplastia", label: "Arquivos (Sonoplastia)", count: null, icon: FolderOpen },
   ];
 
   return (
@@ -24,14 +25,15 @@ export default async function AdminDashboardPage() {
       <h1 className="text-2xl font-semibold mb-6">Painel administrativo</h1>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {cards.map((card) => (
-          <Link
-            key={card.href}
-            href={card.href}
-            className="rounded-2xl bg-surface p-5 shadow-sm border border-divider hover:border-primary transition-colors"
-          >
-            <p className="text-sm text-text-secondary">{card.label}</p>
-            {card.count !== null && <p className="text-3xl font-semibold mt-1">{card.count}</p>}
-          </Link>
+          <CardLink key={card.href} href={card.href} className="p-5 flex items-center gap-4">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-container text-on-primary-container">
+              <card.icon size={20} />
+            </span>
+            <div>
+              <p className="text-sm text-text-secondary">{card.label}</p>
+              {card.count !== null && <p className="text-2xl font-semibold mt-0.5">{card.count}</p>}
+            </div>
+          </CardLink>
         ))}
       </div>
     </div>

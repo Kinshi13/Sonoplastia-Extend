@@ -1,7 +1,10 @@
 import Link from "next/link";
+import { Calendar, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Doxology } from "@/lib/types/database";
 import { formatDatePt, formatTimePt } from "@/lib/format";
+import { Card } from "@/components/Card";
+import { EmptyState } from "@/components/EmptyState";
 import { DeleteButton } from "../DeleteButton";
 import { deleteDoxologyAction } from "../actions";
 
@@ -18,34 +21,38 @@ export default async function AdminDoxologiaPage() {
         <h1 className="text-2xl font-semibold">Doxologia</h1>
         <Link
           href="/admin/doxologia/nova"
-          className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-white"
+          className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-white"
         >
-          Nova doxologia
+          <Plus size={16} /> Nova doxologia
         </Link>
       </div>
 
-      <div className="flex flex-col gap-3">
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className="flex items-center justify-between gap-3 rounded-xl bg-surface p-4 border border-divider"
-          >
-            <div>
-              <p className="font-medium">{item.title}</p>
-              <p className="text-sm text-text-secondary capitalize">
-                {formatDatePt(item.date)} às {formatTimePt(item.start_time)}
-              </p>
-            </div>
-            <div className="flex items-center gap-3 shrink-0">
-              <Link href={`/admin/doxologia/${item.id}`} className="text-sm text-primary">
-                Editar
-              </Link>
-              <DeleteButton id={item.id} action={deleteDoxologyAction} />
-            </div>
-          </div>
-        ))}
-        {items.length === 0 && <p className="text-text-secondary">Nenhuma doxologia cadastrada.</p>}
-      </div>
+      {items.length === 0 ? (
+        <EmptyState message="Nenhuma doxologia cadastrada." />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {items.map((item) => (
+            <Card
+              key={item.id}
+              className="p-5 flex flex-col gap-3 hover:shadow-md hover:-translate-y-0.5"
+            >
+              <div>
+                <p className="font-semibold leading-tight">{item.title}</p>
+                <p className="mt-1 flex items-center gap-1.5 text-sm text-text-secondary capitalize">
+                  <Calendar size={14} className="shrink-0" />
+                  {formatDatePt(item.date)} às {formatTimePt(item.start_time)}
+                </p>
+              </div>
+              <div className="mt-auto flex items-center justify-between gap-3 border-t border-divider pt-3">
+                <Link href={`/admin/doxologia/${item.id}`} className="text-sm font-medium text-primary">
+                  Editar
+                </Link>
+                <DeleteButton id={item.id} action={deleteDoxologyAction} />
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

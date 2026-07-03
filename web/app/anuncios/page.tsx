@@ -1,6 +1,9 @@
+import { Pin } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Announcement } from "@/lib/types/database";
 import { formatPublishedAt } from "@/lib/format";
+import { Card } from "@/components/Card";
+import { EmptyState } from "@/components/EmptyState";
 
 export const revalidate = 0;
 
@@ -17,11 +20,14 @@ export default async function AnunciosPage() {
   });
 
   return (
-    <div className="flex flex-col gap-5">
-      <h1 className="text-2xl font-semibold">Anúncios</h1>
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Anúncios</h1>
+        <p className="mt-1 text-sm text-text-secondary">Novidades e avisos da igreja.</p>
+      </div>
 
       {items.length === 0 ? (
-        <p className="text-text-secondary">Nenhum anúncio publicado ainda.</p>
+        <EmptyState message="Nenhum anúncio publicado ainda." />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {items.map((announcement) => (
@@ -37,7 +43,7 @@ function AnnouncementCard({ announcement }: { announcement: Announcement }) {
   const hasMedia = !!announcement.media_url;
 
   return (
-    <div className="overflow-hidden rounded-2xl bg-surface shadow-sm border border-divider flex flex-col">
+    <Card className="overflow-hidden flex flex-col hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
       {hasMedia && announcement.media_type === "IMAGE" && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -52,16 +58,18 @@ function AnnouncementCard({ announcement }: { announcement: Announcement }) {
 
       <div className="p-5 flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="font-semibold">{announcement.title}</h2>
+          <h2 className="font-semibold leading-tight">{announcement.title}</h2>
           {announcement.is_pinned && (
-            <span className="text-xs text-primary shrink-0">Fixado</span>
+            <span className="flex items-center gap-1 shrink-0 text-xs font-medium text-primary">
+              <Pin size={12} /> Fixado
+            </span>
           )}
         </div>
         <p className="text-xs text-text-secondary">{formatPublishedAt(announcement.published_at)}</p>
         {announcement.description && (
-          <p className="text-sm">{announcement.description}</p>
+          <p className="text-sm text-foreground/90">{announcement.description}</p>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

@@ -1,7 +1,10 @@
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Announcement } from "@/lib/types/database";
 import { formatPublishedAt } from "@/lib/format";
+import { Card } from "@/components/Card";
+import { EmptyState } from "@/components/EmptyState";
 import { DeleteButton } from "../DeleteButton";
 import { deleteAnnouncementAction } from "../actions";
 
@@ -21,34 +24,42 @@ export default async function AdminAnunciosPage() {
         <h1 className="text-2xl font-semibold">Anúncios</h1>
         <Link
           href="/admin/anuncios/nova"
-          className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-white"
+          className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-white"
         >
-          Novo anúncio
+          <Plus size={16} /> Novo anúncio
         </Link>
       </div>
 
-      <div className="flex flex-col gap-3">
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className="flex items-center justify-between gap-3 rounded-xl bg-surface p-4 border border-divider"
-          >
-            <div>
-              <p className="font-medium">
-                {item.title} {!item.is_active && <span className="text-xs text-text-secondary">(inativo)</span>}
-              </p>
-              <p className="text-sm text-text-secondary">{formatPublishedAt(item.published_at)}</p>
-            </div>
-            <div className="flex items-center gap-3 shrink-0">
-              <Link href={`/admin/anuncios/${item.id}`} className="text-sm text-primary">
-                Editar
-              </Link>
-              <DeleteButton id={item.id} action={deleteAnnouncementAction} />
-            </div>
-          </div>
-        ))}
-        {items.length === 0 && <p className="text-text-secondary">Nenhum anúncio cadastrado.</p>}
-      </div>
+      {items.length === 0 ? (
+        <EmptyState message="Nenhum anúncio cadastrado." />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {items.map((item) => (
+            <Card
+              key={item.id}
+              className="p-5 flex flex-col gap-3 hover:shadow-md hover:-translate-y-0.5"
+            >
+              <div>
+                <p className="font-semibold leading-tight">
+                  {item.title}{" "}
+                  {!item.is_active && (
+                    <span className="text-xs font-normal text-text-secondary">(inativo)</span>
+                  )}
+                </p>
+                <p className="mt-1 text-sm text-text-secondary">
+                  {formatPublishedAt(item.published_at)}
+                </p>
+              </div>
+              <div className="mt-auto flex items-center justify-between gap-3 border-t border-divider pt-3">
+                <Link href={`/admin/anuncios/${item.id}`} className="text-sm font-medium text-primary">
+                  Editar
+                </Link>
+                <DeleteButton id={item.id} action={deleteAnnouncementAction} />
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
