@@ -1,11 +1,5 @@
 package com.escalachurch.app.ui.screens.home
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,7 +31,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.escalachurch.app.di.appViewModel
 import com.escalachurch.app.di.rememberAppContainer
 import com.escalachurch.app.domain.model.AppSettings
@@ -46,9 +39,10 @@ import com.escalachurch.app.ui.components.CardCarousel
 import com.escalachurch.app.ui.components.ChangeNewsDialog
 import com.escalachurch.app.ui.components.EmptyState
 import com.escalachurch.app.ui.components.PrimaryButton
+import com.escalachurch.app.ui.components.PulledUpEntrance
 import com.escalachurch.app.ui.components.ScaleCard
 import com.escalachurch.app.ui.components.SecondaryButton
-import kotlinx.coroutines.delay
+import com.escalachurch.app.ui.components.rememberEntranceVisible
 
 @Composable
 fun HomeScreen(
@@ -76,22 +70,7 @@ fun HomeScreen(
     var editingTarget by remember { mutableStateOf<EditTarget?>(null) }
     var currentPage by remember { mutableIntStateOf(0) }
 
-    // Replays the "cards pulled into place" entrance every time this tab becomes visible again
-    // (not just on first launch) - saveState/restoreState on the nav graph keeps this composable's
-    // `remember` state alive across tab switches, so a plain one-shot LaunchedEffect(Unit) would
-    // only ever fire once; resuming lifecycle is what actually happens each time you come back.
-    var entryKey by remember { mutableIntStateOf(0) }
-    LifecycleResumeEffect(Unit) {
-        entryKey++
-        onPauseOrDispose { }
-    }
-    var cardsVisible by remember { mutableStateOf(!appSettings.animationsEnabled) }
-    androidx.compose.runtime.LaunchedEffect(entryKey) {
-        if (!appSettings.animationsEnabled) { cardsVisible = true; return@LaunchedEffect }
-        cardsVisible = false
-        delay(16)
-        cardsVisible = true
-    }
+    val cardsVisible = rememberEntranceVisible(appSettings.animationsEnabled)
 
     editingTarget?.let { target ->
         ScaleEditScreen(
@@ -141,12 +120,9 @@ fun HomeScreen(
                 }
             }
         } else {
-            AnimatedVisibility(
+            PulledUpEntrance(
                 visible = cardsVisible,
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                enter = slideInVertically(
-                    animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow)
-                ) { fullHeight -> fullHeight / 2 } + fadeIn(tween(400))
+                modifier = Modifier.weight(1f).fillMaxWidth()
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),

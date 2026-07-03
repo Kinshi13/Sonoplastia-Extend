@@ -44,13 +44,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.escalachurch.app.di.appViewModel
+import com.escalachurch.app.di.rememberAppContainer
+import com.escalachurch.app.domain.model.AppSettings
 import com.escalachurch.app.domain.model.ScaleItem
 import com.escalachurch.app.ui.components.ConfirmDialog
 import com.escalachurch.app.ui.components.DatePickerField
 import com.escalachurch.app.ui.components.EmptyState
+import com.escalachurch.app.ui.components.PulledUpEntrance
 import com.escalachurch.app.ui.components.SourceBadge
 import com.escalachurch.app.ui.components.SpecialBadge
 import com.escalachurch.app.ui.components.dayOfWeekLabel
+import com.escalachurch.app.ui.components.rememberEntranceVisible
 import com.escalachurch.app.ui.components.toDisplayString
 import com.escalachurch.app.ui.screens.home.ScaleEditScreen
 import java.time.LocalDate
@@ -69,6 +73,8 @@ fun GeneralScaleScreen(
     }
     val state by viewModel.uiState.collectAsState()
     val onlyMyClasses by viewModel.onlyMyClassesFlow.collectAsState()
+    val appSettings by rememberAppContainer().settingsRepository.settingsFlow.collectAsState(initial = AppSettings())
+    val listVisible = rememberEntranceVisible(appSettings.animationsEnabled)
 
     var editingTarget by remember { mutableStateOf<ScaleItem?>(null) }
     var isCreatingNew by remember { mutableStateOf(false) }
@@ -137,16 +143,18 @@ fun GeneralScaleScreen(
                     message = if (state.isAdmin) "Toque no botão + para criar a primeira escala oficial." else "Fale com um administrador para cadastrar a escala."
                 )
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(bottom = 96.dp)) {
-                    items(state.scales, key = { it.id }) { scale ->
-                        GeneralScaleRow(
-                            scale = scale,
-                            isAdmin = state.isAdmin,
-                            highlightClasses = state.myClasses,
-                            onEdit = { editingTarget = scale; isCreatingNew = false; isEditing = true },
-                            onDuplicate = { duplicateSource = scale },
-                            onDelete = { deleteTarget = scale }
-                        )
+                PulledUpEntrance(visible = listVisible) {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(bottom = 96.dp)) {
+                        items(state.scales, key = { it.id }) { scale ->
+                            GeneralScaleRow(
+                                scale = scale,
+                                isAdmin = state.isAdmin,
+                                highlightClasses = state.myClasses,
+                                onEdit = { editingTarget = scale; isCreatingNew = false; isEditing = true },
+                                onDuplicate = { duplicateSource = scale },
+                                onDelete = { deleteTarget = scale }
+                            )
+                        }
                     }
                 }
             }

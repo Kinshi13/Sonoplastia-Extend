@@ -71,6 +71,7 @@ fun EscalaBottomNavBar(
 
     val container = rememberAppContainer()
     val settings by container.settingsRepository.settingsFlow.collectAsState(initial = AppSettings())
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     Surface(
         color = MaterialTheme.colorScheme.surface,
@@ -94,7 +95,7 @@ fun EscalaBottomNavBar(
                                         .let { if (it == -1) 0 else it }
                                     val nextIndex = if (totalDx < 0) currentIndex + 1 else currentIndex - 1
                                     navEntries.getOrNull(nextIndex)?.let {
-                                        AppSoundPlayer.playSwipeEffect(settings.effectsVolume)
+                                        AppSoundPlayer.playSwipeEffect(context, settings.effectsVolume)
                                         onNavigate(it.destination)
                                     }
                                 }

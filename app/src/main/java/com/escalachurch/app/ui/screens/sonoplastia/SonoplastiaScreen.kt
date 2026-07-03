@@ -51,10 +51,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.escalachurch.app.di.appViewModel
+import com.escalachurch.app.di.rememberAppContainer
+import com.escalachurch.app.domain.model.AppSettings
 import com.escalachurch.app.domain.model.MediaType
 import com.escalachurch.app.domain.model.SharedFile
 import com.escalachurch.app.ui.components.ConfirmDialog
 import com.escalachurch.app.ui.components.EmptyState
+import com.escalachurch.app.ui.components.PulledUpEntrance
+import com.escalachurch.app.ui.components.rememberEntranceVisible
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -74,6 +78,8 @@ fun SonoplastiaScreen(onBack: () -> Unit) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val appSettings by rememberAppContainer().settingsRepository.settingsFlow.collectAsState(initial = AppSettings())
+    val filesVisible = rememberEntranceVisible(appSettings.animationsEnabled)
 
     var isUploading by remember { mutableStateOf(false) }
     var uploadError by remember { mutableStateOf<String?>(null) }
@@ -142,21 +148,23 @@ fun SonoplastiaScreen(onBack: () -> Unit) {
                     modifier = Modifier.weight(1f)
                 )
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    contentPadding = PaddingValues(bottom = 96.dp)
-                ) {
-                    items(state.files, key = { it.id }) { file ->
-                        SharedFileRow(
-                            file = file,
-                            canDelete = state.isAdmin,
-                            onOpen = {
-                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(file.url))
-                                runCatching { context.startActivity(intent) }
-                            },
-                            onDelete = { fileToDelete = file }
-                        )
+                PulledUpEntrance(visible = filesVisible, modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        contentPadding = PaddingValues(bottom = 96.dp)
+                    ) {
+                        items(state.files, key = { it.id }) { file ->
+                            SharedFileRow(
+                                file = file,
+                                canDelete = state.isAdmin,
+                                onOpen = {
+                                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(file.url))
+                                    runCatching { context.startActivity(intent) }
+                                },
+                                onDelete = { fileToDelete = file }
+                            )
+                        }
                     }
                 }
             }

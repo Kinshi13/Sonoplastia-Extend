@@ -30,10 +30,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.escalachurch.app.di.appViewModel
+import com.escalachurch.app.di.rememberAppContainer
 import com.escalachurch.app.domain.model.AgendaEntry
+import com.escalachurch.app.domain.model.AppSettings
 import com.escalachurch.app.ui.components.MonthCalendar
+import com.escalachurch.app.ui.components.PulledUpEntrance
 import com.escalachurch.app.ui.components.SourceBadge
 import com.escalachurch.app.ui.components.dayOfWeekLabel
+import com.escalachurch.app.ui.components.rememberEntranceVisible
 import com.escalachurch.app.ui.components.toDisplayString
 import java.time.LocalDate
 import java.time.YearMonth
@@ -44,6 +48,8 @@ fun CalendarScreen() {
         CalendarViewModel(container.scaleRepository, container.doxologyRepository, container.customEventRepository, container.announcementRepository)
     }
     val entries by viewModel.entries.collectAsState()
+    val appSettings by rememberAppContainer().settingsRepository.settingsFlow.collectAsState(initial = AppSettings())
+    val entriesVisible = rememberEntranceVisible(appSettings.animationsEnabled)
 
     var month by remember { mutableStateOf(YearMonth.now()) }
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
@@ -85,12 +91,14 @@ fun CalendarScreen() {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         } else {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(bottom = 24.dp)
-            ) {
-                items(dayEntries, key = { entryKey(it) }) { entry ->
-                    AgendaEntryRow(entry)
+            PulledUpEntrance(visible = entriesVisible) {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(bottom = 24.dp)
+                ) {
+                    items(dayEntries, key = { entryKey(it) }) { entry ->
+                        AgendaEntryRow(entry)
+                    }
                 }
             }
         }

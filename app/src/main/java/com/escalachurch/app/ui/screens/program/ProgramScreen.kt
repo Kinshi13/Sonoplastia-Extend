@@ -22,12 +22,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.escalachurch.app.di.appViewModel
+import com.escalachurch.app.di.rememberAppContainer
+import com.escalachurch.app.domain.model.AppSettings
 import com.escalachurch.app.domain.model.CustomEvent
 import com.escalachurch.app.ui.components.CardCarousel
 import com.escalachurch.app.ui.components.EmptyState
 import com.escalachurch.app.ui.components.PrimaryButton
 import com.escalachurch.app.ui.components.ProgramCard
+import com.escalachurch.app.ui.components.PulledUpEntrance
 import com.escalachurch.app.ui.components.SecondaryButton
+import com.escalachurch.app.ui.components.rememberEntranceVisible
 
 /**
  * "Programar": the member's own programações - other than the official Escala Geral. Uses the
@@ -38,6 +42,8 @@ import com.escalachurch.app.ui.components.SecondaryButton
 fun ProgramScreen() {
     val viewModel = appViewModel { container -> ProgramViewModel(container.customEventRepository) }
     val state by viewModel.uiState.collectAsState()
+    val appSettings by rememberAppContainer().settingsRepository.settingsFlow.collectAsState(initial = AppSettings())
+    val cardsVisible = rememberEntranceVisible(appSettings.animationsEnabled)
 
     var editingTarget by remember { mutableStateOf<ProgramEditTarget?>(null) }
     var isEditing by remember { mutableStateOf(false) }
@@ -76,16 +82,18 @@ fun ProgramScreen() {
                 PrimaryButton(text = "Adicionar programação", onClick = { editingTarget = ProgramEditTarget(null); isEditing = true })
             }
         } else {
-            Column(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                verticalArrangement = Arrangement.Center
-            ) {
-                CardCarousel(
-                    items = state.events,
-                    initialPage = state.startIndex ?: 0,
-                    onPageChanged = { currentPage = it }
-                ) { event ->
-                    ProgramCard(event)
+            PulledUpEntrance(visible = cardsVisible, modifier = Modifier.weight(1f).fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    CardCarousel(
+                        items = state.events,
+                        initialPage = state.startIndex ?: 0,
+                        onPageChanged = { currentPage = it }
+                    ) { event ->
+                        ProgramCard(event)
+                    }
                 }
             }
 

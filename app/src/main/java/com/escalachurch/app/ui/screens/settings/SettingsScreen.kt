@@ -44,8 +44,10 @@ import com.escalachurch.app.domain.model.FontSizeOption
 import com.escalachurch.app.domain.model.ThemeMode
 import com.escalachurch.app.ui.components.AdminLoginDialog
 import com.escalachurch.app.ui.components.AppTextField
+import com.escalachurch.app.ui.components.PulledUpEntrance
 import com.escalachurch.app.ui.components.SecondaryButton
 import com.escalachurch.app.ui.components.UserClassChips
+import com.escalachurch.app.ui.components.rememberEntranceVisible
 import kotlinx.coroutines.launch
 
 @Composable
@@ -59,19 +61,20 @@ fun SettingsScreen(
     val settings by viewModel.settings.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScopeCompat()
+    val sectionsVisible = rememberEntranceVisible(settings.animationsEnabled)
 
     var showLoginDialog by remember { mutableStateOf(false) }
     var loginError by remember { mutableStateOf<String?>(null) }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
-        contentPadding = PaddingValues(bottom = 32.dp)
-    ) {
-        item {
-            Text("Configurações", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
-        }
-
+    Column(modifier = Modifier.fillMaxSize().padding(top = 20.dp, start = 20.dp, end = 20.dp)) {
+        Text("Configurações", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+        Spacer(Modifier.height(20.dp))
+        PulledUpEntrance(visible = sectionsVisible) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+                contentPadding = PaddingValues(bottom = 32.dp)
+            ) {
         item {
             SettingsSection(title = "Modo administrador") {
                 Text(
@@ -289,6 +292,8 @@ fun SettingsScreen(
                     viewModel.update { it.copy(vibrationEnabled = checked) }
                 }
             }
+        }
+    }
         }
     }
 

@@ -29,10 +29,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.escalachurch.app.di.appViewModel
+import com.escalachurch.app.di.rememberAppContainer
 import com.escalachurch.app.domain.model.Announcement
+import com.escalachurch.app.domain.model.AppSettings
 import com.escalachurch.app.ui.components.AnnouncementCard
 import com.escalachurch.app.ui.components.EmptyState
 import com.escalachurch.app.ui.components.ErrorBanner
+import com.escalachurch.app.ui.components.PulledUpEntrance
+import com.escalachurch.app.ui.components.rememberEntranceVisible
 
 @Composable
 fun AnnouncementsScreen(
@@ -44,6 +48,8 @@ fun AnnouncementsScreen(
     val state by viewModel.uiState.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val context = LocalContext.current
+    val appSettings by rememberAppContainer().settingsRepository.settingsFlow.collectAsState(initial = AppSettings())
+    val feedVisible = rememberEntranceVisible(appSettings.animationsEnabled)
     var editingTarget by remember { mutableStateOf<AnnouncementEditTarget?>(null) }
     var isEditing by remember { mutableStateOf(false) }
 
@@ -89,23 +95,25 @@ fun AnnouncementsScreen(
                         modifier = Modifier.weight(1f)
                     )
                 } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
-                        contentPadding = PaddingValues(bottom = 96.dp)
-                    ) {
-                        items(state.announcements, key = { it.id }) { announcement: Announcement ->
-                            val isNew = announcement.publishedAt > state.lastSeenAt
-                            val highlighted = announcement.affectedClasses.any { it in state.myClasses }
-                            AnnouncementCard(
-                                announcement = announcement,
-                                isNew = isNew,
-                                highlighted = highlighted,
-                                onOpenCalendar = announcement.relatedEventDate?.let { date -> { onOpenCalendarDate(date) } },
-                                onClick = if (state.isAdmin) {
-                                    { editingTarget = AnnouncementEditTarget(announcement); isEditing = true }
-                                } else null
-                            )
+                    PulledUpEntrance(visible = feedVisible, modifier = Modifier.fillMaxSize()) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                            contentPadding = PaddingValues(bottom = 96.dp)
+                        ) {
+                            items(state.announcements, key = { it.id }) { announcement: Announcement ->
+                                val isNew = announcement.publishedAt > state.lastSeenAt
+                                val highlighted = announcement.affectedClasses.any { it in state.myClasses }
+                                AnnouncementCard(
+                                    announcement = announcement,
+                                    isNew = isNew,
+                                    highlighted = highlighted,
+                                    onOpenCalendar = announcement.relatedEventDate?.let { date -> { onOpenCalendarDate(date) } },
+                                    onClick = if (state.isAdmin) {
+                                        { editingTarget = AnnouncementEditTarget(announcement); isEditing = true }
+                                    } else null
+                                )
+                            }
                         }
                     }
                 }
