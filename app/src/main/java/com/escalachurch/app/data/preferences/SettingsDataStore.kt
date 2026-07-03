@@ -11,7 +11,6 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.escalachurch.app.domain.model.AppFont
 import com.escalachurch.app.domain.model.AppSettings
 import com.escalachurch.app.domain.model.FontSizeOption
-import com.escalachurch.app.domain.model.SyncMode
 import com.escalachurch.app.domain.model.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -36,12 +35,9 @@ class SettingsDataStore(private val context: Context) {
         val NOTIFY_HOURS_BEFORE = booleanPreferencesKey("notify_hours_before")
         val REMINDER_HOURS_LEAD = intPreferencesKey("reminder_hours_lead")
         val NOTIFIED_KEYS = stringSetPreferencesKey("notified_reminder_keys")
-        val SYNC_MODE = stringPreferencesKey("sync_mode")
-        val WORKSPACE_NAME = stringPreferencesKey("workspace_name")
         val CHANGE_NOTIFICATIONS_ENABLED = booleanPreferencesKey("change_notifications_enabled")
         val NOTIFY_ONLY_MY_CLASSES = booleanPreferencesKey("notify_only_my_classes")
         val SHOW_NEWS_POPUP_ON_OPEN = booleanPreferencesKey("show_news_popup_on_open")
-        val ADMIN_PIN_HASH = stringPreferencesKey("admin_pin_hash")
         val LAST_SEEN_ANNOUNCEMENTS_AT = androidx.datastore.preferences.core.longPreferencesKey("last_seen_announcements_at")
     }
 
@@ -63,13 +59,9 @@ class SettingsDataStore(private val context: Context) {
             notifyDayBefore = prefs[Keys.NOTIFY_DAY_BEFORE] ?: true,
             notifyHoursBefore = prefs[Keys.NOTIFY_HOURS_BEFORE] ?: true,
             reminderHoursBeforeLead = prefs[Keys.REMINDER_HOURS_LEAD] ?: 3,
-            syncMode = prefs[Keys.SYNC_MODE]?.let { runCatching { SyncMode.valueOf(it) }.getOrNull() }
-                ?: SyncMode.STANDALONE,
-            workspaceName = prefs[Keys.WORKSPACE_NAME] ?: "",
             changeNotificationsEnabled = prefs[Keys.CHANGE_NOTIFICATIONS_ENABLED] ?: true,
             notifyOnlyMyClasses = prefs[Keys.NOTIFY_ONLY_MY_CLASSES] ?: true,
             showNewsPopupOnOpen = prefs[Keys.SHOW_NEWS_POPUP_ON_OPEN] ?: true,
-            adminPinHash = prefs[Keys.ADMIN_PIN_HASH],
             lastSeenAnnouncementsAt = prefs[Keys.LAST_SEEN_ANNOUNCEMENTS_AT] ?: 0L
         )
     }
@@ -89,16 +81,9 @@ class SettingsDataStore(private val context: Context) {
             prefs[Keys.NOTIFY_DAY_BEFORE] = settings.notifyDayBefore
             prefs[Keys.NOTIFY_HOURS_BEFORE] = settings.notifyHoursBefore
             prefs[Keys.REMINDER_HOURS_LEAD] = settings.reminderHoursBeforeLead
-            prefs[Keys.SYNC_MODE] = settings.syncMode.name
-            prefs[Keys.WORKSPACE_NAME] = settings.workspaceName
             prefs[Keys.CHANGE_NOTIFICATIONS_ENABLED] = settings.changeNotificationsEnabled
             prefs[Keys.NOTIFY_ONLY_MY_CLASSES] = settings.notifyOnlyMyClasses
             prefs[Keys.SHOW_NEWS_POPUP_ON_OPEN] = settings.showNewsPopupOnOpen
-            if (settings.adminPinHash != null) {
-                prefs[Keys.ADMIN_PIN_HASH] = settings.adminPinHash
-            } else {
-                prefs.remove(Keys.ADMIN_PIN_HASH)
-            }
             prefs[Keys.LAST_SEEN_ANNOUNCEMENTS_AT] = settings.lastSeenAnnouncementsAt
         }
     }
@@ -113,11 +98,11 @@ class SettingsDataStore(private val context: Context) {
     }
 
     /** Drops notified keys for reminder kinds no longer relevant, keeping the stored set from growing forever. */
-    suspend fun pruneNotifiedKeys(validScaleIds: Set<Long>) {
+    suspend fun pruneNotifiedKeys(validScaleIds: Set<String>) {
         context.dataStore.edit { prefs ->
             val current = prefs[Keys.NOTIFIED_KEYS] ?: emptySet()
             prefs[Keys.NOTIFIED_KEYS] = current.filter { key ->
-                key.substringBefore(':').toLongOrNull() in validScaleIds
+                key.substringBefore(':') in validScaleIds
             }.toSet()
         }
     }

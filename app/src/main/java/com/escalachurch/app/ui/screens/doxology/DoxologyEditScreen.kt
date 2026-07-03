@@ -172,7 +172,7 @@ fun DoxologyEditScreen(
 
                     onSave(
                         DoxologyItem(
-                            id = existing?.id ?: 0L,
+                            id = existing?.id ?: "",
                             date = d!!,
                             startTime = st!!,
                             title = title,

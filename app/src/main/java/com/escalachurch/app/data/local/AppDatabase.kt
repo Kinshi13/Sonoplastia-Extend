@@ -6,37 +6,28 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.escalachurch.app.data.local.converter.Converters
-import com.escalachurch.app.data.local.dao.AnnouncementDao
 import com.escalachurch.app.data.local.dao.ChangeLogDao
 import com.escalachurch.app.data.local.dao.CustomEventDao
-import com.escalachurch.app.data.local.dao.DoxologyDao
-import com.escalachurch.app.data.local.dao.ScaleDao
-import com.escalachurch.app.data.local.entity.AnnouncementEntity
 import com.escalachurch.app.data.local.entity.ChangeLogEntity
 import com.escalachurch.app.data.local.entity.CustomEventEntity
-import com.escalachurch.app.data.local.entity.DoxologyEntity
-import com.escalachurch.app.data.local.entity.ProgramStepEntity
-import com.escalachurch.app.data.local.entity.ScaleEntity
 
+/**
+ * Local-only data: personal programações (Programar) and the on-device change-log cache. Official
+ * data (scales, doxologies, announcements) now lives in Firebase Firestore instead - see
+ * FirestoreCollections and AppContainer.
+ */
 @Database(
     entities = [
-        ScaleEntity::class,
-        DoxologyEntity::class,
-        ProgramStepEntity::class,
         CustomEventEntity::class,
-        AnnouncementEntity::class,
         ChangeLogEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
 
-    abstract fun scaleDao(): ScaleDao
-    abstract fun doxologyDao(): DoxologyDao
     abstract fun customEventDao(): CustomEventDao
-    abstract fun announcementDao(): AnnouncementDao
     abstract fun changeLogDao(): ChangeLogDao
 
     companion object {

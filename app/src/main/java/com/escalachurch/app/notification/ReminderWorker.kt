@@ -54,7 +54,7 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
     }
 
     private suspend fun fireOnce(
-        scaleId: Long,
+        scaleId: String,
         kind: String,
         alreadyNotified: Set<String>,
         match: com.escalachurch.app.domain.util.ScaleMatch,

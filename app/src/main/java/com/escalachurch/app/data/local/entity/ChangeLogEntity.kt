@@ -11,7 +11,7 @@ import com.escalachurch.app.domain.model.UserClass
 data class ChangeLogEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     val entityType: ChangeLogEntityType,
-    val entityId: Long,
+    val entityId: String,
     /** Comma-separated [UserClass] names; see Converters. */
     val affectedClasses: String,
     val title: String,

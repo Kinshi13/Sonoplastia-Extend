@@ -1,24 +1,44 @@
 package com.escalachurch.app.data.repository
 
-import com.escalachurch.app.data.local.dao.ScaleDao
-import com.escalachurch.app.data.local.entity.toDomain
-import com.escalachurch.app.data.local.entity.toEntity
+import com.escalachurch.app.data.remote.FirestoreCollections
+import com.escalachurch.app.data.remote.observeAsFlow
+import com.escalachurch.app.data.remote.dto.toDto
+import com.escalachurch.app.data.remote.dto.toScaleItem
 import com.escalachurch.app.domain.model.ScaleItem
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.tasks.await
 
-class ScaleRepository(private val dao: ScaleDao) {
+/**
+ * Official scales, backed by Firestore's `scales` collection (see FirestoreCollections). This is
+ * the single source of truth read by every device - the Firestore SDK keeps a disk cache and
+ * serves it instantly offline, so the app still opens instantly without network.
+ */
+class ScaleRepository(private val firestore: FirebaseFirestore) {
 
-    fun observeAll(): Flow<List<ScaleItem>> =
-        dao.observeAll().map { list -> list.map { it.toDomain() } }
+    private val collection get() = firestore.collection(FirestoreCollections.SCALES)
 
-    suspend fun getById(id: Long): ScaleItem? = dao.getById(id)?.toDomain()
+    fun observeAll(): Flow<List<ScaleItem>> = collection.observeAsFlow { snapshot -> snapshot.toScaleItem() }
 
-    suspend fun save(item: ScaleItem): Long = dao.upsert(item.toEntity())
+    suspend fun getById(id: String): ScaleItem? = collection.document(id).get().await().toScaleItem()
 
-    suspend fun update(item: ScaleItem) = dao.update(item.toEntity())
+    /** Creates (blank id) or overwrites (existing id) a scale; returns the resulting document id. */
+    suspend fun save(item: ScaleItem): String {
+        return if (item.id.isBlank()) {
+            collection.add(item.toDto()).await().id
+        } else {
+            collection.document(item.id).set(item.toDto()).await()
+            item.id
+        }
+    }
 
-    suspend fun delete(item: ScaleItem) = dao.delete(item.toEntity())
+    suspend fun delete(item: ScaleItem) {
+        if (item.id.isBlank()) return
+        collection.document(item.id).delete().await()
+    }
 
-    suspend fun deleteById(id: Long) = dao.deleteById(id)
+    suspend fun deleteById(id: String) {
+        if (id.isBlank()) return
+        collection.document(id).delete().await()
+    }
 }

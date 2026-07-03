@@ -190,7 +190,7 @@ fun ScaleEditScreen(
 
                     onSave(
                         ScaleItem(
-                            id = existing?.id ?: 0L,
+                            id = existing?.id ?: "",
                             date = d!!,
                             startTime = st!!,
                             endTime = endTime,

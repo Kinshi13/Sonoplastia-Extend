@@ -1,5 +1,6 @@
 package com.escalachurch.app.ui.screens.announcements
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -10,11 +11,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -26,10 +29,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.escalachurch.app.data.repository.UploadedMedia
 import com.escalachurch.app.domain.model.Announcement
 import com.escalachurch.app.domain.model.MediaType
 import com.escalachurch.app.domain.model.SourceType
@@ -39,18 +45,24 @@ import com.escalachurch.app.ui.components.DatePickerField
 import com.escalachurch.app.ui.components.PrimaryButton
 import com.escalachurch.app.ui.components.SecondaryButton
 import com.escalachurch.app.ui.components.UserClassChips
+import kotlinx.coroutines.launch
 
 /**
  * Create/edit form for an [Announcement]. All announcements are official (admin-only per spec),
  * so [isAdmin] is a hard gate - a non-admin caller is bounced straight back, even if a future
  * navigation path reaches this screen directly (today AnnouncementsScreen already only offers
  * this screen to admins, but this keeps the guarantee at the source, not just at the call site).
+ *
+ * Picked files are uploaded to Firebase Storage right away (see [onUpload]) so [mediaUrl] always
+ * ends up holding a real download URL, not a local content URI that would stop working once this
+ * device's temporary read grant expires.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AnnouncementEditScreen(
     existing: Announcement?,
     isAdmin: Boolean,
+    onUpload: suspend (Uri) -> UploadedMedia,
     onSave: (Announcement) -> Unit,
     onDelete: (() -> Unit)?,
     onBack: () -> Unit
@@ -64,6 +76,9 @@ fun AnnouncementEditScreen(
     var description by remember { mutableStateOf(existing?.description ?: "") }
     var mediaType by remember { mutableStateOf(existing?.mediaType ?: MediaType.NONE) }
     var mediaUrl by remember { mutableStateOf(existing?.mediaUrl) }
+    var mediaFileName by remember { mutableStateOf(existing?.mediaFileName) }
+    var isUploading by remember { mutableStateOf(false) }
+    var uploadError by remember { mutableStateOf<String?>(null) }
     var affectedClasses by remember { mutableStateOf(existing?.affectedClasses ?: emptySet()) }
     var relatedEventDate by remember { mutableStateOf(existing?.relatedEventDate) }
     var isPinned by remember { mutableStateOf(existing?.isPinned ?: false) }
@@ -71,22 +86,33 @@ fun AnnouncementEditScreen(
     var showTitleError by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
 
-    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) {
-            persistReadPermission(context, uri)
-            mediaType = MediaType.IMAGE
-            mediaUrl = uri.toString()
+    fun pickAndUpload(uri: Uri?) {
+        if (uri == null) return
+        isUploading = true
+        uploadError = null
+        scope.launch {
+            runCatching { onUpload(uri) }
+                .onSuccess { uploaded ->
+                    mediaType = uploaded.type
+                    mediaUrl = uploaded.url
+                    mediaFileName = uploaded.fileName
+                }
+                .onFailure { error ->
+                    uploadError = if (error is com.escalachurch.app.data.repository.MediaTooLargeException) {
+                        "Arquivo muito grande. O limite é ${error.maxSizeMb}MB."
+                    } else {
+                        "Falha ao enviar o arquivo. Verifique sua conexão e tente novamente."
+                    }
+                }
+            isUploading = false
         }
     }
-    val videoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) {
-            persistReadPermission(context, uri)
-            mediaType = MediaType.VIDEO
-            mediaUrl = uri.toString()
-        }
-    }
+
+    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { pickAndUpload(it) }
+    val videoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { pickAndUpload(it) }
+    val documentPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { pickAndUpload(it) }
 
     Scaffold(
         topBar = {
@@ -114,19 +140,40 @@ fun AnnouncementEditScreen(
             AppTextField(value = description, onValueChange = { description = it }, label = "Texto do anúncio", singleLine = false, minLines = 3)
 
             Text("Mídia (opcional)", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Text(
+                "Imagem, vídeo, apresentação (PPT) ou PDF para usar numa programação especial.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                SecondaryButton(text = "Escolher imagem", onClick = { imagePicker.launch("image/*") })
-                SecondaryButton(text = "Escolher vídeo", onClick = { videoPicker.launch("video/*") })
+                SecondaryButton(text = "Imagem", enabled = !isUploading, onClick = { imagePicker.launch("image/*") })
+                SecondaryButton(text = "Vídeo", enabled = !isUploading, onClick = { videoPicker.launch("video/*") })
+                SecondaryButton(text = "Documento", enabled = !isUploading, onClick = { documentPicker.launch("*/*") })
             }
-            if (mediaUrl != null) {
+
+            if (isUploading) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(modifier = Modifier.height(18.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.width(10.dp))
+                    Text("Enviando arquivo...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            if (uploadError != null) {
+                Text(uploadError!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
+            if (!mediaUrl.isNullOrBlank() && !isUploading) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        if (mediaType == MediaType.VIDEO) "Vídeo selecionado" else "Imagem selecionada (proporção 4:3)",
+                        when (mediaType) {
+                            MediaType.VIDEO -> "Vídeo enviado"
+                            MediaType.DOCUMENT -> "Documento enviado: ${mediaFileName ?: ""}"
+                            else -> "Imagem enviada (proporção 4:3)"
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f)
                     )
-                    SecondaryButton(text = "Remover", onClick = { mediaType = MediaType.NONE; mediaUrl = null })
+                    SecondaryButton(text = "Remover", onClick = { mediaType = MediaType.NONE; mediaUrl = null; mediaFileName = null })
                 }
             }
 
@@ -152,15 +199,17 @@ fun AnnouncementEditScreen(
             PrimaryButton(
                 text = "Publicar",
                 modifier = Modifier.fillMaxWidth(),
+                enabled = !isUploading,
                 onClick = {
                     if (title.isBlank()) { showTitleError = true; return@PrimaryButton }
                     onSave(
                         Announcement(
-                            id = existing?.id ?: 0L,
+                            id = existing?.id ?: "",
                             title = title,
                             description = description,
                             mediaType = mediaType,
                             mediaUrl = mediaUrl,
+                            mediaFileName = mediaFileName,
                             affectedClasses = affectedClasses,
                             relatedEventDate = relatedEventDate,
                             sourceType = SourceType.OFFICIAL,
@@ -185,20 +234,5 @@ fun AnnouncementEditScreen(
             onConfirm = { showDeleteConfirm = false; onDelete() },
             onDismiss = { showDeleteConfirm = false }
         )
-    }
-}
-
-/**
- * Without this, the read grant for a picked image/video URI only lasts for the current process -
- * the media would silently break (fail to load) the next time the app is opened. Not every
- * content provider supports persistable grants, so failures here are safe to ignore.
- *
- * TODO(storage): once Firebase Storage / Supabase Storage is wired up, uploads should happen
- * right after picking and mediaUrl should store the resulting remote download URL instead of a
- * local content URI - this whole permission concern goes away at that point.
- */
-private fun persistReadPermission(context: android.content.Context, uri: android.net.Uri) {
-    runCatching {
-        context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
 }

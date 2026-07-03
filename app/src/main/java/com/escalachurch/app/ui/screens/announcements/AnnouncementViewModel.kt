@@ -47,6 +47,9 @@ class AnnouncementViewModel(
         viewModelScope.launch { announcementRepository.save(item) }
     }
 
+    suspend fun uploadMedia(context: android.content.Context, uri: android.net.Uri) =
+        announcementRepository.uploadMedia(context, uri)
+
     fun delete(item: Announcement) {
         viewModelScope.launch { announcementRepository.delete(item) }
     }

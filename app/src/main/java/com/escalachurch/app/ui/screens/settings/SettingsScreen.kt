@@ -42,7 +42,7 @@ import com.escalachurch.app.di.appViewModel
 import com.escalachurch.app.domain.model.AppFont
 import com.escalachurch.app.domain.model.FontSizeOption
 import com.escalachurch.app.domain.model.ThemeMode
-import com.escalachurch.app.ui.components.AdminPinDialog
+import com.escalachurch.app.ui.components.AdminLoginDialog
 import com.escalachurch.app.ui.components.AppTextField
 import com.escalachurch.app.ui.components.SecondaryButton
 import com.escalachurch.app.ui.components.UserClassChips
@@ -60,9 +60,8 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScopeCompat()
 
-    var showPinDialog by remember { mutableStateOf(false) }
-    var pinDialogIsSetup by remember { mutableStateOf(false) }
-    var pinError by remember { mutableStateOf<String?>(null) }
+    var showLoginDialog by remember { mutableStateOf(false) }
+    var loginError by remember { mutableStateOf<String?>(null) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(20.dp),
@@ -135,8 +134,8 @@ fun SettingsScreen(
         item {
             SettingsSection(title = "Modo administrador") {
                 Text(
-                    "Protege a edição de escalas oficiais, doxologia e anúncios com um PIN local neste aparelho. " +
-                        "Solução temporária de MVP - autenticação real será adicionada futuramente.",
+                    "Só quem faz login com a conta de administrador (criada no Firebase pela liderança) " +
+                        "pode editar escalas, doxologia e anúncios oficiais.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -156,17 +155,11 @@ fun SettingsScreen(
                 }
                 Spacer(Modifier.height(10.dp))
                 if (uiState.isAdmin) {
-                    SecondaryButton(text = "Sair do modo administrador", onClick = { scope.launch { viewModel.adminSession.lock() } })
+                    SecondaryButton(text = "Sair do modo administrador", onClick = { scope.launch { viewModel.adminSession.signOut() } })
                 } else {
                     SecondaryButton(
                         text = "Entrar no modo administrador",
-                        onClick = {
-                            scope.launch {
-                                pinDialogIsSetup = !viewModel.adminSession.hasPinConfigured()
-                                pinError = null
-                                showPinDialog = true
-                            }
-                        }
+                        onClick = { loginError = null; showLoginDialog = true }
                     )
                 }
             }
@@ -261,21 +254,17 @@ fun SettingsScreen(
 
         item {
             SettingsSection(title = "Modo de uso") {
-                val isStandalone = settings.syncMode == com.escalachurch.app.domain.model.SyncMode.STANDALONE
                 Text(
-                    if (isStandalone) "Modo pessoal (local) — os dados ficam só neste aparelho."
-                    else "Conectado à igreja: ${settings.workspaceName}",
+                    "Conectado à nuvem da igreja — a escala geral, doxologia e anúncios são os mesmos para todo mundo, em tempo real.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Em breve: um administrador poderá montar a escala e cada pessoa incluída recebe o aviso automaticamente, sem poder alterar a escala principal.",
+                    "Suas programações pessoais (aba Programar) e suas classes/lembretes continuam só neste aparelho.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(Modifier.height(12.dp))
-                SecondaryButton(text = "Conectar à minha igreja (em breve)", enabled = false, onClick = {})
             }
         }
 
@@ -294,27 +283,20 @@ fun SettingsScreen(
         }
     }
 
-    if (showPinDialog) {
-        AdminPinDialog(
-            isSettingNewPin = pinDialogIsSetup,
-            errorMessage = pinError,
-            onConfirm = { pin ->
+    if (showLoginDialog) {
+        AdminLoginDialog(
+            errorMessage = loginError,
+            onConfirm = { email, password ->
                 scope.launch {
-                    if (pinDialogIsSetup) {
-                        viewModel.adminSession.setPin(pin)
-                        viewModel.adminSession.unlock(pin)
-                        showPinDialog = false
+                    val result = viewModel.adminSession.signIn(email, password)
+                    if (result.isSuccess) {
+                        showLoginDialog = false
                     } else {
-                        val ok = viewModel.adminSession.unlock(pin)
-                        if (ok) {
-                            showPinDialog = false
-                        } else {
-                            pinError = "PIN incorreto"
-                        }
+                        loginError = "Não foi possível entrar. Confira o e-mail e a senha."
                     }
                 }
             },
-            onDismiss = { showPinDialog = false }
+            onDismiss = { showLoginDialog = false }
         )
     }
 }

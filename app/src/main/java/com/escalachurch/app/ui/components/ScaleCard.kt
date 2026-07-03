@@ -17,22 +17,33 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Church
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.RecordVoiceOver
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Speaker
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.escalachurch.app.domain.model.ScaleItem
 import com.escalachurch.app.domain.model.SourceType
 import com.escalachurch.app.domain.model.UserClass
+import com.escalachurch.app.export.ExportFormat
+import com.escalachurch.app.export.ScaleExporter
 import com.escalachurch.app.ui.theme.CardShape
 import com.escalachurch.app.ui.theme.SpecialGold
 
@@ -48,8 +59,12 @@ fun ScaleCard(
     scale: ScaleItem,
     modifier: Modifier = Modifier,
     highlightClasses: Set<UserClass> = emptySet(),
-    recentlyUpdated: Boolean = false
+    recentlyUpdated: Boolean = false,
+    showExportAction: Boolean = true
 ) {
+    var showExportDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = CardShape,
@@ -109,7 +124,46 @@ fun ScaleCard(
                 Spacer(Modifier.height(4.dp))
                 Text(scale.notes, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+
+            if (showExportAction) {
+                Spacer(Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    androidx.compose.material3.TextButton(onClick = { showExportDialog = true }) {
+                        Icon(Icons.Filled.Share, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.height(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Exportar escala", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
         }
+    }
+
+    if (showExportDialog) {
+        AlertDialog(
+            onDismissRequest = { showExportDialog = false },
+            title = { Text("Exportar escala") },
+            text = { Text("Escolha o formato para compartilhar esta escala.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    ScaleExporter.share(context, scale, ExportFormat.PDF)
+                    showExportDialog = false
+                }) {
+                    Icon(Icons.Filled.PictureAsPdf, contentDescription = null, modifier = Modifier.height(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("PDF")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    ScaleExporter.share(context, scale, ExportFormat.JPEG)
+                    showExportDialog = false
+                }) { Text("JPEG") }
+            }
+        )
     }
 }
 

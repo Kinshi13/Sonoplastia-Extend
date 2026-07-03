@@ -2,7 +2,6 @@ package com.escalachurch.app.data.local.converter
 
 import androidx.room.TypeConverter
 import com.escalachurch.app.domain.model.ChangeLogEntityType
-import com.escalachurch.app.domain.model.MediaType
 import com.escalachurch.app.domain.model.ProgramType
 import com.escalachurch.app.domain.model.RepeatRule
 import com.escalachurch.app.domain.model.SourceType
@@ -40,12 +39,6 @@ class Converters {
 
     @TypeConverter
     fun toSourceType(value: String?): SourceType? = value?.let { SourceType.valueOf(it) }
-
-    @TypeConverter
-    fun fromMediaType(value: MediaType?): String? = value?.name
-
-    @TypeConverter
-    fun toMediaType(value: String?): MediaType? = value?.let { MediaType.valueOf(it) }
 
     @TypeConverter
     fun fromChangeLogEntityType(value: ChangeLogEntityType?): String? = value?.name

@@ -7,7 +7,8 @@ import java.time.LocalTime
  * Represents a single church service scale (who is responsible for what).
  */
 data class ScaleItem(
-    val id: Long = 0L,
+    /** Firestore document id; empty string means "not saved yet". */
+    val id: String = "",
     val date: LocalDate,
     val startTime: LocalTime,
     val endTime: LocalTime? = null,

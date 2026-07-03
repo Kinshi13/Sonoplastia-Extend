@@ -13,13 +13,14 @@ import kotlinx.coroutines.flow.map
 
 /**
  * "Escala Geral": the admin-facing view over official [ScaleItem]s. Wraps [ScaleRepository]
- * (same table as the rest of the app reads from - see HomeViewModel) rather than duplicating
- * storage, and additionally writes a [ChangeLogEntry] + fires a local notification whenever an
- * admin edit affects a class-relevant field, so members find out something changed.
+ * (same Firestore collection the rest of the app reads from - see HomeViewModel) rather than
+ * duplicating storage, and additionally writes a [ChangeLogEntry] + fires a local notification
+ * whenever an admin edit affects a class-relevant field, so members find out something changed.
  *
- * TODO(backend): once connected, admin writes here should go to Firestore/Supabase instead of
- * (or in addition to) Room, and the change-detection below should move server-side so it also
- * covers edits made by other admins on other devices.
+ * TODO(sync): change-detection below only runs on the device that made the edit. Once this needs
+ * to also cover edits made by other admins on other devices, move it server-side (a Cloud
+ * Function triggered on writes to the `scales` collection) and deliver via Firebase Cloud
+ * Messaging instead of the local ChangeNotifier call at the end of [saveOfficial].
  */
 class GeneralScaleRepository(
     private val context: Context,
@@ -33,10 +34,10 @@ class GeneralScaleRepository(
 
     /** Persists an official scale (admin-only, enforced by the calling screen), logging/notifying affected classes. */
     suspend fun saveOfficial(item: ScaleItem) {
-        val before = if (item.id != 0L) scaleRepository.getById(item.id) else null
+        val before = if (item.id.isNotBlank()) scaleRepository.getById(item.id) else null
         val toSave = item.copy(sourceType = SourceType.OFFICIAL)
-        // Room's upsert returns the generated id for new rows (item.id was 0) - without capturing
-        // it, a newly-created scale's ChangeLogEntry would be recorded with entityId = 0.
+        // Firestore's add() generates the id for new documents (item.id was blank) - without
+        // capturing it, a newly-created scale's ChangeLogEntry would be recorded with a blank id.
         val savedId = scaleRepository.save(toSave)
         val saved = toSave.copy(id = savedId)
 
@@ -64,13 +65,13 @@ class GeneralScaleRepository(
 
     /** Duplicates an official scale to another date (e.g. "duplicar para outro dia/mês"), keeping roles/notes. */
     suspend fun duplicateTo(source: ScaleItem, newDate: java.time.LocalDate) {
-        saveOfficial(source.copy(id = 0L, date = newDate, createdAt = System.currentTimeMillis()))
+        saveOfficial(source.copy(id = "", date = newDate, createdAt = System.currentTimeMillis()))
     }
 
     /** Creates several consecutive/extra official days (e.g. Semana de Oração) from one template. */
     suspend fun createExtraDays(template: ScaleItem, dates: List<java.time.LocalDate>) {
         dates.forEach { date ->
-            saveOfficial(template.copy(id = 0L, date = date, createdAt = System.currentTimeMillis()))
+            saveOfficial(template.copy(id = "", date = date, createdAt = System.currentTimeMillis()))
         }
     }
 }

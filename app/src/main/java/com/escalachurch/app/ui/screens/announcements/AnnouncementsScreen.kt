@@ -26,6 +26,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.escalachurch.app.di.appViewModel
 import com.escalachurch.app.domain.model.Announcement
@@ -40,6 +41,7 @@ fun AnnouncementsScreen(
         AnnouncementViewModel(container.announcementRepository, container.settingsRepository, container.userProfileRepository, container.adminSession)
     }
     val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     var editingTarget by remember { mutableStateOf<AnnouncementEditTarget?>(null) }
     var isEditing by remember { mutableStateOf(false) }
 
@@ -49,6 +51,7 @@ fun AnnouncementsScreen(
         AnnouncementEditScreen(
             existing = editingTarget?.item,
             isAdmin = state.isAdmin,
+            onUpload = { uri -> viewModel.uploadMedia(context, uri) },
             onSave = { viewModel.save(it); isEditing = false },
             onDelete = editingTarget?.item?.let { item -> { viewModel.delete(item); isEditing = false } },
             onBack = { isEditing = false }

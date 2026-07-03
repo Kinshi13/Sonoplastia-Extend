@@ -5,7 +5,8 @@ import java.time.LocalTime
 
 /** Represents the order of service (liturgy) for a given date. */
 data class DoxologyItem(
-    val id: Long = 0L,
+    /** Firestore document id; empty string means "not saved yet". */
+    val id: String = "",
     val date: LocalDate,
     val startTime: LocalTime,
     val title: String,
@@ -16,10 +17,8 @@ data class DoxologyItem(
     val updatedAt: Long = System.currentTimeMillis()
 )
 
-/** A single step within a Doxology's order of service. */
+/** A single step within a Doxology's order of service - stored embedded in the parent document. */
 data class ProgramStep(
-    val id: Long = 0L,
-    val doxologyId: Long = 0L,
     val order: Int,
     val title: String,
     val description: String = "",

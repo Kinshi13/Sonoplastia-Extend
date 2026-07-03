@@ -59,45 +59,48 @@ fun ChangeNewsDialog(
 }
 
 /**
- * PIN entry dialog used for "Modo administrador" (see AdminSession). [isSettingNewPin] switches
- * the copy between "criar PIN" (first use) and "digite o PIN" (unlocking).
+ * Login dialog used for "Modo administrador" (see AdminSession), backed by real Firebase Auth.
+ * Accounts are created by whoever manages the Firebase project (Console → Authentication → Add
+ * user) - there's no self-serve sign-up here on purpose.
  */
 @Composable
-fun AdminPinDialog(
-    isSettingNewPin: Boolean,
+fun AdminLoginDialog(
     errorMessage: String? = null,
-    onConfirm: (String) -> Unit,
+    onConfirm: (email: String, password: String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var pin by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (isSettingNewPin) "Criar PIN do administrador" else "Modo administrador") },
+        title = { Text("Modo administrador") },
         text = {
             androidx.compose.foundation.layout.Column {
-                Text(
-                    if (isSettingNewPin) {
-                        "Defina um PIN local para proteger a edição de dados oficiais neste aparelho."
-                    } else {
-                        "Digite o PIN do administrador para editar dados oficiais."
-                    }
-                )
+                Text("Entre com a conta de administrador para editar dados oficiais.")
                 androidx.compose.foundation.layout.Spacer(androidx.compose.ui.Modifier.height(12.dp))
                 OutlinedTextField(
-                    value = pin,
-                    onValueChange = { if (it.length <= 8) pin = it.filter(Char::isDigit) },
-                    label = { Text("PIN") },
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("E-mail") },
+                    singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Email)
+                )
+                androidx.compose.foundation.layout.Spacer(androidx.compose.ui.Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Senha") },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Password),
                     isError = errorMessage != null,
                     supportingText = errorMessage?.let { { Text(it) } }
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(pin) }, enabled = pin.length >= 4) {
-                Text(if (isSettingNewPin) "Criar" else "Entrar")
+            TextButton(onClick = { onConfirm(email.trim(), password) }, enabled = email.isNotBlank() && password.length >= 6) {
+                Text("Entrar")
             }
         },
         dismissButton = {

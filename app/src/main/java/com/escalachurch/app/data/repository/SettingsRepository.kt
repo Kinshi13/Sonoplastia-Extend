@@ -14,5 +14,5 @@ class SettingsRepository(private val dataStore: SettingsDataStore) {
 
     suspend fun markReminderNotified(key: String) = dataStore.markNotified(key)
 
-    suspend fun pruneReminderKeys(validScaleIds: Set<Long>) = dataStore.pruneNotifiedKeys(validScaleIds)
+    suspend fun pruneReminderKeys(validScaleIds: Set<String>) = dataStore.pruneNotifiedKeys(validScaleIds)
 }

@@ -19,7 +19,8 @@ enum class ChangeLogEntityType {
 data class ChangeLogEntry(
     val id: Long = 0L,
     val entityType: ChangeLogEntityType,
-    val entityId: Long,
+    /** Firestore document id of the scale/doxology/announcement this change refers to. */
+    val entityId: String,
     val affectedClasses: Set<UserClass>,
     val title: String,
     val message: String,

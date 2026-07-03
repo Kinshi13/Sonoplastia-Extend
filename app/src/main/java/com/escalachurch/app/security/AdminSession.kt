@@ -1,54 +1,42 @@
 package com.escalachurch.app.security
 
-import com.escalachurch.app.data.repository.SettingsRepository
 import com.escalachurch.app.data.repository.UserProfileRepository
 import com.escalachurch.app.domain.model.AccessLevel
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
-import java.security.MessageDigest
+import kotlinx.coroutines.tasks.await
 
 /**
- * Local, PIN-protected "modo administrador" gate.
+ * "Modo administrador" gate, backed by real Firebase Auth (email/password). Only accounts
+ * created by whoever manages the Firebase project (Console → Authentication → Add user) can
+ * sign in here - there is no self-serve sign-up screen, so a random member can never grant
+ * themselves admin rights from the app.
  *
- * TODO(auth): this is a deliberately simple, temporary MVP mechanism - a 4+ digit PIN hashed
- * and stored on-device. It is NOT real authentication (anyone with the PIN on any device could
- * unlock it, and the PIN never leaves the device). Replace with Firebase Auth / Supabase Auth /
- * API própria issuing verified roles before this app is used beyond a single trusted group.
- *
- * Unlocking is a per-process session (not persisted across app restarts) so admin mode always
- * requires re-entering the PIN when the app is reopened.
+ * Firebase Auth persists the session across app restarts by default (same as most apps), so an
+ * admin who signs in stays signed in until they explicitly sign out - unlike the old local PIN,
+ * which required re-entry every time the app opened.
  */
 class AdminSession(
-    private val settingsRepository: SettingsRepository,
+    private val auth: FirebaseAuth,
     private val userProfileRepository: UserProfileRepository
 ) {
-    private val _isUnlocked = MutableStateFlow(false)
+    private val _isUnlocked = MutableStateFlow(auth.currentUser != null)
     val isUnlocked: StateFlow<Boolean> = _isUnlocked
 
-    suspend fun hasPinConfigured(): Boolean = settingsRepository.settingsFlow.first().adminPinHash != null
-
-    suspend fun setPin(pin: String) {
-        settingsRepository.update(settingsRepository.settingsFlow.first().copy(adminPinHash = hash(pin)))
-    }
-
-    suspend fun unlock(pin: String): Boolean {
-        val storedHash = settingsRepository.settingsFlow.first().adminPinHash ?: return false
-        val matches = storedHash == hash(pin)
-        if (matches) {
-            _isUnlocked.value = true
-            userProfileRepository.setAccessLevel(AccessLevel.ADMIN)
+    init {
+        auth.addAuthStateListener { firebaseAuth ->
+            _isUnlocked.value = firebaseAuth.currentUser != null
         }
-        return matches
     }
 
-    suspend fun lock() {
-        _isUnlocked.value = false
+    suspend fun signIn(email: String, password: String): Result<Unit> = runCatching {
+        auth.signInWithEmailAndPassword(email, password).await()
+        userProfileRepository.setAccessLevel(AccessLevel.ADMIN)
+    }
+
+    suspend fun signOut() {
+        auth.signOut()
         userProfileRepository.setAccessLevel(AccessLevel.MEMBER)
-    }
-
-    private fun hash(pin: String): String {
-        val digest = MessageDigest.getInstance("SHA-256").digest(pin.toByteArray())
-        return digest.joinToString("") { "%02x".format(it) }
     }
 }
