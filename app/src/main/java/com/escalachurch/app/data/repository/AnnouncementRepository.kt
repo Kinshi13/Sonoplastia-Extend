@@ -1,50 +1,87 @@
 package com.escalachurch.app.data.repository
 
-import com.escalachurch.app.data.remote.FirestoreCollections
-import com.escalachurch.app.data.remote.observeAsFlow
+import android.content.Context
+import android.net.Uri
+import android.webkit.MimeTypeMap
+import com.escalachurch.app.data.remote.CHURCH_FILES_BUCKET
+import com.escalachurch.app.data.remote.SupabaseTables
+import com.escalachurch.app.data.remote.dto.AnnouncementDto
 import com.escalachurch.app.data.remote.dto.toAnnouncement
 import com.escalachurch.app.data.remote.dto.toDto
+import com.escalachurch.app.data.remote.observeTable
 import com.escalachurch.app.domain.model.Announcement
-import com.google.firebase.firestore.FirebaseFirestore
+import com.escalachurch.app.domain.model.MediaType
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.tasks.await
+import java.util.UUID
 
-/**
- * Announcements + optional attached media, backed by Firestore's `announcements` collection.
- * Media is stored as an external link (Google Drive, YouTube, etc.) pasted in by the admin
- * rather than uploaded to Firebase Storage, since Storage requires the paid Blaze plan. Only an
- * admin (authenticated via Firebase Auth - see AdminSession) can write here; anyone can read.
- */
-class AnnouncementRepository(
-    private val firestore: FirebaseFirestore
-) {
+/** What a picked file was uploaded as, ready to attach to an [Announcement]. */
+data class UploadedMedia(val type: MediaType, val url: String, val fileName: String?)
 
-    private val collection get() = firestore.collection(FirestoreCollections.ANNOUNCEMENTS)
+/** Announcements + optional media, backed by Supabase's `announcements` table + Storage bucket. */
+class AnnouncementRepository(private val client: SupabaseClient) {
 
-    // Sorted client-side (pinned first, newest first) instead of via Firestore orderBy() so this
-    // never needs a composite index configured in the console - just whereEqualTo needs none.
-    fun observeActive(): Flow<List<Announcement>> = collection
-        .whereEqualTo("isActive", true)
-        .observeAsFlow { snapshot -> snapshot.toAnnouncement() }
-        .map { list -> list.sortedWith(compareByDescending<Announcement> { it.isPinned }.thenByDescending { it.publishedAt }) }
+    private val table get() = client.postgrest.from(SupabaseTables.ANNOUNCEMENTS)
+
+    fun observeActive(): Flow<List<Announcement>> = client.observeTable(SupabaseTables.ANNOUNCEMENTS) {
+        table.select { filter { eq("is_active", true) } }
+            .decodeList<AnnouncementDto>()
+            .mapNotNull { it.toAnnouncement() }
+            .sortedWith(compareByDescending<Announcement> { it.isPinned }.thenByDescending { it.publishedAt })
+    }
 
     suspend fun save(item: Announcement): String {
         return if (item.id.isBlank()) {
-            collection.add(item.toDto()).await().id
+            table.insert(item.toDto()) { select(Columns.list("id")) }.decodeSingle<AnnouncementDto>().id!!
         } else {
-            collection.document(item.id).set(item.toDto()).await()
+            table.update(item.toDto()) { filter { eq("id", item.id) } }
             item.id
         }
     }
 
     suspend fun delete(item: Announcement) {
         if (item.id.isBlank()) return
-        collection.document(item.id).delete().await()
+        table.delete { filter { eq("id", item.id) } }
     }
 
     suspend fun deleteById(id: String) {
         if (id.isBlank()) return
-        collection.document(id).delete().await()
+        table.delete { filter { eq("id", id) } }
     }
+
+    /** Uploads a locally-picked file (image, video, PPT/PDF) to Supabase Storage and returns its public URL. */
+    suspend fun uploadMedia(context: Context, uri: Uri): UploadedMedia =
+        client.uploadToChurchFiles(context, uri, "announcements")
+}
+
+/** Shared by [AnnouncementRepository] and the Sonoplastia file-sharing screen. */
+suspend fun SupabaseClient.uploadToChurchFiles(context: Context, uri: Uri, folder: String): UploadedMedia {
+    val contentResolver = context.contentResolver
+    val mimeType = contentResolver.getType(uri).orEmpty()
+    val extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "bin"
+    val fileName = queryDisplayName(context, uri)
+
+    val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: ByteArray(0)
+    val path = "$folder/${UUID.randomUUID()}.$extension"
+    storage.from(CHURCH_FILES_BUCKET).upload(path, bytes)
+    val url = storage.from(CHURCH_FILES_BUCKET).publicUrl(path)
+
+    val type = when {
+        mimeType.startsWith("image/") -> MediaType.IMAGE
+        mimeType.startsWith("video/") -> MediaType.VIDEO
+        else -> MediaType.DOCUMENT
+    }
+    return UploadedMedia(type = type, url = url, fileName = fileName)
+}
+
+private fun queryDisplayName(context: Context, uri: Uri): String? {
+    return runCatching {
+        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+            if (nameIndex >= 0 && cursor.moveToFirst()) cursor.getString(nameIndex) else null
+        }
+    }.getOrNull()
 }

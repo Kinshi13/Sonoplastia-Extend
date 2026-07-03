@@ -2,41 +2,39 @@ package com.escalachurch.app.security
 
 import com.escalachurch.app.data.repository.UserProfileRepository
 import com.escalachurch.app.domain.model.AccessLevel
-import com.google.firebase.auth.FirebaseAuth
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.gotrue.providers.builtin.Email
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.tasks.await
 
 /**
- * "Modo administrador" gate, backed by real Firebase Auth (email/password). Only accounts
- * created by whoever manages the Firebase project (Console → Authentication → Add user) can
- * sign in here - there is no self-serve sign-up screen, so a random member can never grant
- * themselves admin rights from the app.
- *
- * Firebase Auth persists the session across app restarts by default (same as most apps), so an
- * admin who signs in stays signed in until they explicitly sign out - unlike the old local PIN,
- * which required re-entry every time the app opened.
+ * "Modo administrador" gate, backed by real Supabase Auth (email/password) + the `profiles.is_admin`
+ * flag (row-level security in supabase/schema.sql enforces this server-side too, this is just the
+ * UI-side mirror). Only accounts created by whoever manages the Supabase project (Dashboard ->
+ * Authentication -> Add user, then promote via the SQL at the bottom of schema.sql) can become
+ * admins - there is no self-serve sign-up screen, so a random member can never grant themselves
+ * admin rights from the app.
  */
 class AdminSession(
-    private val auth: FirebaseAuth,
+    private val client: SupabaseClient,
     private val userProfileRepository: UserProfileRepository
 ) {
-    private val _isUnlocked = MutableStateFlow(auth.currentUser != null)
+    private val _isUnlocked = MutableStateFlow(client.auth.currentUserOrNull() != null)
     val isUnlocked: StateFlow<Boolean> = _isUnlocked
 
-    init {
-        auth.addAuthStateListener { firebaseAuth ->
-            _isUnlocked.value = firebaseAuth.currentUser != null
-        }
-    }
-
     suspend fun signIn(email: String, password: String): Result<Unit> = runCatching {
-        auth.signInWithEmailAndPassword(email, password).await()
+        client.auth.signInWith(Email) {
+            this.email = email
+            this.password = password
+        }
+        _isUnlocked.value = true
         userProfileRepository.setAccessLevel(AccessLevel.ADMIN)
     }
 
     suspend fun signOut() {
-        auth.signOut()
+        client.auth.signOut()
+        _isUnlocked.value = false
         userProfileRepository.setAccessLevel(AccessLevel.MEMBER)
     }
 }

@@ -16,6 +16,7 @@ sealed class AppDestination(val route: String) {
  */
 object SecondaryDestination {
     const val GENERAL_SCALE_ROUTE = "general_scale?date={date}"
+    const val SONOPLASTIA_ROUTE = "sonoplastia"
 
     fun generalScaleRoute(date: java.time.LocalDate?): String =
         "general_scale?date=${date?.toString() ?: ""}"

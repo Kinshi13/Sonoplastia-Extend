@@ -4,27 +4,30 @@ import com.escalachurch.app.domain.model.Announcement
 import com.escalachurch.app.domain.model.MediaType
 import com.escalachurch.app.domain.model.SourceType
 import com.escalachurch.app.domain.model.UserClass
-import com.google.firebase.firestore.DocumentSnapshot
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import java.time.LocalDate
 
+@Serializable
 data class AnnouncementDto(
+    val id: String? = null,
     val title: String = "",
     val description: String = "",
-    val mediaType: String = MediaType.NONE.name,
-    val mediaUrl: String? = null,
-    val mediaFileName: String? = null,
-    val imageAspectRatio: String = "4:3",
-    val affectedClasses: List<String> = emptyList(),
-    val relatedEventDate: String? = null,
-    val createdBy: String = "",
-    val sourceType: String = SourceType.OFFICIAL.name,
-    val publishedAt: Long = 0L,
-    val updatedAt: Long = 0L,
-    val isPinned: Boolean = false,
-    val isActive: Boolean = true
+    @SerialName("media_type") val mediaType: String = MediaType.NONE.name,
+    @SerialName("media_url") val mediaUrl: String? = null,
+    @SerialName("media_file_name") val mediaFileName: String? = null,
+    @SerialName("image_aspect_ratio") val imageAspectRatio: String = "4:3",
+    @SerialName("affected_classes") val affectedClasses: List<String> = emptyList(),
+    @SerialName("related_event_date") val relatedEventDate: String? = null,
+    @SerialName("source_type") val sourceType: String = SourceType.OFFICIAL.name,
+    @SerialName("published_at") val publishedAt: Long = 0L,
+    @SerialName("updated_at") val updatedAt: Long = 0L,
+    @SerialName("is_pinned") val isPinned: Boolean = false,
+    @SerialName("is_active") val isActive: Boolean = true
 )
 
 fun Announcement.toDto() = AnnouncementDto(
+    id = id.ifBlank { null },
     title = title,
     description = description,
     mediaType = mediaType.name,
@@ -33,7 +36,6 @@ fun Announcement.toDto() = AnnouncementDto(
     imageAspectRatio = imageAspectRatio,
     affectedClasses = affectedClasses.map { it.name },
     relatedEventDate = relatedEventDate?.toString(),
-    createdBy = createdBy,
     sourceType = sourceType.name,
     publishedAt = publishedAt,
     updatedAt = updatedAt,
@@ -41,23 +43,19 @@ fun Announcement.toDto() = AnnouncementDto(
     isActive = isActive
 )
 
-fun DocumentSnapshot.toAnnouncement(): Announcement? {
-    val dto = toObject(AnnouncementDto::class.java) ?: return null
-    return Announcement(
-        id = id,
-        title = dto.title,
-        description = dto.description,
-        mediaType = runCatching { MediaType.valueOf(dto.mediaType) }.getOrDefault(MediaType.NONE),
-        mediaUrl = dto.mediaUrl,
-        mediaFileName = dto.mediaFileName,
-        imageAspectRatio = dto.imageAspectRatio,
-        affectedClasses = dto.affectedClasses.mapNotNull { runCatching { UserClass.valueOf(it) }.getOrNull() }.toSet(),
-        relatedEventDate = dto.relatedEventDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() },
-        createdBy = dto.createdBy,
-        sourceType = runCatching { SourceType.valueOf(dto.sourceType) }.getOrDefault(SourceType.OFFICIAL),
-        publishedAt = dto.publishedAt,
-        updatedAt = dto.updatedAt,
-        isPinned = dto.isPinned,
-        isActive = dto.isActive
-    )
-}
+fun AnnouncementDto.toAnnouncement(): Announcement? { return Announcement(
+    id = id ?: return null,
+    title = title,
+    description = description,
+    mediaType = runCatching { MediaType.valueOf(mediaType) }.getOrDefault(MediaType.NONE),
+    mediaUrl = mediaUrl,
+    mediaFileName = mediaFileName,
+    imageAspectRatio = imageAspectRatio,
+    affectedClasses = affectedClasses.mapNotNull { runCatching { UserClass.valueOf(it) }.getOrNull() }.toSet(),
+    relatedEventDate = relatedEventDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() },
+    sourceType = runCatching { SourceType.valueOf(sourceType) }.getOrDefault(SourceType.OFFICIAL),
+    publishedAt = publishedAt,
+    updatedAt = updatedAt,
+    isPinned = isPinned,
+    isActive = isActive
+) }

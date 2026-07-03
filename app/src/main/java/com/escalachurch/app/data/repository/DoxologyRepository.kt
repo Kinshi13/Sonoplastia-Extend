@@ -1,32 +1,36 @@
 package com.escalachurch.app.data.repository
 
-import com.escalachurch.app.data.remote.FirestoreCollections
-import com.escalachurch.app.data.remote.observeAsFlow
+import com.escalachurch.app.data.remote.SupabaseTables
+import com.escalachurch.app.data.remote.dto.DoxologyDto
 import com.escalachurch.app.data.remote.dto.toDoxologyItem
 import com.escalachurch.app.data.remote.dto.toDto
+import com.escalachurch.app.data.remote.observeTable
 import com.escalachurch.app.domain.model.DoxologyItem
-import com.google.firebase.firestore.FirebaseFirestore
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.tasks.await
 
-/** Official doxologies (order of service), backed by Firestore's `doxologies` collection. */
-class DoxologyRepository(private val firestore: FirebaseFirestore) {
+/** Official doxologies (order of service), backed by Supabase's `doxologies` table. */
+class DoxologyRepository(private val client: SupabaseClient) {
 
-    private val collection get() = firestore.collection(FirestoreCollections.DOXOLOGIES)
+    private val table get() = client.postgrest.from(SupabaseTables.DOXOLOGIES)
 
-    fun observeAll(): Flow<List<DoxologyItem>> = collection.observeAsFlow { snapshot -> snapshot.toDoxologyItem() }
+    fun observeAll(): Flow<List<DoxologyItem>> = client.observeTable(SupabaseTables.DOXOLOGIES) {
+        table.select().decodeList<DoxologyDto>().mapNotNull { it.toDoxologyItem() }
+    }
 
     suspend fun save(item: DoxologyItem): String {
         return if (item.id.isBlank()) {
-            collection.add(item.toDto()).await().id
+            table.insert(item.toDto()) { select(Columns.list("id")) }.decodeSingle<DoxologyDto>().id!!
         } else {
-            collection.document(item.id).set(item.toDto()).await()
+            table.update(item.toDto()) { filter { eq("id", item.id) } }
             item.id
         }
     }
 
     suspend fun deleteById(id: String) {
         if (id.isBlank()) return
-        collection.document(id).delete().await()
+        table.delete { filter { eq("id", id) } }
     }
 }

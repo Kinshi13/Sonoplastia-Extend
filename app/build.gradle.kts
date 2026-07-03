@@ -1,9 +1,20 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp")
-    id("com.google.gms.google-services")
+    id("org.jetbrains.kotlin.plugin.serialization")
 }
+
+// Supabase credentials are per-environment, like sdk.dir - kept out of git in local.properties
+// (see local.properties.example) and exposed to the app only as BuildConfig fields.
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+val supabaseUrl: String = localProperties.getProperty("SUPABASE_URL") ?: ""
+val supabaseAnonKey: String = localProperties.getProperty("SUPABASE_ANON_KEY") ?: ""
 
 android {
     namespace = "com.escalachurch.app"
@@ -20,6 +31,9 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
     }
 
     buildTypes {
@@ -46,6 +60,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     composeOptions {
@@ -89,18 +104,22 @@ dependencies {
     // WorkManager (periodic reminder checks)
     implementation("androidx.work:work-runtime-ktx:2.9.1")
 
-    // Coil (loads Anúncios media - image URLs are pasted links, e.g. Google Drive/Photos)
+    // Coil (loads Anúncios/Sonoplastia media - images, thumbnails)
     implementation("io.coil-kt:coil-compose:2.6.0")
 
-    // Firebase (sync backend for official data - scales/doxologies/announcements in Firestore,
-    // admin accounts in Auth. No Storage: file/media sharing uses pasted links instead, since
-    // Firebase Storage requires the paid Blaze plan.)
-    implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
-    implementation("com.google.firebase:firebase-firestore-ktx")
-    implementation("com.google.firebase:firebase-auth-ktx")
-    implementation("com.google.firebase:firebase-common-ktx")
-    implementation("com.google.android.gms:play-services-tasks:18.2.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
+    // Media3 (inline short-video playback in the Anúncios feed)
+    implementation("androidx.media3:media3-exoplayer:1.4.1")
+    implementation("androidx.media3:media3-ui:1.4.1")
+
+    // Supabase (sync backend for official data - scales/doxologies/announcements in Postgres,
+    // admin accounts + row-level security in Auth, files in Storage)
+    implementation(platform("io.github.jan-tennert.supabase:bom:2.2.0"))
+    implementation("io.github.jan-tennert.supabase:postgrest-kt")
+    implementation("io.github.jan-tennert.supabase:gotrue-kt")
+    implementation("io.github.jan-tennert.supabase:storage-kt")
+    implementation("io.github.jan-tennert.supabase:realtime-kt")
+    implementation("io.ktor:ktor-client-android:2.3.9")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")

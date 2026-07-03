@@ -20,7 +20,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PushPin
@@ -96,11 +95,6 @@ fun AnnouncementCard(
                     Text(announcement.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                 }
 
-                if (hasMedia && announcement.mediaType == MediaType.DOCUMENT) {
-                    Spacer(Modifier.height(10.dp))
-                    DocumentChip(announcement.mediaUrl!!, announcement.mediaFileName)
-                }
-
                 if (announcement.affectedClasses.isNotEmpty()) {
                     Spacer(Modifier.height(10.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -155,33 +149,8 @@ private fun MediaPreview(announcement: Announcement) {
                 modifier = Modifier.fillMaxSize()
             )
             MediaType.VIDEO -> androidx.compose.runtime.key(mediaUrl) { VideoPreview(mediaUrl) }
-            MediaType.DOCUMENT, MediaType.NONE -> Unit
+            else -> Unit
         }
-    }
-}
-
-/** Presentation files (PPT, PDF) don't preview inline - they show as a tappable download chip. */
-@Composable
-private fun DocumentChip(url: String, fileName: String?) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f))
-            .clickable {
-                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
-                runCatching { context.startActivity(intent) }
-            }
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(Icons.Filled.Description, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.height(20.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(
-            fileName ?: "Abrir arquivo",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary
-        )
     }
 }
 

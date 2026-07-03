@@ -20,6 +20,7 @@ import com.escalachurch.app.ui.screens.generalscale.GeneralScaleScreen
 import com.escalachurch.app.ui.screens.home.HomeScreen
 import com.escalachurch.app.ui.screens.program.ProgramScreen
 import com.escalachurch.app.ui.screens.settings.SettingsScreen
+import com.escalachurch.app.ui.screens.sonoplastia.SonoplastiaScreen
 
 @Composable
 fun EscalaChurchNavGraph() {
@@ -36,7 +37,8 @@ fun EscalaChurchNavGraph() {
         else -> AppDestination.Home
     }
 
-    val isSecondaryScreen = currentRoute == SecondaryDestination.GENERAL_SCALE_ROUTE
+    val isSecondaryScreen = currentRoute == SecondaryDestination.GENERAL_SCALE_ROUTE ||
+        currentRoute == SecondaryDestination.SONOPLASTIA_ROUTE
 
     fun navigateToTab(route: String) {
         navController.navigate(route) {
@@ -64,7 +66,8 @@ fun EscalaChurchNavGraph() {
             composable(AppDestination.Home.route) {
                 HomeScreen(
                     onOpenGeneralScale = { date -> navController.navigate(SecondaryDestination.generalScaleRoute(date)) },
-                    onOpenAnnouncements = { navigateToTab(AppDestination.Announcements.route) }
+                    onOpenAnnouncements = { navigateToTab(AppDestination.Announcements.route) },
+                    onOpenSonoplastia = { navController.navigate(SecondaryDestination.SONOPLASTIA_ROUTE) }
                 )
             }
             composable(AppDestination.Doxology.route) { DoxologyScreen() }
@@ -90,6 +93,9 @@ fun EscalaChurchNavGraph() {
                     initialDate = dateArg.takeIf { it.isNotBlank() }?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() },
                     onBack = { navController.popBackStack() }
                 )
+            }
+            composable(SecondaryDestination.SONOPLASTIA_ROUTE) {
+                SonoplastiaScreen(onBack = { navController.popBackStack() })
             }
         }
     }

@@ -12,7 +12,3 @@ local.properties
 *.aab
 /app/build
 /app/release
-
-# Firebase project config - contains this church's project id/API key; each environment
-# building the app should drop its own copy here (not committed, same treatment as local.properties).
-/app/google-services.json

@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.EventNote
 import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,7 +43,8 @@ import com.escalachurch.app.ui.components.SecondaryButton
 @Composable
 fun HomeScreen(
     onOpenGeneralScale: (java.time.LocalDate?) -> Unit = {},
-    onOpenAnnouncements: () -> Unit = {}
+    onOpenAnnouncements: () -> Unit = {},
+    onOpenSonoplastia: () -> Unit = {}
 ) {
     val viewModel = appViewModel { container ->
         HomeViewModel(
@@ -77,8 +79,13 @@ fun HomeScreen(
     Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("Próxima Escala", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
-            IconButton(onClick = onOpenAnnouncements) {
-                Icon(Icons.Filled.Campaign, contentDescription = "Anúncios", tint = MaterialTheme.colorScheme.primary)
+            Row {
+                IconButton(onClick = onOpenSonoplastia) {
+                    Icon(Icons.Filled.Computer, contentDescription = "Sonoplastia (arquivos remotos)", tint = MaterialTheme.colorScheme.primary)
+                }
+                IconButton(onClick = onOpenAnnouncements) {
+                    Icon(Icons.Filled.Campaign, contentDescription = "Anúncios", tint = MaterialTheme.colorScheme.primary)
+                }
             }
         }
         Spacer(Modifier.height(20.dp))

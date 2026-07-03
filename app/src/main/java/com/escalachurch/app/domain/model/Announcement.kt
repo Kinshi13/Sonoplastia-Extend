@@ -14,8 +14,8 @@ enum class MediaType {
  * A church-wide notice/event post shown in the Anúncios feed. Always [SourceType.OFFICIAL] in
  * this MVP - only an admin can publish one.
  *
- * [mediaUrl] is an external link (Google Drive, YouTube, etc.) pasted in by the admin, not a
- * direct upload - Firebase Storage would require the paid Blaze plan.
+ * [mediaUrl] is a Supabase Storage public URL (see AnnouncementRepository.uploadMedia) - files are
+ * uploaded there right after being picked.
  */
 data class Announcement(
     /** Firestore document id; empty string means "not saved yet". */
