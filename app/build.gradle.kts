@@ -89,14 +89,15 @@ dependencies {
     // WorkManager (periodic reminder checks)
     implementation("androidx.work:work-runtime-ktx:2.9.1")
 
-    // Coil (loads local image URIs for Anúncios - swap for remote URLs once Storage is wired up)
+    // Coil (loads Anúncios media - image URLs are pasted links, e.g. Google Drive/Photos)
     implementation("io.coil-kt:coil-compose:2.6.0")
 
-    // Firebase (sync backend for official data - see ScheduleSyncGateway/FirebaseGeneralScaleRepository)
+    // Firebase (sync backend for official data - scales/doxologies/announcements in Firestore,
+    // admin accounts in Auth. No Storage: file/media sharing uses pasted links instead, since
+    // Firebase Storage requires the paid Blaze plan.)
     implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-auth-ktx")
-    implementation("com.google.firebase:firebase-storage-ktx")
     implementation("com.google.firebase:firebase-common-ktx")
     implementation("com.google.android.gms:play-services-tasks:18.2.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")

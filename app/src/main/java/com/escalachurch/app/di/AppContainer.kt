@@ -15,14 +15,13 @@ import com.escalachurch.app.data.repository.UserProfileRepository
 import com.escalachurch.app.security.AdminSession
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.storage.FirebaseStorage
 
 /**
  * Minimal, manual dependency container. No DI framework is required; this keeps the build
  * lighter while still separating construction from usage for testability.
  *
- * Official data (scales, doxologies, announcements) lives in Firebase Firestore/Storage/Auth -
- * see FirestoreCollections - so it's shared in real time by every device signed into the same
+ * Official data (scales, doxologies, announcements) lives in Firebase Firestore/Auth - see
+ * FirestoreCollections - so it's shared in real time by every device signed into the same
  * Firebase project. Personal data (Programar's CustomEvent, local settings, reminder state)
  * stays in Room/DataStore on-device, since it was never meant to be shared.
  */
@@ -34,14 +33,13 @@ class AppContainer(context: Context) {
 
     private val firestore = FirebaseFirestore.getInstance()
     private val firebaseAuth = FirebaseAuth.getInstance()
-    private val firebaseStorage = FirebaseStorage.getInstance()
 
     val scaleRepository = ScaleRepository(firestore)
     val doxologyRepository = DoxologyRepository(firestore)
     val customEventRepository = CustomEventRepository(database.customEventDao())
     val settingsRepository = SettingsRepository(settingsDataStore)
     val userProfileRepository = UserProfileRepository(userProfileDataStore)
-    val announcementRepository = AnnouncementRepository(firestore, firebaseStorage)
+    val announcementRepository = AnnouncementRepository(firestore)
     val changeLogRepository = ChangeLogRepository(database.changeLogDao())
 
     val generalScaleRepository = GeneralScaleRepository(
