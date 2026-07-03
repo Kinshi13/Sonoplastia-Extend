@@ -173,7 +173,16 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.height(10.dp))
-                AppTextField(value = settings.myName, onValueChange = { viewModel.update { s -> s.copy(myName = it) } }, label = "Meu nome")
+                // Local-first: typed text is the source of truth for what's on screen, and is only
+                // pushed to DataStore as a side effect. Binding the field's value directly to the
+                // DataStore round-trip (read-after-write on every keystroke) races with fast typing
+                // on real devices, dropping characters while the write/read-back is still in flight.
+                var localName by remember { mutableStateOf(settings.myName) }
+                AppTextField(
+                    value = localName,
+                    onValueChange = { localName = it; viewModel.update { s -> s.copy(myName = it) } },
+                    label = "Meu nome"
+                )
                 Spacer(Modifier.height(4.dp))
                 SwitchRow("Ativar lembretes", settings.remindersEnabled) { checked ->
                     viewModel.update { it.copy(remindersEnabled = checked) }
