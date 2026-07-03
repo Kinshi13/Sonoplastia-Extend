@@ -8,7 +8,7 @@ import com.escalachurch.app.R
 
 /**
  * App-wide singleton for the background music loop and short UI sound effects (e.g. the nav bar
- * swipe swoosh), volume-controlled from Configurações -> Áudio. A plain object (not part of
+ * swipe pop), volume-controlled from Configurações -> Áudio. A plain object (not part of
  * AppContainer's DI) so composables that don't otherwise touch the container - like the bottom
  * nav bar - can still trigger a sound effect without threading it through every screen.
  */
@@ -43,6 +43,11 @@ object AppSoundPlayer {
         }
     }
 
+    /** Loads the swipe sound ahead of time so the very first swipe isn't silent while it loads. */
+    fun preloadSwipeEffect(context: Context) {
+        ensureSoundPool(context)
+    }
+
     private fun ensureSoundPool(context: Context): SoundPool? {
         if (soundPool == null) {
             soundPool = SoundPool.Builder()
@@ -54,7 +59,7 @@ object AppSoundPlayer {
                         .build()
                 )
                 .build()
-            swipeSoundId = soundPool!!.load(context, R.raw.swipe_swoosh, 1)
+            swipeSoundId = soundPool!!.load(context, R.raw.swipe_pop, 1)
             soundPool!!.setOnLoadCompleteListener { _, sampleId, status ->
                 if (sampleId == swipeSoundId && status == 0) swipeSoundLoaded = true
             }
@@ -62,7 +67,7 @@ object AppSoundPlayer {
         return soundPool
     }
 
-    /** Swoosh for the nav bar swipe gesture; a no-op at [volume] 0 so the slider acts as a mute. */
+    /** Soft pop for the nav bar swipe gesture; a no-op at [volume] 0 so the slider acts as a mute. */
     fun playSwipeEffect(context: Context, volume: Float) {
         val clamped = volume.coerceIn(0f, 1f)
         if (clamped <= 0f) return

@@ -1,13 +1,20 @@
 package com.escalachurch.app.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -50,6 +57,8 @@ private val navEntries = listOf(
 
 private const val TAP_SLOP_DP = 12f
 private const val SWIPE_THRESHOLD_DP = 56f
+private val HOME_INDICATOR_SIZE = 52.dp
+private val REGULAR_INDICATOR_SIZE = 40.dp
 
 /**
  * Icon-only bottom bar (no labels - at this font size, the six tab names wrapped awkwardly).
@@ -59,6 +68,10 @@ private const val SWIPE_THRESHOLD_DP = 56f
  * whichever icon is under the finger - this has to be one unified pointerInput block rather than
  * per-item clickables plus a separate swipe detector, since a child's click-cancel-on-move and a
  * parent's drag detector fight over the same touch stream otherwise.
+ *
+ * The selection highlight is one shared circle that slides/resizes to the selected icon's slot
+ * (via animateDpAsState) instead of each icon independently popping its own background on/off -
+ * that's what makes it read as "the highlight moves" rather than "on here, off there".
  */
 @Composable
 fun EscalaBottomNavBar(
@@ -78,56 +91,75 @@ fun EscalaBottomNavBar(
         tonalElevation = 3.dp,
         modifier = Modifier.fillMaxWidth().height(92.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight()
-                .pointerInput(navEntries, currentDestination) {
-                    var startX = 0f
-                    var totalDx = 0f
-                    detectHorizontalTapOrSwipe(
-                        onDown = { offset -> startX = offset.x; totalDx = 0f },
-                        onDrag = { dx -> totalDx += dx },
-                        onRelease = { widthPx ->
-                            when {
-                                abs(totalDx) > swipeThresholdPx -> {
-                                    val currentIndex = navEntries.indexOfFirst { it.destination == currentDestination }
-                                        .let { if (it == -1) 0 else it }
-                                    val nextIndex = if (totalDx < 0) currentIndex + 1 else currentIndex - 1
-                                    navEntries.getOrNull(nextIndex)?.let {
-                                        AppSoundPlayer.playSwipeEffect(context, settings.effectsVolume)
-                                        onNavigate(it.destination)
+        BoxWithConstraints(modifier = Modifier.fillMaxSizeCompat()) {
+            val slotWidth = maxWidth / navEntries.size
+            val selectedIndex = navEntries.indexOfFirst { it.destination == currentDestination }.let { if (it == -1) 2 else it }
+            val isHomeSelected = navEntries.getOrNull(selectedIndex)?.destination == AppDestination.Home
+            val indicatorSize by animateDpAsState(
+                targetValue = if (isHomeSelected) HOME_INDICATOR_SIZE else REGULAR_INDICATOR_SIZE,
+                animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
+                label = "navIndicatorSize"
+            )
+            val indicatorX by animateDpAsState(
+                targetValue = slotWidth * selectedIndex + slotWidth / 2 - indicatorSize / 2,
+                animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
+                label = "navIndicatorX"
+            )
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .offset(x = indicatorX)
+                    .size(indicatorSize)
+                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight()
+                    .pointerInput(navEntries, currentDestination) {
+                        var startX = 0f
+                        var totalDx = 0f
+                        detectHorizontalTapOrSwipe(
+                            onDown = { offset -> startX = offset.x; totalDx = 0f },
+                            onDrag = { dx -> totalDx += dx },
+                            onRelease = { widthPx ->
+                                when {
+                                    abs(totalDx) > swipeThresholdPx -> {
+                                        val currentIndex = navEntries.indexOfFirst { it.destination == currentDestination }
+                                            .let { if (it == -1) 0 else it }
+                                        val nextIndex = if (totalDx < 0) currentIndex + 1 else currentIndex - 1
+                                        navEntries.getOrNull(nextIndex)?.let {
+                                            AppSoundPlayer.playSwipeEffect(context, settings.effectsVolume)
+                                            onNavigate(it.destination)
+                                        }
                                     }
+                                    abs(totalDx) <= tapSlopPx -> {
+                                        val tapSlotWidth = widthPx / navEntries.size
+                                        val index = (startX / tapSlotWidth).toInt().coerceIn(0, navEntries.size - 1)
+                                        onNavigate(navEntries[index].destination)
+                                    }
+                                    else -> Unit // ambiguous drag distance - ignore to avoid accidental navigation
                                 }
-                                abs(totalDx) <= tapSlopPx -> {
-                                    val slotWidth = widthPx / navEntries.size
-                                    val index = (startX / slotWidth).toInt().coerceIn(0, navEntries.size - 1)
-                                    onNavigate(navEntries[index].destination)
-                                }
-                                else -> Unit // ambiguous drag distance - ignore to avoid accidental navigation
                             }
-                        }
+                        )
+                    },
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                navEntries.forEach { entry ->
+                    val selected = currentDestination == entry.destination
+                    val isHome = entry.destination == AppDestination.Home
+                    val tint by animateColorAsState(
+                        targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        label = "navIconTint"
                     )
-                },
-            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            navEntries.forEach { entry ->
-                val selected = currentDestination == entry.destination
-                val isHome = entry.destination == AppDestination.Home
-                Box(contentAlignment = Alignment.Center) {
-                    Box(
-                        modifier = Modifier
-                            .size(if (isHome) 52.dp else 40.dp)
-                            .let {
-                                if (selected) it.background(MaterialTheme.colorScheme.primaryContainer, CircleShape) else it
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Box(contentAlignment = Alignment.Center) {
                         Icon(
                             entry.icon,
                             contentDescription = entry.label,
-                            tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = tint,
                             modifier = Modifier.size(if (isHome) 30.dp else 26.dp)
                         )
                     }
@@ -136,6 +168,8 @@ fun EscalaBottomNavBar(
         }
     }
 }
+
+private fun Modifier.fillMaxSizeCompat(): Modifier = this.fillMaxWidth().fillMaxHeight()
 
 /**
  * Single gesture recognizer for the whole bar: tracks one pointer from down to up, reporting the

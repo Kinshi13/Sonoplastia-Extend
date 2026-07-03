@@ -1,6 +1,7 @@
 package com.escalachurch.app.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -59,6 +60,11 @@ fun PulledUpEntrance(
         modifier = modifier,
         enter = slideInVertically(
             animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow)
-        ) { fullHeight -> fullHeight / 2 } + fadeIn(tween(400))
+        ) { fullHeight -> fullHeight / 2 } + fadeIn(tween(400)),
+        // The brief visible=false blip (see rememberEntranceVisible) is only there to reset state
+        // for the next enter - it should vanish instantly, not play a transition. Without this, it
+        // falls back to the default shrinkOut()+fadeOut(), whose clip-and-scale-from-center reads
+        // as a jarring snap/glitch to one side right as the real enter animation starts.
+        exit = ExitTransition.None
     ) { content() }
 }

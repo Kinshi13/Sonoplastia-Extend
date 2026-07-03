@@ -20,6 +20,7 @@ class EscalaChurchApp : Application() {
 
         ReminderNotifier.ensureChannel(this)
         ReminderWorker.schedule(this)
+        AppSoundPlayer.preloadSwipeEffect(this)
 
         ProcessLifecycleOwner.get().lifecycleScope.launch {
             container.settingsRepository.settingsFlow.collect { settings ->
