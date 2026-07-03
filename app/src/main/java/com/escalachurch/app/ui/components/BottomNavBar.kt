@@ -7,7 +7,6 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -145,7 +144,6 @@ fun EscalaBottomNavBar(
                             }
                         )
                     },
-                horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 navEntries.forEach { entry ->
@@ -155,7 +153,11 @@ fun EscalaBottomNavBar(
                         targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         label = "navIconTint"
                     )
-                    Box(contentAlignment = Alignment.Center) {
+                    // Every slot gets an equal share of the row's width (not just equal visual
+                    // gaps, which is all SpaceEvenly guarantees) - the indicator's x position is
+                    // computed as slotWidth * index, so the slots it targets must actually be
+                    // uniform width, regardless of each icon's own intrinsic size.
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
                         Icon(
                             entry.icon,
                             contentDescription = entry.label,
