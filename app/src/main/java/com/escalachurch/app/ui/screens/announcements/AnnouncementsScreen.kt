@@ -32,6 +32,7 @@ import com.escalachurch.app.di.appViewModel
 import com.escalachurch.app.domain.model.Announcement
 import com.escalachurch.app.ui.components.AnnouncementCard
 import com.escalachurch.app.ui.components.EmptyState
+import com.escalachurch.app.ui.components.ErrorBanner
 
 @Composable
 fun AnnouncementsScreen(
@@ -41,6 +42,7 @@ fun AnnouncementsScreen(
         AnnouncementViewModel(container.announcementRepository, container.settingsRepository, container.userProfileRepository, container.adminSession)
     }
     val state by viewModel.uiState.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
     val context = LocalContext.current
     var editingTarget by remember { mutableStateOf<AnnouncementEditTarget?>(null) }
     var isEditing by remember { mutableStateOf(false) }
@@ -73,6 +75,10 @@ fun AnnouncementsScreen(
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             Column(modifier = Modifier.fillMaxSize().padding(top = 20.dp, start = 20.dp, end = 20.dp)) {
                 Text("Anúncios", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+                errorMessage?.let { message ->
+                    Spacer(Modifier.height(12.dp))
+                    ErrorBanner(message = message, onDismiss = { viewModel.dismissError() })
+                }
                 Spacer(Modifier.height(20.dp))
 
                 if (state.announcements.isEmpty()) {

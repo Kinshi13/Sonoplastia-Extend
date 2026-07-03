@@ -58,6 +58,7 @@ fun HomeScreen(
     }
     val state by viewModel.uiState.collectAsState()
     val pendingNews by viewModel.pendingNewsEntry.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
 
     var editingTarget by remember { mutableStateOf<EditTarget?>(null) }
     var currentPage by remember { mutableIntStateOf(0) }
@@ -87,6 +88,10 @@ fun HomeScreen(
                     Icon(Icons.Filled.Campaign, contentDescription = "Anúncios", tint = MaterialTheme.colorScheme.primary)
                 }
             }
+        }
+        errorMessage?.let { message ->
+            Spacer(Modifier.height(12.dp))
+            com.escalachurch.app.ui.components.ErrorBanner(message = message, onDismiss = { viewModel.dismissError() })
         }
         Spacer(Modifier.height(20.dp))
 

@@ -65,6 +65,11 @@ class HomeViewModel(
     private val _pendingNewsEntry = MutableStateFlow<ChangeLogEntry?>(null)
     val pendingNewsEntry: StateFlow<ChangeLogEntry?> = _pendingNewsEntry
 
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage
+
+    fun dismissError() { _errorMessage.value = null }
+
     init {
         viewModelScope.launch {
             while (true) {
@@ -99,16 +104,21 @@ class HomeViewModel(
 
     fun save(item: ScaleItem, onSaved: () -> Unit = {}) {
         viewModelScope.launch {
-            if (item.sourceType == SourceType.OFFICIAL) {
-                generalScaleRepository.saveOfficial(item.copy(updatedAt = System.currentTimeMillis()))
-            } else {
-                scaleRepository.save(item.copy(updatedAt = System.currentTimeMillis()))
-            }
-            onSaved()
+            runCatching {
+                if (item.sourceType == SourceType.OFFICIAL) {
+                    generalScaleRepository.saveOfficial(item.copy(updatedAt = System.currentTimeMillis()))
+                } else {
+                    scaleRepository.save(item.copy(updatedAt = System.currentTimeMillis()))
+                }
+            }.onSuccess { onSaved() }
+                .onFailure { _errorMessage.value = it.message ?: "Falha ao salvar a escala." }
         }
     }
 
     fun delete(item: ScaleItem) {
-        viewModelScope.launch { scaleRepository.delete(item) }
+        viewModelScope.launch {
+            runCatching { scaleRepository.delete(item) }
+                .onFailure { _errorMessage.value = it.message ?: "Falha ao excluir a escala." }
+        }
     }
 }

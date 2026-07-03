@@ -85,7 +85,7 @@ fun SonoplastiaScreen(onBack: () -> Unit) {
         uploadError = null
         scope.launch {
             runCatching { viewModel.upload(context, uri) }
-                .onFailure { uploadError = "Falha ao enviar o arquivo. Verifique sua conexão e tente novamente." }
+                .onFailure { error -> uploadError = "Falha ao enviar o arquivo: ${error.message ?: error::class.simpleName}" }
             isUploading = false
         }
     }

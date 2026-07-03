@@ -8,6 +8,7 @@ import com.escalachurch.app.data.repository.UserProfileRepository
 import com.escalachurch.app.domain.model.Announcement
 import com.escalachurch.app.domain.model.UserClass
 import com.escalachurch.app.security.AdminSession
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -43,15 +44,26 @@ class AnnouncementViewModel(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AnnouncementsUiState())
 
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage
+
+    fun dismissError() { _errorMessage.value = null }
+
     fun save(item: Announcement) {
-        viewModelScope.launch { announcementRepository.save(item) }
+        viewModelScope.launch {
+            runCatching { announcementRepository.save(item) }
+                .onFailure { _errorMessage.value = it.message ?: "Falha ao salvar o anúncio." }
+        }
     }
 
     suspend fun uploadMedia(context: android.content.Context, uri: android.net.Uri) =
         announcementRepository.uploadMedia(context, uri)
 
     fun delete(item: Announcement) {
-        viewModelScope.launch { announcementRepository.delete(item) }
+        viewModelScope.launch {
+            runCatching { announcementRepository.delete(item) }
+                .onFailure { _errorMessage.value = it.message ?: "Falha ao excluir o anúncio." }
+        }
     }
 
     /** Marks all currently-loaded announcements as seen (clears "Novo" badges and the top-level badge count). */

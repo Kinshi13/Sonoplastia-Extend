@@ -97,8 +97,8 @@ fun AnnouncementEditScreen(
                     mediaUrl = uploaded.url
                     mediaFileName = uploaded.fileName
                 }
-                .onFailure {
-                    uploadError = "Falha ao enviar o arquivo. Verifique sua conexão e tente novamente."
+                .onFailure { error ->
+                    uploadError = "Falha ao enviar o arquivo: ${error.message ?: error::class.simpleName}"
                 }
             isUploading = false
         }
