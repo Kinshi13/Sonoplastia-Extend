@@ -1,6 +1,5 @@
 package com.escalachurch.app.ui.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,24 +20,29 @@ import androidx.compose.ui.unit.dp
 import com.escalachurch.app.domain.model.CustomEvent
 import com.escalachurch.app.ui.theme.CardShape
 
-/** Compact card representation of a [CustomEvent], used in Programar and Calendário lists. */
+/**
+ * Flash-card representation of a [CustomEvent], used on the Programar screen's card carousel -
+ * visually consistent with [ScaleCard] and [DoxologyCard] so all three "next item" screens feel
+ * like the same app.
+ */
 @Composable
-fun CustomEventCard(
+fun ProgramCard(
     event: CustomEvent,
-    modifier: Modifier = Modifier,
-    onClick: (() -> Unit)? = null
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .let { if (onClick != null) it.clickable { onClick() } else it },
+        modifier = modifier.fillMaxWidth(),
         shape = CardShape,
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(event.title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+        Column(modifier = Modifier.padding(24.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Programação", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     SourceBadge(event.sourceType)
                     Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.primaryContainer) {
@@ -51,15 +55,32 @@ fun CustomEventCard(
                     }
                 }
             }
-            Spacer(Modifier.height(6.dp))
+
+            Spacer(Modifier.height(12.dp))
+
+            Text(event.title, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
+
+            Spacer(Modifier.height(4.dp))
+
             Text(
-                "${event.date.dayOfWeekLabel()} · ${event.date.toDisplayString()} · ${event.startTime.toDisplayString()}",
+                "${event.date.dayOfWeekLabel()} · ${event.date.toDisplayString()}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            Text(
+                buildString {
+                    append(event.startTime.toDisplayString())
+                    event.endTime?.let { append(" – ${it.toDisplayString()}") }
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
             if (event.description.isNotBlank()) {
-                Spacer(Modifier.height(6.dp))
-                Text(event.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(20.dp))
+                Text("Descrição", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.height(4.dp))
+                Text(event.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

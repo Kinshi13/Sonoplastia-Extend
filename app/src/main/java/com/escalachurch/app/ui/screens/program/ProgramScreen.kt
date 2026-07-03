@@ -1,43 +1,47 @@
 package com.escalachurch.app.ui.screens.program
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.automirrored.filled.EventNote
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.escalachurch.app.di.appViewModel
 import com.escalachurch.app.domain.model.CustomEvent
-import com.escalachurch.app.ui.components.CustomEventCard
+import com.escalachurch.app.ui.components.CardCarousel
 import com.escalachurch.app.ui.components.EmptyState
+import com.escalachurch.app.ui.components.PrimaryButton
+import com.escalachurch.app.ui.components.ProgramCard
+import com.escalachurch.app.ui.components.SecondaryButton
 
+/**
+ * "Programar": the member's own programações - other than the official Escala Geral. Uses the
+ * same flash-card + swipe pattern as Início/Doxologia (always opens on the next upcoming item,
+ * drag right/left for future/past ones) so the whole app feels like one consistent system.
+ */
 @Composable
 fun ProgramScreen() {
     val viewModel = appViewModel { container -> ProgramViewModel(container.customEventRepository) }
-    val events by viewModel.events.collectAsState()
+    val state by viewModel.uiState.collectAsState()
 
     var editingTarget by remember { mutableStateOf<ProgramEditTarget?>(null) }
     var isEditing by remember { mutableStateOf(false) }
+    var currentPage by remember { mutableIntStateOf(0) }
 
     if (isEditing) {
         ProgramEditScreen(
@@ -52,48 +56,55 @@ fun ProgramScreen() {
         return
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
-            Text("Programar", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "Crie eventos especiais, Semana de Oração, ensaios e outras programações personalizadas.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.height(20.dp))
+    Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
+        Text("Programar", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Suas programações: eventos especiais, Semana de Oração, ensaios e outros avulsos.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(20.dp))
 
-            if (events.isEmpty()) {
-                EmptyState(
-                    icon = Icons.AutoMirrored.Filled.EventNote,
-                    title = "Nenhuma programação personalizada",
-                    message = "Toque no botão + para criar seu primeiro evento especial.",
-                    modifier = Modifier.weight(1f)
-                )
-            } else {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(bottom = 88.dp)
-                ) {
-                    items(events, key = { it.id }) { event: CustomEvent ->
-                        CustomEventCard(
-                            event = event,
-                            onClick = { editingTarget = ProgramEditTarget(event); isEditing = true }
-                        )
-                    }
+        if (state.events.isEmpty()) {
+            EmptyState(
+                icon = Icons.AutoMirrored.Filled.EventNote,
+                title = "Nenhuma programação cadastrada",
+                message = "Adicione a primeira programação pessoal ou evento especial.",
+                modifier = Modifier.weight(1f)
+            ) {
+                PrimaryButton(text = "Adicionar programação", onClick = { editingTarget = ProgramEditTarget(null); isEditing = true })
+            }
+        } else {
+            Column(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                verticalArrangement = Arrangement.Center
+            ) {
+                CardCarousel(
+                    items = state.events,
+                    initialPage = state.startIndex ?: 0,
+                    onPageChanged = { currentPage = it }
+                ) { event ->
+                    ProgramCard(event)
                 }
             }
-        }
 
-        FloatingActionButton(
-            onClick = { editingTarget = ProgramEditTarget(null); isEditing = true },
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(24.dp)
-        ) {
-            Icon(Icons.Filled.Add, contentDescription = "Nova programação")
+            Spacer(Modifier.height(16.dp))
+
+            val current: CustomEvent? = state.events.getOrNull(currentPage)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                SecondaryButton(
+                    text = "Editar",
+                    modifier = Modifier.weight(1f),
+                    enabled = current != null,
+                    onClick = { current?.let { editingTarget = ProgramEditTarget(it); isEditing = true } }
+                )
+                PrimaryButton(
+                    text = "Adicionar programação",
+                    modifier = Modifier.weight(1f),
+                    onClick = { editingTarget = ProgramEditTarget(null); isEditing = true }
+                )
+            }
         }
     }
 }

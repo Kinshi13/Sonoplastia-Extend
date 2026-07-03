@@ -31,25 +31,27 @@ fun EscalaChurchNavGraph() {
         AppDestination.Doxology.route -> AppDestination.Doxology
         AppDestination.Program.route -> AppDestination.Program
         AppDestination.Calendar.route -> AppDestination.Calendar
+        AppDestination.Announcements.route -> AppDestination.Announcements
         AppDestination.Settings.route -> AppDestination.Settings
         else -> AppDestination.Home
     }
 
-    val isSecondaryScreen = currentRoute == SecondaryDestination.GENERAL_SCALE_ROUTE ||
-        currentRoute == SecondaryDestination.ANNOUNCEMENTS_ROUTE
+    val isSecondaryScreen = currentRoute == SecondaryDestination.GENERAL_SCALE_ROUTE
+
+    fun navigateToTab(route: String) {
+        navController.navigate(route) {
+            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
 
     Scaffold(
         bottomBar = {
             if (!isSecondaryScreen) {
                 EscalaBottomNavBar(
                     currentDestination = currentDestination,
-                    onNavigate = { destination ->
-                        navController.navigate(destination.route) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
+                    onNavigate = { destination -> navigateToTab(destination.route) }
                 )
             }
         }
@@ -62,16 +64,21 @@ fun EscalaChurchNavGraph() {
             composable(AppDestination.Home.route) {
                 HomeScreen(
                     onOpenGeneralScale = { date -> navController.navigate(SecondaryDestination.generalScaleRoute(date)) },
-                    onOpenAnnouncements = { navController.navigate(SecondaryDestination.ANNOUNCEMENTS_ROUTE) }
+                    onOpenAnnouncements = { navigateToTab(AppDestination.Announcements.route) }
                 )
             }
             composable(AppDestination.Doxology.route) { DoxologyScreen() }
             composable(AppDestination.Program.route) { ProgramScreen() }
             composable(AppDestination.Calendar.route) { CalendarScreen() }
+            composable(AppDestination.Announcements.route) {
+                AnnouncementsScreen(
+                    onOpenCalendarDate = { navigateToTab(AppDestination.Calendar.route) }
+                )
+            }
             composable(AppDestination.Settings.route) {
                 SettingsScreen(
                     onOpenGeneralScale = { navController.navigate(SecondaryDestination.generalScaleRoute(null)) },
-                    onOpenAnnouncements = { navController.navigate(SecondaryDestination.ANNOUNCEMENTS_ROUTE) }
+                    onOpenAnnouncements = { navigateToTab(AppDestination.Announcements.route) }
                 )
             }
             composable(
@@ -82,12 +89,6 @@ fun EscalaChurchNavGraph() {
                 GeneralScaleScreen(
                     initialDate = dateArg.takeIf { it.isNotBlank() }?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() },
                     onBack = { navController.popBackStack() }
-                )
-            }
-            composable(SecondaryDestination.ANNOUNCEMENTS_ROUTE) {
-                AnnouncementsScreen(
-                    onBack = { navController.popBackStack() },
-                    onOpenCalendarDate = { navController.navigate(AppDestination.Calendar.route) }
                 )
             }
         }

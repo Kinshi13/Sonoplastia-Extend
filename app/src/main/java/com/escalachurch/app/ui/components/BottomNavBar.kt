@@ -3,6 +3,7 @@ package com.escalachurch.app.ui.components
 import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.EditCalendar
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MusicNote
@@ -25,6 +26,7 @@ private val navEntries = listOf(
     NavEntry(AppDestination.Doxology, "Doxologia", Icons.Filled.MusicNote),
     NavEntry(AppDestination.Program, "Programar", Icons.Filled.EditCalendar),
     NavEntry(AppDestination.Calendar, "Calendário", Icons.Filled.CalendarMonth),
+    NavEntry(AppDestination.Announcements, "Anúncios", Icons.Filled.Campaign),
     NavEntry(AppDestination.Settings, "Ajustes", Icons.Filled.Settings)
 )
 
