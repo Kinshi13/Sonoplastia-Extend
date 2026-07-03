@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.webkit.MimeTypeMap
 import com.escalachurch.app.data.remote.CHURCH_FILES_BUCKET
+import com.escalachurch.app.data.remote.LocalRefreshTrigger
 import com.escalachurch.app.data.remote.SupabaseTables
 import com.escalachurch.app.data.remote.dto.AnnouncementDto
 import com.escalachurch.app.data.remote.dto.toAnnouncement
@@ -25,8 +26,9 @@ data class UploadedMedia(val type: MediaType, val url: String, val fileName: Str
 class AnnouncementRepository(private val client: SupabaseClient) {
 
     private val table get() = client.postgrest.from(SupabaseTables.ANNOUNCEMENTS)
+    private val refreshTrigger = LocalRefreshTrigger()
 
-    fun observeActive(): Flow<List<Announcement>> = client.observeTable(SupabaseTables.ANNOUNCEMENTS) {
+    fun observeActive(): Flow<List<Announcement>> = client.observeTable(SupabaseTables.ANNOUNCEMENTS, refreshTrigger) {
         table.select { filter { eq("is_active", true) } }
             .decodeList<AnnouncementDto>()
             .mapNotNull { it.toAnnouncement() }
@@ -34,22 +36,26 @@ class AnnouncementRepository(private val client: SupabaseClient) {
     }
 
     suspend fun save(item: Announcement): String {
-        return if (item.id.isBlank()) {
+        val id = if (item.id.isBlank()) {
             table.insert(item.toDto()) { select(Columns.list("id")) }.decodeSingle<AnnouncementDto>().id!!
         } else {
             table.update(item.toDto()) { filter { eq("id", item.id) } }
             item.id
         }
+        refreshTrigger.bump()
+        return id
     }
 
     suspend fun delete(item: Announcement) {
         if (item.id.isBlank()) return
         table.delete { filter { eq("id", item.id) } }
+        refreshTrigger.bump()
     }
 
     suspend fun deleteById(id: String) {
         if (id.isBlank()) return
         table.delete { filter { eq("id", id) } }
+        refreshTrigger.bump()
     }
 
     /** Uploads a locally-picked file (image, video, PPT/PDF) to Supabase Storage and returns its public URL. */

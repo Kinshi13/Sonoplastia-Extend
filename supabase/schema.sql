@@ -148,6 +148,15 @@ alter publication supabase_realtime add table scales, doxologies, announcements,
 -- Storage: one public bucket for everything shared from the app (announcement media and
 -- files shared from the Sonoplastia screen). Create the bucket "church-files" first in
 -- Dashboard -> Storage -> New bucket -> mark it Public, then run the policies below.
+--
+-- storage.objects already has RLS enabled by Supabase itself and anon/authenticated already
+-- have base table grants out of the box - only the policies below are needed. "drop policy if
+-- exists" makes this block safe to re-run if you already ran an earlier version of it.
+drop policy if exists "church-files: public read" on storage.objects;
+drop policy if exists "church-files: admin write" on storage.objects;
+drop policy if exists "church-files: admin update" on storage.objects;
+drop policy if exists "church-files: admin delete" on storage.objects;
+
 create policy "church-files: public read" on storage.objects for select
   using (bucket_id = 'church-files');
 create policy "church-files: admin write" on storage.objects for insert

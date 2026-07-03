@@ -1,5 +1,6 @@
 package com.escalachurch.app.data.repository
 
+import com.escalachurch.app.data.remote.LocalRefreshTrigger
 import com.escalachurch.app.data.remote.SupabaseTables
 import com.escalachurch.app.data.remote.dto.ScaleDto
 import com.escalachurch.app.data.remote.dto.toDto
@@ -19,8 +20,9 @@ import kotlinx.coroutines.flow.Flow
 class ScaleRepository(private val client: SupabaseClient) {
 
     private val table get() = client.postgrest.from(SupabaseTables.SCALES)
+    private val refreshTrigger = LocalRefreshTrigger()
 
-    fun observeAll(): Flow<List<ScaleItem>> = client.observeTable(SupabaseTables.SCALES) {
+    fun observeAll(): Flow<List<ScaleItem>> = client.observeTable(SupabaseTables.SCALES, refreshTrigger) {
         table.select().decodeList<ScaleDto>().mapNotNull { it.toScaleItem() }
     }
 
@@ -29,21 +31,25 @@ class ScaleRepository(private val client: SupabaseClient) {
 
     /** Creates (blank id) or overwrites (existing id) a scale; returns the resulting row id. */
     suspend fun save(item: ScaleItem): String {
-        return if (item.id.isBlank()) {
+        val id = if (item.id.isBlank()) {
             table.insert(item.toDto()) { select(Columns.list("id")) }.decodeSingle<ScaleDto>().id!!
         } else {
             table.update(item.toDto()) { filter { eq("id", item.id) } }
             item.id
         }
+        refreshTrigger.bump()
+        return id
     }
 
     suspend fun delete(item: ScaleItem) {
         if (item.id.isBlank()) return
         table.delete { filter { eq("id", item.id) } }
+        refreshTrigger.bump()
     }
 
     suspend fun deleteById(id: String) {
         if (id.isBlank()) return
         table.delete { filter { eq("id", id) } }
+        refreshTrigger.bump()
     }
 }

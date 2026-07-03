@@ -2,6 +2,7 @@ package com.escalachurch.app.data.repository
 
 import android.content.Context
 import android.net.Uri
+import com.escalachurch.app.data.remote.LocalRefreshTrigger
 import com.escalachurch.app.data.remote.SupabaseTables
 import com.escalachurch.app.data.remote.dto.SharedFileDto
 import com.escalachurch.app.data.remote.dto.toDto
@@ -20,8 +21,9 @@ import kotlinx.coroutines.flow.Flow
 class SonoplastiaFileRepository(private val client: SupabaseClient) {
 
     private val table get() = client.postgrest.from(SupabaseTables.SHARED_FILES)
+    private val refreshTrigger = LocalRefreshTrigger()
 
-    fun observeAll(): Flow<List<SharedFile>> = client.observeTable(SupabaseTables.SHARED_FILES) {
+    fun observeAll(): Flow<List<SharedFile>> = client.observeTable(SupabaseTables.SHARED_FILES, refreshTrigger) {
         table.select().decodeList<SharedFileDto>()
             .mapNotNull { it.toSharedFile() }
             .sortedByDescending { it.uploadedAt }
@@ -37,11 +39,13 @@ class SonoplastiaFileRepository(private val client: SupabaseClient) {
             uploadedAt = System.currentTimeMillis()
         )
         val saved = table.insert(record.toDto()) { select() }.decodeSingle<SharedFileDto>()
+        refreshTrigger.bump()
         return saved.toSharedFile() ?: record
     }
 
     suspend fun delete(file: SharedFile) {
         if (file.id.isBlank()) return
         table.delete { filter { eq("id", file.id) } }
+        refreshTrigger.bump()
     }
 }

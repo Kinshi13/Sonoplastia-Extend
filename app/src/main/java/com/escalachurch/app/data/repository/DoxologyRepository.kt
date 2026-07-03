@@ -1,5 +1,6 @@
 package com.escalachurch.app.data.repository
 
+import com.escalachurch.app.data.remote.LocalRefreshTrigger
 import com.escalachurch.app.data.remote.SupabaseTables
 import com.escalachurch.app.data.remote.dto.DoxologyDto
 import com.escalachurch.app.data.remote.dto.toDoxologyItem
@@ -15,22 +16,26 @@ import kotlinx.coroutines.flow.Flow
 class DoxologyRepository(private val client: SupabaseClient) {
 
     private val table get() = client.postgrest.from(SupabaseTables.DOXOLOGIES)
+    private val refreshTrigger = LocalRefreshTrigger()
 
-    fun observeAll(): Flow<List<DoxologyItem>> = client.observeTable(SupabaseTables.DOXOLOGIES) {
+    fun observeAll(): Flow<List<DoxologyItem>> = client.observeTable(SupabaseTables.DOXOLOGIES, refreshTrigger) {
         table.select().decodeList<DoxologyDto>().mapNotNull { it.toDoxologyItem() }
     }
 
     suspend fun save(item: DoxologyItem): String {
-        return if (item.id.isBlank()) {
+        val id = if (item.id.isBlank()) {
             table.insert(item.toDto()) { select(Columns.list("id")) }.decodeSingle<DoxologyDto>().id!!
         } else {
             table.update(item.toDto()) { filter { eq("id", item.id) } }
             item.id
         }
+        refreshTrigger.bump()
+        return id
     }
 
     suspend fun deleteById(id: String) {
         if (id.isBlank()) return
         table.delete { filter { eq("id", id) } }
+        refreshTrigger.bump()
     }
 }
