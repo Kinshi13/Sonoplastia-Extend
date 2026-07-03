@@ -1,10 +1,18 @@
 package com.escalachurch.app.ui.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -21,6 +29,45 @@ import com.escalachurch.app.ui.screens.home.HomeScreen
 import com.escalachurch.app.ui.screens.program.ProgramScreen
 import com.escalachurch.app.ui.screens.settings.SettingsScreen
 import com.escalachurch.app.ui.screens.sonoplastia.SonoplastiaScreen
+
+// Same left-to-right order as the bottom nav bar (see BottomNavBar.kt's navEntries) - used to
+// decide which way a tab-to-tab transition should slide, so it always matches the swipe direction.
+private val tabOrder = listOf(
+    AppDestination.Doxology.route,
+    AppDestination.Program.route,
+    AppDestination.Home.route,
+    AppDestination.Calendar.route,
+    AppDestination.Announcements.route,
+    AppDestination.Settings.route
+)
+
+private fun tabIndexOf(route: String?): Int = tabOrder.indexOf(route).takeIf { it >= 0 } ?: tabOrder.indexOf(AppDestination.Home.route)
+
+private const val TAB_TRANSITION_MS = 280
+private val TabEasing = FastOutSlowInEasing
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.tabEnter() =
+    slideInHorizontally(tween(TAB_TRANSITION_MS, easing = TabEasing)) { fullWidth ->
+        val dir = if (tabIndexOf(targetState.destination.route) > tabIndexOf(initialState.destination.route)) 1 else -1
+        dir * fullWidth / 4
+    } + fadeIn(tween(TAB_TRANSITION_MS))
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.tabExit() =
+    slideOutHorizontally(tween(TAB_TRANSITION_MS, easing = TabEasing)) { fullWidth ->
+        val dir = if (tabIndexOf(targetState.destination.route) > tabIndexOf(initialState.destination.route)) 1 else -1
+        -dir * fullWidth / 4
+    } + fadeOut(tween(TAB_TRANSITION_MS))
+
+// Secondary/detail screens (opened from within a tab, not from the bottom bar) read as a "push"
+// instead of a tab swap: they slide fully in from the right and back out to the right on close.
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.pushEnter() =
+    slideInHorizontally(tween(TAB_TRANSITION_MS, easing = TabEasing)) { fullWidth -> fullWidth } + fadeIn(tween(TAB_TRANSITION_MS))
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.pushExit() =
+    fadeOut(tween(TAB_TRANSITION_MS))
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.popExitToRight() =
+    slideOutHorizontally(tween(TAB_TRANSITION_MS, easing = TabEasing)) { fullWidth -> fullWidth } + fadeOut(tween(TAB_TRANSITION_MS))
 
 @Composable
 fun EscalaChurchNavGraph() {
@@ -61,7 +108,11 @@ fun EscalaChurchNavGraph() {
         NavHost(
             navController = navController,
             startDestination = AppDestination.Home.route,
-            modifier = Modifier.padding(padding)
+            modifier = Modifier.padding(padding),
+            enterTransition = { tabEnter() },
+            exitTransition = { tabExit() },
+            popEnterTransition = { tabEnter() },
+            popExitTransition = { tabExit() }
         ) {
             composable(AppDestination.Home.route) {
                 HomeScreen(
@@ -86,7 +137,10 @@ fun EscalaChurchNavGraph() {
             }
             composable(
                 SecondaryDestination.GENERAL_SCALE_ROUTE,
-                arguments = listOf(navArgument("date") { type = NavType.StringType; defaultValue = "" })
+                arguments = listOf(navArgument("date") { type = NavType.StringType; defaultValue = "" }),
+                enterTransition = { pushEnter() },
+                exitTransition = { pushExit() },
+                popExitTransition = { popExitToRight() }
             ) { entry ->
                 val dateArg = entry.arguments?.getString("date").orEmpty()
                 GeneralScaleScreen(
@@ -94,7 +148,12 @@ fun EscalaChurchNavGraph() {
                     onBack = { navController.popBackStack() }
                 )
             }
-            composable(SecondaryDestination.SONOPLASTIA_ROUTE) {
+            composable(
+                SecondaryDestination.SONOPLASTIA_ROUTE,
+                enterTransition = { pushEnter() },
+                exitTransition = { pushExit() },
+                popExitTransition = { popExitToRight() }
+            ) {
                 SonoplastiaScreen(onBack = { navController.popBackStack() })
             }
         }

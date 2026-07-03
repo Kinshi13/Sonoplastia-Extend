@@ -21,12 +21,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import com.escalachurch.app.audio.AppSoundPlayer
+import com.escalachurch.app.di.rememberAppContainer
+import com.escalachurch.app.domain.model.AppSettings
 import com.escalachurch.app.ui.navigation.AppDestination
 import kotlin.math.abs
 
@@ -64,6 +69,9 @@ fun EscalaBottomNavBar(
     val tapSlopPx = with(density) { TAP_SLOP_DP.dp.toPx() }
     val swipeThresholdPx = with(density) { SWIPE_THRESHOLD_DP.dp.toPx() }
 
+    val container = rememberAppContainer()
+    val settings by container.settingsRepository.settingsFlow.collectAsState(initial = AppSettings())
+
     Surface(
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 3.dp,
@@ -85,7 +93,10 @@ fun EscalaBottomNavBar(
                                     val currentIndex = navEntries.indexOfFirst { it.destination == currentDestination }
                                         .let { if (it == -1) 0 else it }
                                     val nextIndex = if (totalDx < 0) currentIndex + 1 else currentIndex - 1
-                                    navEntries.getOrNull(nextIndex)?.let { onNavigate(it.destination) }
+                                    navEntries.getOrNull(nextIndex)?.let {
+                                        AppSoundPlayer.playSwipeEffect(settings.effectsVolume)
+                                        onNavigate(it.destination)
+                                    }
                                 }
                                 abs(totalDx) <= tapSlopPx -> {
                                     val slotWidth = widthPx / navEntries.size

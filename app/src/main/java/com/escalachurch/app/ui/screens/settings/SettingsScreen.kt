@@ -73,6 +73,47 @@ fun SettingsScreen(
         }
 
         item {
+            SettingsSection(title = "Modo administrador") {
+                Text(
+                    "Só quem faz login com a conta de administrador (criada no Supabase pela liderança) " +
+                        "pode editar escalas, doxologia e anúncios oficiais.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(10.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        if (uiState.isAdmin) Icons.Filled.LockOpen else Icons.Filled.Lock,
+                        contentDescription = null,
+                        tint = if (uiState.isAdmin) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.height(18.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        if (uiState.isAdmin) "Modo administrador ativo" else "Modo administrador inativo",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                if (uiState.isAdmin) {
+                    SecondaryButton(text = "Sair do modo administrador", onClick = { scope.launch { viewModel.adminSession.signOut() } })
+                } else {
+                    SecondaryButton(
+                        text = "Entrar no modo administrador",
+                        onClick = { loginError = null; showLoginDialog = true }
+                    )
+                }
+            }
+        }
+
+        item {
+            SettingsSection(title = "Escala e Anúncios") {
+                NavRow(icon = Icons.AutoMirrored.Filled.EventNote, label = "Escala geral", onClick = onOpenGeneralScale)
+                NavRow(icon = Icons.Filled.Campaign, label = "Anúncios", onClick = onOpenAnnouncements)
+            }
+        }
+
+        item {
             SettingsSection(title = "Classe de usuário") {
                 Text(
                     "Selecione suas funções na igreja para receber destaques e avisos quando a escala mudar.",
@@ -89,13 +130,6 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-            }
-        }
-
-        item {
-            SettingsSection(title = "Escala e Anúncios") {
-                NavRow(icon = Icons.AutoMirrored.Filled.EventNote, label = "Escala geral", onClick = onOpenGeneralScale)
-                NavRow(icon = Icons.Filled.Campaign, label = "Anúncios", onClick = onOpenAnnouncements)
             }
         }
 
@@ -127,40 +161,6 @@ fun SettingsScreen(
                 Spacer(Modifier.height(4.dp))
                 SwitchRow("Mostrar pop-up de novidades ao abrir o app", settings.showNewsPopupOnOpen) { checked ->
                     viewModel.update { it.copy(showNewsPopupOnOpen = checked) }
-                }
-            }
-        }
-
-        item {
-            SettingsSection(title = "Modo administrador") {
-                Text(
-                    "Só quem faz login com a conta de administrador (criada no Firebase pela liderança) " +
-                        "pode editar escalas, doxologia e anúncios oficiais.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(10.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        if (uiState.isAdmin) Icons.Filled.LockOpen else Icons.Filled.Lock,
-                        contentDescription = null,
-                        tint = if (uiState.isAdmin) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.height(18.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        if (uiState.isAdmin) "Modo administrador ativo" else "Modo administrador inativo",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-                Spacer(Modifier.height(10.dp))
-                if (uiState.isAdmin) {
-                    SecondaryButton(text = "Sair do modo administrador", onClick = { scope.launch { viewModel.adminSession.signOut() } })
-                } else {
-                    SecondaryButton(
-                        text = "Entrar no modo administrador",
-                        onClick = { loginError = null; showLoginDialog = true }
-                    )
                 }
             }
         }
