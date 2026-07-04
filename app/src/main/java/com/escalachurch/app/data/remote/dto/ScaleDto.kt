@@ -1,5 +1,6 @@
 package com.escalachurch.app.data.remote.dto
 
+import com.escalachurch.app.BuildConfig
 import com.escalachurch.app.domain.model.ProgramType
 import com.escalachurch.app.domain.model.ScaleItem
 import com.escalachurch.app.domain.model.SourceType
@@ -16,6 +17,10 @@ import java.time.LocalTime
 @Serializable
 data class ScaleDto(
     val id: String? = null,
+    // The backend is multi-tenant now (church_id is a required column) - defaulted here rather
+    // than threaded through every call site, since this build only ever writes its own church's
+    // row anyway (see BuildConfig.CHURCH_ID / local.properties).
+    @SerialName("church_id") val churchId: String = BuildConfig.CHURCH_ID,
     val date: String = "",
     @SerialName("start_time") val startTime: String = "",
     @SerialName("end_time") val endTime: String? = null,

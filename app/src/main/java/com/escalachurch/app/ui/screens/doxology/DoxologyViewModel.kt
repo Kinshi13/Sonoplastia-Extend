@@ -18,6 +18,9 @@ import java.time.LocalDateTime
 data class DoxologyUiState(
     val items: List<DoxologyItem> = emptyList(),
     val startIndex: Int? = null,
+    /** Id of the session currently in progress (has an end_time and "now" falls inside its
+     *  range), if any - lets the card show an "Agora" badge regardless of which page is open. */
+    val liveItemId: String? = null,
     val isLoading: Boolean = true,
     val isAdmin: Boolean = false
 )
@@ -31,8 +34,17 @@ class DoxologyViewModel(
 
     val uiState: StateFlow<DoxologyUiState> = combine(repository.observeAll(), clockTick, adminSession.isUnlocked) { items, now, isAdmin ->
         val sorted = NextItemResolver.sortedByDateTime(items) { LocalDateTime.of(it.date, it.startTime) }
-        val index = NextItemResolver.resolveStartIndex(sorted, { LocalDateTime.of(it.date, it.startTime) }, now)
-        DoxologyUiState(items = sorted, startIndex = index, isLoading = false, isAdmin = isAdmin)
+        val startOf: (DoxologyItem) -> LocalDateTime = { LocalDateTime.of(it.date, it.startTime) }
+        val endOf: (DoxologyItem) -> LocalDateTime? = { item -> item.endTime?.let { LocalDateTime.of(item.date, it) } }
+        val liveIndex = NextItemResolver.resolveCurrentIndex(sorted, startOf, endOf, now)
+        val index = liveIndex ?: NextItemResolver.resolveStartIndex(sorted, startOf, now)
+        DoxologyUiState(
+            items = sorted,
+            startIndex = index,
+            liveItemId = liveIndex?.let { sorted[it].id },
+            isLoading = false,
+            isAdmin = isAdmin
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DoxologyUiState())
 
     init {

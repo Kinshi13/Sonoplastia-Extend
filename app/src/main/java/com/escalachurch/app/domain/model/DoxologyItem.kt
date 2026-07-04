@@ -9,6 +9,9 @@ data class DoxologyItem(
     val id: String = "",
     val date: LocalDate,
     val startTime: LocalTime,
+    /** Optional: lets a single day have multiple sessions (Escola Sabatina, Culto Divino, JA...),
+     *  each with its own range, so the UI can highlight whichever one is happening now. */
+    val endTime: LocalTime? = null,
     val title: String,
     val notes: String = "",
     val programOrder: List<ProgramStep> = emptyList(),

@@ -15,6 +15,10 @@ val localProperties = Properties().apply {
 }
 val supabaseUrl: String = localProperties.getProperty("SUPABASE_URL") ?: ""
 val supabaseAnonKey: String = localProperties.getProperty("SUPABASE_ANON_KEY") ?: ""
+// The backend went multi-tenant (one row per church, scoped by church_id) after this app was
+// first built - every table write now requires it. There's no in-app church picker yet, so this
+// single build is pinned to one church until that lands; see CHURCH_ID in local.properties.
+val churchId: String = localProperties.getProperty("CHURCH_ID") ?: ""
 
 android {
     namespace = "com.escalachurch.app"
@@ -34,6 +38,7 @@ android {
 
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
+        buildConfigField("String", "CHURCH_ID", "\"$churchId\"")
     }
 
     buildTypes {

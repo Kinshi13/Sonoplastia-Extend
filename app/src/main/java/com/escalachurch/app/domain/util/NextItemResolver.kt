@@ -25,4 +25,18 @@ object NextItemResolver {
 
     fun <T> hasFutureItem(items: List<T>, dateTimeOf: (T) -> LocalDateTime, now: LocalDateTime): Boolean =
         items.any { !dateTimeOf(it).isBefore(now) }
+
+    /**
+     * Index of the item currently "in progress" - the first whose [startOf, endOf] window
+     * contains `now` - or null if none has an end time or none is happening right now. Lets a day
+     * with several back-to-back sessions (Escola Sabatina, Culto Divino, JA...) default to
+     * whichever one is actually happening, instead of always jumping to the next start time.
+     */
+    fun <T> resolveCurrentIndex(items: List<T>, startOf: (T) -> LocalDateTime, endOf: (T) -> LocalDateTime?, now: LocalDateTime): Int? {
+        val index = items.indexOfFirst { item ->
+            val end = endOf(item) ?: return@indexOfFirst false
+            !now.isBefore(startOf(item)) && !now.isAfter(end)
+        }
+        return index.takeIf { it >= 0 }
+    }
 }

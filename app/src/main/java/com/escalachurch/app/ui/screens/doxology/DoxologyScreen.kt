@@ -79,7 +79,7 @@ fun DoxologyScreen() {
                         items = state.items,
                         initialPage = state.startIndex ?: 0,
                         onPageChanged = { currentPage = it }
-                    ) { item -> DoxologyCard(item) }
+                    ) { item -> DoxologyCard(item, isLive = item.id == state.liveItemId) }
                 }
             }
 

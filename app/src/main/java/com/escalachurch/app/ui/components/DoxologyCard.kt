@@ -1,5 +1,6 @@
 package com.escalachurch.app.ui.components
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,16 +27,34 @@ import com.escalachurch.app.ui.theme.CardShape
 @Composable
 fun DoxologyCard(
     doxology: DoxologyItem,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isLive: Boolean = false
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = CardShape,
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = if (isLive) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
-            Text("Doxologia", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Doxologia", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                if (isLive) {
+                    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary) {
+                        Text(
+                            "Agora",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            }
             Spacer(Modifier.height(12.dp))
             Text(doxology.title, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.height(4.dp))
@@ -45,7 +64,7 @@ fun DoxologyCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                doxology.startTime.toDisplayString(),
+                doxology.startTime.toDisplayString() + (doxology.endTime?.let { " - ${it.toDisplayString()}" } ?: ""),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

@@ -66,6 +66,7 @@ fun DoxologyEditScreen(
     var title by remember { mutableStateOf(existing?.title ?: "Ordem do Culto") }
     var date by remember { mutableStateOf(existing?.date) }
     var startTime by remember { mutableStateOf(existing?.startTime) }
+    var endTime by remember { mutableStateOf(existing?.endTime) }
     var notes by remember { mutableStateOf(existing?.notes ?: "") }
     val steps = remember {
         mutableStateListOf<ProgramStep>().apply {
@@ -106,8 +107,26 @@ fun DoxologyEditScreen(
             DatePickerField(label = "Data", date = date, onDateSelected = { date = it; showDateError = false })
             if (showDateError) Text("Selecione a data", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
 
-            TimePickerField(label = "Horário", time = startTime, onTimeSelected = { startTime = it; showTimeError = false })
-            if (showTimeError) Text("Selecione o horário", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                TimePickerField(
+                    label = "Início",
+                    time = startTime,
+                    onTimeSelected = { startTime = it; showTimeError = false },
+                    modifier = Modifier.weight(1f)
+                )
+                TimePickerField(
+                    label = "Fim (opcional)",
+                    time = endTime,
+                    onTimeSelected = { endTime = it },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            if (showTimeError) Text("Selecione o horário de início", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            Text(
+                "Preencha o fim se esse dia tiver mais de uma programação (Escola Sabatina, Culto Divino, JA) - isso é o que permite destacar qual está acontecendo agora.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             Text("Ordem da programação", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
 
@@ -175,6 +194,7 @@ fun DoxologyEditScreen(
                             id = existing?.id ?: "",
                             date = d!!,
                             startTime = st!!,
+                            endTime = endTime,
                             title = title,
                             notes = notes,
                             programOrder = steps.mapIndexed { i, s -> s.copy(order = i + 1) },
