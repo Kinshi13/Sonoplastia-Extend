@@ -56,7 +56,7 @@ export default function RootLayout({
           className="border-b border-divider bg-surface"
           style={{ paddingTop: "env(safe-area-inset-top)" }}
         >
-          <div className="mx-auto flex max-w-4xl items-center justify-between px-5 py-4">
+          <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
             <Link href="/" className="text-lg font-semibold text-primary">
               Escala Church
             </Link>
@@ -70,7 +70,7 @@ export default function RootLayout({
             </nav>
           </div>
         </header>
-        <main className="flex-1 mx-auto w-full max-w-4xl px-5 py-8">{children}</main>
+        <main className="flex-1 mx-auto w-full max-w-6xl px-5 py-8">{children}</main>
         <footer className="border-t border-divider py-6 text-center text-xs text-text-secondary">
           Escala Church
         </footer>

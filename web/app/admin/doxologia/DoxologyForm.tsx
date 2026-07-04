@@ -46,7 +46,7 @@ export function DoxologyForm({ existing }: { existing: Doxology | null }) {
         <input name="title" required defaultValue={existing?.title} className={inputClass} />
       </Field>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <Field label="Data">
           <input type="date" name="date" required defaultValue={existing?.date} className={inputClass} />
         </Field>
@@ -59,7 +59,19 @@ export function DoxologyForm({ existing }: { existing: Doxology | null }) {
             className={inputClass}
           />
         </Field>
+        <Field label="Fim (opcional)">
+          <input
+            type="time"
+            name="end_time"
+            defaultValue={existing?.end_time?.slice(0, 5) ?? ""}
+            className={inputClass}
+          />
+        </Field>
       </div>
+      <p className="-mt-2 text-xs text-text-secondary">
+        Preencha o horário de fim se esse dia tiver mais de uma programação (ex: Escola Sabatina,
+        Culto Divino, JA) - isso é o que permite destacar qual está acontecendo agora.
+      </p>
 
       <Field label="Observações">
         <textarea name="notes" defaultValue={existing?.notes} rows={2} className={inputClass} />

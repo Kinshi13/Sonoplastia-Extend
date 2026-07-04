@@ -42,6 +42,7 @@ export type Doxology = {
   church_id: string;
   date: string;
   start_time: string;
+  end_time: string | null;
   title: string;
   notes: string;
   program_order: ProgramStep[];

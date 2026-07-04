@@ -47,7 +47,7 @@ export default async function ChurchHomePage({ params }: { params: Promise<{ slu
       {items.length === 0 ? (
         <EmptyState message="Nenhuma escala futura cadastrada." />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {items.map((scale) => (
             <ScaleCard key={scale.id} scale={scale} />
           ))}

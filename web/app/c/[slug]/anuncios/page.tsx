@@ -48,7 +48,7 @@ export default async function AnunciosPage({ params }: { params: Promise<{ slug:
       {items.length === 0 ? (
         <EmptyState message="Nenhum anúncio publicado ainda." />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
           {items.map((announcement) => (
             <AnnouncementCard
               key={announcement.id}

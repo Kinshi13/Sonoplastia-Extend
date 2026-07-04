@@ -93,6 +93,7 @@ export async function saveDoxologyAction(id: string | null, formData: FormData):
   const payload = {
     date: String(formData.get("date")),
     start_time: String(formData.get("start_time")),
+    end_time: formData.get("end_time") ? String(formData.get("end_time")) : null,
     title: String(formData.get("title")),
     notes: String(formData.get("notes") ?? ""),
     program_order: programOrder,

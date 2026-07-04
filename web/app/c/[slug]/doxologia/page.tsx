@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getChurchBySlug } from "@/lib/church";
 import { Doxology } from "@/lib/types/database";
 import { formatDatePt, formatTimePt } from "@/lib/format";
+import { isDoxologyLiveNow } from "@/lib/currentSession";
 import { Card } from "@/components/Card";
 import { EmptyState } from "@/components/EmptyState";
 
@@ -22,9 +23,11 @@ export default async function DoxologiaPage({ params }: { params: Promise<{ slug
     .eq("church_id", church.id)
     .gte("date", today)
     .order("date", { ascending: true })
+    .order("start_time", { ascending: true })
     .limit(10);
 
   const items = (data as Doxology[]) ?? [];
+  const now = new Date();
 
   return (
     <div className="flex flex-col gap-6">
@@ -36,9 +39,9 @@ export default async function DoxologiaPage({ params }: { params: Promise<{ slug
       {items.length === 0 ? (
         <EmptyState message="Nenhuma programação futura cadastrada." />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5">
           {items.map((doxology) => (
-            <DoxologyCard key={doxology.id} doxology={doxology} />
+            <DoxologyCard key={doxology.id} doxology={doxology} isLive={isDoxologyLiveNow(doxology, now)} />
           ))}
         </div>
       )}
@@ -46,16 +49,28 @@ export default async function DoxologiaPage({ params }: { params: Promise<{ slug
   );
 }
 
-function DoxologyCard({ doxology }: { doxology: Doxology }) {
+function DoxologyCard({ doxology, isLive }: { doxology: Doxology; isLive: boolean }) {
   const steps = doxology.program_order.slice().sort((a, b) => a.order - b.order);
 
   return (
-    <Card className="p-6 flex flex-col gap-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+    <Card
+      className={`p-6 flex flex-col gap-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 ${
+        isLive ? "ring-2 ring-primary" : ""
+      }`}
+    >
       <div>
-        <h3 className="text-lg font-semibold">{doxology.title}</h3>
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-lg font-semibold">{doxology.title}</h3>
+          {isLive && (
+            <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-2.5 py-1 text-xs font-medium text-white">
+              <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" /> Agora
+            </span>
+          )}
+        </div>
         <p className="mt-1 flex items-center gap-1.5 text-sm text-text-secondary capitalize">
           <Calendar size={14} />
           {formatDatePt(doxology.date)} às {formatTimePt(doxology.start_time)}
+          {doxology.end_time ? ` - ${formatTimePt(doxology.end_time)}` : ""}
         </p>
       </div>
 

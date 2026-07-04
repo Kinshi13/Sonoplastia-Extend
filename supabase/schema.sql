@@ -94,6 +94,9 @@ create table doxologies (
   church_id uuid not null references churches(id),
   date date not null,
   start_time time not null,
+  -- Nullable: older rows and quick one-off entries may not have a defined end. When set, it's
+  -- what lets the site/app know which session (Escola Sabatina, Culto Divino, etc.) is "now".
+  end_time time,
   title text not null,
   notes text not null default '',
   program_order jsonb not null default '[]',

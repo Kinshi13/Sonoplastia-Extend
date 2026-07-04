@@ -53,7 +53,7 @@ export default async function AdminSonoplastiaPage() {
         {items.length === 0 ? (
           <EmptyState message="Nenhum arquivo ou link adicionado ainda." />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {items.map((file) => {
               const Icon = MEDIA_ICONS[file.media_type] ?? FileIcon;
               return (
