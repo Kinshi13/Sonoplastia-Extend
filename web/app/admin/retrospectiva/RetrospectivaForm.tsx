@@ -4,18 +4,27 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { RetrospectiveItem } from "@/lib/types/database";
+import { extractYouTubeId, youTubeThumbnailUrl } from "@/lib/youtube";
 import { saveRetrospectiveItemAction } from "../actions";
+
+type SourceMode = "upload" | "youtube";
 
 export function RetrospectivaForm({ existing }: { existing: RetrospectiveItem | null }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [progressLabel, setProgressLabel] = useState<string | null>(null);
+  const [sourceMode, setSourceMode] = useState<SourceMode>(
+    existing?.media_type === "YOUTUBE" ? "youtube" : "upload"
+  );
+  const [youtubeUrl, setYoutubeUrl] = useState(existing?.media_type === "YOUTUBE" ? existing.media_url : "");
   const [aspectRatio, setAspectRatio] = useState(existing?.media_aspect_ratio ?? "4:3");
   const [pickedFile, setPickedFile] = useState<File | null>(null);
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<{ url: string; isVideo: boolean } | null>(
-    existing?.media_url ? { url: existing.media_url, isVideo: existing.media_type === "VIDEO" } : null
+    existing?.media_url && existing.media_type !== "YOUTUBE"
+      ? { url: existing.media_url, isVideo: existing.media_type === "VIDEO" }
+      : null
   );
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -23,7 +32,11 @@ export function RetrospectivaForm({ existing }: { existing: RetrospectiveItem | 
     setPickedFile(file);
     setPosterFile(null);
     if (!file) {
-      setPreview(existing?.media_url ? { url: existing.media_url, isVideo: existing.media_type === "VIDEO" } : null);
+      setPreview(
+        existing?.media_url && existing.media_type !== "YOUTUBE"
+          ? { url: existing.media_url, isVideo: existing.media_type === "VIDEO" }
+          : null
+      );
       return;
     }
 
@@ -91,8 +104,22 @@ export function RetrospectivaForm({ existing }: { existing: RetrospectiveItem | 
       let mediaFileName = existing?.media_file_name ?? null;
       let mediaType = existing?.media_type ?? "IMAGE";
       let posterUrl = existing?.poster_url ?? null;
+      let finalAspectRatio = aspectRatio;
 
-      if (pickedFile) {
+      if (sourceMode === "youtube") {
+        const videoId = extractYouTubeId(youtubeUrl.trim());
+        if (!videoId) {
+          setError("Link do YouTube inválido. Cole a URL completa do vídeo.");
+          setPending(false);
+          setProgressLabel(null);
+          return;
+        }
+        mediaUrl = `https://www.youtube.com/watch?v=${videoId}`;
+        mediaFileName = null;
+        mediaType = "YOUTUBE";
+        posterUrl = youTubeThumbnailUrl(videoId);
+        finalAspectRatio = "16:9";
+      } else if (pickedFile) {
         setProgressLabel(
           `Enviando ${pickedFile.type.startsWith("video/") ? "vídeo" : "foto"} (${(pickedFile.size / (1024 * 1024)).toFixed(1)} MB)...`
         );
@@ -107,7 +134,7 @@ export function RetrospectivaForm({ existing }: { existing: RetrospectiveItem | 
       }
 
       if (!mediaUrl) {
-        setError("Selecione uma foto ou vídeo.");
+        setError("Selecione uma foto, vídeo, ou cole um link do YouTube.");
         setPending(false);
         setProgressLabel(null);
         return;
@@ -116,8 +143,8 @@ export function RetrospectivaForm({ existing }: { existing: RetrospectiveItem | 
       formData.set("media_url", mediaUrl);
       formData.set("media_file_name", mediaFileName ?? "");
       formData.set("media_type", mediaType);
-      formData.set("media_aspect_ratio", aspectRatio);
-      formData.set("poster_url", mediaType === "VIDEO" ? (posterUrl ?? "") : "");
+      formData.set("media_aspect_ratio", finalAspectRatio);
+      formData.set("poster_url", mediaType !== "IMAGE" ? (posterUrl ?? "") : "");
 
       setProgressLabel("Salvando...");
       const result = await saveRetrospectiveItemAction(existing?.id ?? null, formData);
@@ -150,26 +177,67 @@ export function RetrospectivaForm({ existing }: { existing: RetrospectiveItem | 
         <input type="date" name="event_date" defaultValue={existing?.event_date ?? ""} className={inputClass} />
       </Field>
 
-      <Field label={existing ? "Substituir foto/vídeo (opcional)" : "Foto ou vídeo"}>
-        <input
-          type="file"
-          name="media_file"
-          accept="image/*,video/*"
-          required={!existing}
-          onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
-          className={inputClass}
-        />
-      </Field>
+      <div className="flex rounded-lg border border-divider p-1 text-sm">
+        <button
+          type="button"
+          onClick={() => setSourceMode("upload")}
+          className={`flex-1 rounded-md py-1.5 font-medium transition-colors ${sourceMode === "upload" ? "bg-primary text-white" : "text-text-secondary"}`}
+        >
+          Enviar foto/vídeo
+        </button>
+        <button
+          type="button"
+          onClick={() => setSourceMode("youtube")}
+          className={`flex-1 rounded-md py-1.5 font-medium transition-colors ${sourceMode === "youtube" ? "bg-primary text-white" : "text-text-secondary"}`}
+        >
+          Link do YouTube
+        </button>
+      </div>
 
-      {preview && (
-        <div className="w-40 overflow-hidden rounded-xl border border-divider">
-          {preview.isVideo ? (
-            <video src={preview.url} className="aspect-4/3 w-full object-cover" muted />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={preview.url} alt="Pré-visualização" className="aspect-4/3 w-full object-cover" />
+      {sourceMode === "upload" ? (
+        <>
+          <Field label={existing && existing.media_type !== "YOUTUBE" ? "Substituir foto/vídeo (opcional)" : "Foto ou vídeo"}>
+            <input
+              type="file"
+              name="media_file"
+              accept="image/*,video/*"
+              onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+              className={inputClass}
+            />
+          </Field>
+
+          {preview && (
+            <div className="w-40 overflow-hidden rounded-xl border border-divider">
+              {preview.isVideo ? (
+                <video src={preview.url} className="aspect-4/3 w-full object-cover" muted />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={preview.url} alt="Pré-visualização" className="aspect-4/3 w-full object-cover" />
+              )}
+            </div>
           )}
-        </div>
+        </>
+      ) : (
+        <>
+          <Field label="URL do vídeo no YouTube">
+            <input
+              value={youtubeUrl}
+              onChange={(e) => setYoutubeUrl(e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=..."
+              className={inputClass}
+            />
+          </Field>
+          {extractYouTubeId(youtubeUrl) && (
+            <div className="w-40 overflow-hidden rounded-xl border border-divider">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={youTubeThumbnailUrl(extractYouTubeId(youtubeUrl)!)}
+                alt="Pré-visualização"
+                className="aspect-4/3 w-full object-cover"
+              />
+            </div>
+          )}
+        </>
       )}
 
       {error && <p className="text-sm text-error">{error}</p>}

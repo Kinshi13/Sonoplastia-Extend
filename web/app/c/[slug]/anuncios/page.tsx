@@ -74,7 +74,7 @@ function AnnouncementCard({ announcement }: { announcement: Announcement }) {
         </div>
         <p className="text-xs text-text-secondary">{formatPublishedAt(announcement.published_at)}</p>
         {announcement.description && (
-          <p className="text-sm text-foreground/90">{announcement.description}</p>
+          <p className="text-sm text-foreground/90 whitespace-pre-line">{announcement.description}</p>
         )}
       </div>
     </Card>

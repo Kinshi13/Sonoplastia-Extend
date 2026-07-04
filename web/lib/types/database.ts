@@ -75,7 +75,7 @@ export type RetrospectiveItem = {
   church_id: string;
   title: string;
   description: string;
-  media_type: "IMAGE" | "VIDEO";
+  media_type: "IMAGE" | "VIDEO" | "YOUTUBE";
   media_url: string;
   media_file_name: string | null;
   media_aspect_ratio: string; // "W:H", e.g. "16:9", "9:16"
@@ -86,13 +86,16 @@ export type RetrospectiveItem = {
   is_active: boolean;
 };
 
+export type SharedFileMediaType = "IMAGE" | "VIDEO" | "DOCUMENT" | "LINK" | "YOUTUBE";
+
 export type SharedFile = {
   id: string;
   church_id: string;
   file_name: string;
   url: string;
-  media_type: MediaType;
+  media_type: SharedFileMediaType;
   size_bytes: number;
+  is_pinned: boolean;
   uploaded_at: number;
 };
 

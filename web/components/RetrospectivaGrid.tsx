@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X, Share2, Video as VideoIcon } from "lucide-react";
 import { RetrospectiveItem } from "@/lib/types/database";
 import { formatPublishedAt } from "@/lib/format";
+import { extractYouTubeId, youTubeEmbedUrl } from "@/lib/youtube";
 
 export function RetrospectivaGrid({ items }: { items: RetrospectiveItem[] }) {
   const [selected, setSelected] = useState<RetrospectiveItem | null>(null);
@@ -19,11 +20,11 @@ export function RetrospectivaGrid({ items }: { items: RetrospectiveItem[] }) {
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={item.media_type === "VIDEO" ? item.poster_url ?? item.media_url : item.media_url}
+              src={item.media_type === "IMAGE" ? item.media_url : (item.poster_url ?? item.media_url)}
               alt={item.title || "Retrospectiva"}
               className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
             />
-            {item.media_type === "VIDEO" && (
+            {(item.media_type === "VIDEO" || item.media_type === "YOUTUBE") && (
               <span className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white">
                 <VideoIcon size={14} />
               </span>
@@ -82,7 +83,21 @@ function Lightbox({ item, onClose }: { item: RetrospectiveItem; onClose: () => v
       </button>
 
       <div onClick={(e) => e.stopPropagation()} className="flex max-h-[85vh] max-w-full flex-col gap-3">
-        {item.media_type === "VIDEO" ? (
+        {item.media_type === "YOUTUBE" ? (
+          (() => {
+            const videoId = extractYouTubeId(item.media_url);
+            return videoId ? (
+              <iframe
+                src={`${youTubeEmbedUrl(videoId)}?autoplay=1`}
+                title={item.title || "Retrospectiva"}
+                allow="autoplay; encrypted-media; picture-in-picture"
+                allowFullScreen
+                style={{ aspectRatio }}
+                className="h-[75vh] max-h-[75vh] w-auto max-w-full rounded-lg"
+              />
+            ) : null;
+          })()
+        ) : item.media_type === "VIDEO" ? (
           <video
             src={item.media_url}
             controls

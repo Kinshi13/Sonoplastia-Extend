@@ -260,7 +260,7 @@ export async function deleteRetrospectiveItemAction(id: string) {
 export async function saveSharedFileMetadataAction(metadata: {
   file_name: string;
   url: string;
-  media_type: "IMAGE" | "VIDEO" | "DOCUMENT";
+  media_type: "IMAGE" | "VIDEO" | "DOCUMENT" | "LINK" | "YOUTUBE";
   size_bytes: number;
 }): Promise<ActionResult> {
   const admin = await requireAdmin();
@@ -270,6 +270,7 @@ export async function saveSharedFileMetadataAction(metadata: {
   const { error } = await supabase.from("shared_files").insert({
     ...metadata,
     church_id: admin.churchId,
+    is_pinned: false,
     uploaded_at: Date.now(),
   });
   if (error) return { error: error.message };
@@ -285,4 +286,18 @@ export async function deleteSharedFileAction(id: string) {
   const { error } = await supabase.from("shared_files").delete().eq("id", id).eq("church_id", admin.churchId);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/sonoplastia");
+}
+
+export async function toggleSharedFilePinAction(id: string, pinned: boolean): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  if (admin.error) return { error: admin.error };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("shared_files")
+    .update({ is_pinned: pinned })
+    .eq("id", id)
+    .eq("church_id", admin.churchId);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/sonoplastia");
+  return {};
 }

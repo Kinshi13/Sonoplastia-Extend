@@ -41,11 +41,11 @@ export default async function AdminRetrospectivaPage() {
               <div className="relative aspect-4/3 w-full bg-background">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={item.media_type === "VIDEO" ? item.poster_url ?? item.media_url : item.media_url}
+                  src={item.media_type === "IMAGE" ? item.media_url : (item.poster_url ?? item.media_url)}
                   alt={item.title || "Retrospectiva"}
                   className="h-full w-full object-cover"
                 />
-                {item.media_type === "VIDEO" && (
+                {(item.media_type === "VIDEO" || item.media_type === "YOUTUBE") && (
                   <span className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white">
                     <Video size={14} />
                   </span>

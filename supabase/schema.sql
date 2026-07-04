@@ -178,8 +178,11 @@ create table shared_files (
   church_id uuid not null references churches(id),
   file_name text not null,
   url text not null,
+  -- 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'LINK' | 'YOUTUBE' - LINK/YOUTUBE rows have no Storage
+  -- object behind them, just an external url.
   media_type text not null default 'DOCUMENT',
   size_bytes bigint not null default 0,
+  is_pinned boolean not null default false,
   uploaded_at bigint not null
 );
 
@@ -188,6 +191,8 @@ alter table shared_files enable row level security;
 create policy "shared_files: public read" on shared_files for select using (true);
 create policy "shared_files: admin write" on shared_files for insert
   with check (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = shared_files.church_id));
+create policy "shared_files: admin update" on shared_files for update
+  using (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = shared_files.church_id));
 create policy "shared_files: admin delete" on shared_files for delete
   using (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = shared_files.church_id));
 

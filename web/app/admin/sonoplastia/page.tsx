@@ -1,20 +1,22 @@
-import { FileText, Image as ImageIcon, Video, File as FileIcon } from "lucide-react";
+import { FileText, Image as ImageIcon, Video, File as FileIcon, Link2, SquarePlay } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminStatus } from "@/lib/supabase/auth";
-import { SharedFile } from "@/lib/types/database";
+import { SharedFile, SharedFileMediaType } from "@/lib/types/database";
 import { Card } from "@/components/Card";
 import { EmptyState } from "@/components/EmptyState";
 import { DeleteButton } from "../DeleteButton";
 import { deleteSharedFileAction } from "../actions";
 import { UploadForm } from "./UploadForm";
+import { PinButton } from "./PinButton";
 
 export const revalidate = 0;
 
-const MEDIA_ICONS: Record<SharedFile["media_type"], typeof FileText> = {
+const MEDIA_ICONS: Record<SharedFileMediaType, typeof FileText> = {
   IMAGE: ImageIcon,
   VIDEO: Video,
   DOCUMENT: FileText,
-  NONE: FileIcon,
+  LINK: Link2,
+  YOUTUBE: SquarePlay,
 };
 
 function formatSize(bytes: number): string {
@@ -31,21 +33,25 @@ export default async function AdminSonoplastiaPage() {
     .select("*")
     .eq("church_id", churchId)
     .order("uploaded_at", { ascending: false });
-  const items = (data as SharedFile[]) ?? [];
+  const items = ((data as SharedFile[]) ?? []).sort((a, b) => {
+    if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
+    return b.uploaded_at - a.uploaded_at;
+  });
 
   return (
     <div>
       <h1 className="text-2xl font-semibold mb-2">Sonoplastia - arquivos remotos</h1>
       <p className="text-sm text-text-secondary mb-6">
-        Envie apresentações, PDFs, fotos e vídeos aqui para acessar de qualquer dispositivo -
-        inclusive pelo app no celular.
+        Envie apresentações, PDFs, fotos e vídeos, ou adicione links (inclusive do YouTube) para
+        acessar de qualquer dispositivo - inclusive pelo app no celular. Fixe os mais usados para
+        acesso rápido.
       </p>
 
       <UploadForm />
 
       <div className="mt-8">
         {items.length === 0 ? (
-          <EmptyState message="Nenhum arquivo enviado ainda." />
+          <EmptyState message="Nenhum arquivo ou link adicionado ainda." />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {items.map((file) => {
@@ -68,10 +74,15 @@ export default async function AdminSonoplastiaPage() {
                       >
                         {file.file_name}
                       </a>
-                      <p className="text-xs text-text-secondary">{formatSize(file.size_bytes)}</p>
+                      <p className="text-xs text-text-secondary">
+                        {file.media_type === "LINK" || file.media_type === "YOUTUBE"
+                          ? "Link externo"
+                          : formatSize(file.size_bytes)}
+                      </p>
                     </div>
                   </div>
-                  <div className="mt-auto flex items-center justify-end border-t border-divider pt-3">
+                  <div className="mt-auto flex items-center justify-between border-t border-divider pt-3">
+                    <PinButton id={file.id} pinned={file.is_pinned} />
                     <DeleteButton id={file.id} action={deleteSharedFileAction} />
                   </div>
                 </Card>
