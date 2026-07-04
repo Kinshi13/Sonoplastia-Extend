@@ -115,6 +115,36 @@ create policy "announcements: admin update" on announcements for update
 create policy "announcements: admin delete" on announcements for delete
   using (exists (select 1 from profiles where id = auth.uid() and is_admin));
 
+-- Retrospective (photo/video feed of recent services and events) --------
+create table retrospective_items (
+  id uuid primary key default gen_random_uuid(),
+  title text not null default '',
+  description text not null default '',
+  media_type text not null default 'IMAGE', -- 'IMAGE' | 'VIDEO'
+  media_url text not null,
+  media_file_name text,
+  -- Original width:height (e.g. "16:9", "9:16") so the feed can crop to 4:3 while the
+  -- detail/lightbox view can still render the media at its real proportions.
+  media_aspect_ratio text not null default '4:3',
+  -- First-frame thumbnail for videos, generated client-side at upload time - the <video>
+  -- tag alone doesn't reliably paint a frame before playback across browsers.
+  poster_url text,
+  event_date date,
+  published_at bigint not null,
+  updated_at bigint not null,
+  is_active boolean not null default true
+);
+
+alter table retrospective_items enable row level security;
+
+create policy "retrospective_items: public read active" on retrospective_items for select using (is_active);
+create policy "retrospective_items: admin write" on retrospective_items for insert
+  with check (exists (select 1 from profiles where id = auth.uid() and is_admin));
+create policy "retrospective_items: admin update" on retrospective_items for update
+  using (exists (select 1 from profiles where id = auth.uid() and is_admin));
+create policy "retrospective_items: admin delete" on retrospective_items for delete
+  using (exists (select 1 from profiles where id = auth.uid() and is_admin));
+
 -- Shared files (Sonoplastia's remote file sharing: PPT/PDF/photos/videos moved phone <-> PC) ----
 create table shared_files (
   id uuid primary key default gen_random_uuid(),
@@ -138,12 +168,12 @@ create policy "shared_files: admin delete" on shared_files for delete
 -- Without these, PostgREST returns "permission denied for table X" even though the RLS policies
 -- are otherwise satisfied.
 grant usage on schema public to anon, authenticated;
-grant select on public.scales, public.doxologies, public.announcements, public.shared_files to anon, authenticated;
-grant insert, update, delete on public.scales, public.doxologies, public.announcements, public.shared_files to authenticated;
+grant select on public.scales, public.doxologies, public.announcements, public.shared_files, public.retrospective_items to anon, authenticated;
+grant insert, update, delete on public.scales, public.doxologies, public.announcements, public.shared_files, public.retrospective_items to authenticated;
 grant select, insert on public.profiles to authenticated;
 
 -- Realtime: let clients subscribe to live changes on these tables.
-alter publication supabase_realtime add table scales, doxologies, announcements, shared_files;
+alter publication supabase_realtime add table scales, doxologies, announcements, shared_files, retrospective_items;
 
 -- Storage: one public bucket for everything shared from the app (announcement media and
 -- files shared from the Sonoplastia screen). Create the bucket "church-files" first in

@@ -59,6 +59,21 @@ export type Announcement = {
   is_active: boolean;
 };
 
+export type RetrospectiveItem = {
+  id: string;
+  title: string;
+  description: string;
+  media_type: "IMAGE" | "VIDEO";
+  media_url: string;
+  media_file_name: string | null;
+  media_aspect_ratio: string; // "W:H", e.g. "16:9", "9:16"
+  poster_url: string | null;
+  event_date: string | null;
+  published_at: number;
+  updated_at: number;
+  is_active: boolean;
+};
+
 export type SharedFile = {
   id: string;
   file_name: string;

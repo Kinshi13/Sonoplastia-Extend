@@ -183,6 +183,91 @@ export async function deleteAnnouncementAction(id: string) {
   revalidatePath("/anuncios");
 }
 
+// Retrospective (photo/video feed) -----------------------------------------
+
+export async function saveRetrospectiveItemAction(
+  id: string | null,
+  formData: FormData
+): Promise<ActionResult> {
+  const adminError = await requireAdmin();
+  if (adminError) return { error: adminError };
+  const supabase = await createClient();
+
+  const mediaFile = formData.get("media_file") as File | null;
+  const posterFile = formData.get("poster_file") as File | null;
+  let mediaUrl = formData.get("existing_media_url") ? String(formData.get("existing_media_url")) : null;
+  let mediaFileName = formData.get("existing_media_file_name")
+    ? String(formData.get("existing_media_file_name"))
+    : null;
+  let posterUrl = formData.get("existing_poster_url") ? String(formData.get("existing_poster_url")) : null;
+  let mediaType = formData.get("existing_media_type")
+    ? String(formData.get("existing_media_type"))
+    : "IMAGE";
+  const aspectRatio = String(formData.get("media_aspect_ratio") ?? "4:3");
+
+  if (mediaFile && mediaFile.size > 0) {
+    const extension = mediaFile.name.split(".").pop() || "bin";
+    const path = `retrospectiva/${crypto.randomUUID()}.${extension}`;
+    const { error: uploadError } = await supabase.storage
+      .from("church-files")
+      .upload(path, mediaFile, { upsert: false });
+    if (uploadError) return { error: uploadError.message };
+    const { data: publicUrlData } = supabase.storage.from("church-files").getPublicUrl(path);
+    mediaUrl = publicUrlData.publicUrl;
+    mediaFileName = mediaFile.name;
+    mediaType = mediaFile.type.startsWith("video/") ? "VIDEO" : "IMAGE";
+  }
+
+  if (!mediaUrl) return { error: "Selecione uma foto ou vídeo." };
+
+  if (posterFile && posterFile.size > 0) {
+    const path = `retrospectiva/posters/${crypto.randomUUID()}.jpg`;
+    const { error: uploadError } = await supabase.storage
+      .from("church-files")
+      .upload(path, posterFile, { upsert: false });
+    if (uploadError) return { error: uploadError.message };
+    const { data: publicUrlData } = supabase.storage.from("church-files").getPublicUrl(path);
+    posterUrl = publicUrlData.publicUrl;
+  }
+
+  const payload = {
+    title: String(formData.get("title") ?? ""),
+    description: String(formData.get("description") ?? ""),
+    media_type: mediaType,
+    media_url: mediaUrl,
+    media_file_name: mediaFileName,
+    media_aspect_ratio: aspectRatio,
+    poster_url: mediaType === "VIDEO" ? posterUrl : null,
+    event_date: formData.get("event_date") ? String(formData.get("event_date")) : null,
+    is_active: true,
+    updated_at: Date.now(),
+  };
+
+  if (id) {
+    const { error } = await supabase.from("retrospective_items").update(payload).eq("id", id);
+    if (error) return { error: error.message };
+  } else {
+    const { error } = await supabase
+      .from("retrospective_items")
+      .insert({ ...payload, published_at: Date.now() });
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath("/admin/retrospectiva");
+  revalidatePath("/retrospectiva");
+  return {};
+}
+
+export async function deleteRetrospectiveItemAction(id: string) {
+  const adminError = await requireAdmin();
+  if (adminError) throw new Error(adminError);
+  const supabase = await createClient();
+  const { error } = await supabase.from("retrospective_items").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/retrospectiva");
+  revalidatePath("/retrospectiva");
+}
+
 // Sonoplastia shared files -------------------------------------------------
 
 export async function uploadSharedFileAction(formData: FormData): Promise<ActionResult> {

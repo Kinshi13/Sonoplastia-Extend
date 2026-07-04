@@ -39,6 +39,7 @@ const navLinks = [
   { href: "/", label: "Escala" },
   { href: "/doxologia", label: "Doxologia" },
   { href: "/anuncios", label: "Anúncios" },
+  { href: "/retrospectiva", label: "Retrospectiva" },
 ];
 
 export default function RootLayout({
