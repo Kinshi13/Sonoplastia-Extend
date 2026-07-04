@@ -18,7 +18,7 @@ const ROLE_FIELDS: { key: keyof Scale; label: string; icon: typeof Mic2 }[] = [
 export default async function HomePage() {
   const supabase = await createClient();
   const today = new Date().toISOString().slice(0, 10);
-  const { data: scales, error } = await supabase
+  const { data: scales } = await supabase
     .from("scales")
     .select("*")
     .gte("date", today)
@@ -28,19 +28,7 @@ export default async function HomePage() {
 
   const items = (scales as Scale[]) ?? [];
 
-  const debugInfo = {
-    url: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "(undefined)",
-    keyLength: (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "").length,
-    error: error ? { message: error.message, code: error.code, hint: error.hint } : null,
-  };
-
   return (
-    <>
-    {(error || items.length === 0) && (
-      <pre className="mb-4 whitespace-pre-wrap rounded-xl border border-red-500 bg-red-50 p-4 text-xs text-red-900">
-        DEBUG (remover depois): {JSON.stringify(debugInfo, null, 2)}
-      </pre>
-    )}
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Próximas Escalas</h1>
@@ -59,7 +47,6 @@ export default async function HomePage() {
         </div>
       )}
     </div>
-    </>
   );
 }
 
