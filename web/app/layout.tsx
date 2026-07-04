@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
+import { IosInstallHint } from "@/components/IosInstallHint";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -20,8 +21,11 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
     title: "Escala Church",
+  },
+  formatDetection: {
+    telephone: false,
   },
   icons: {
     icon: [{ url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" }],
@@ -33,6 +37,7 @@ export const viewport: Viewport = {
   themeColor: "#3B7DDD",
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -47,7 +52,10 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <RegisterServiceWorker />
-        <header className="border-b border-divider bg-surface">
+        <header
+          className="border-b border-divider bg-surface"
+          style={{ paddingTop: "env(safe-area-inset-top)" }}
+        >
           <div className="mx-auto flex max-w-4xl items-center justify-between px-5 py-4">
             <Link href="/" className="text-lg font-semibold text-primary">
               Escala Church
@@ -66,6 +74,7 @@ export default function RootLayout({
         <footer className="border-t border-divider py-6 text-center text-xs text-text-secondary">
           Escala Church
         </footer>
+        <IosInstallHint />
       </body>
     </html>
   );
