@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { Announcement } from "@/lib/types/database";
 import { saveAnnouncementAction } from "../actions";
 
@@ -9,19 +10,55 @@ export function AnnouncementForm({ existing }: { existing: Announcement | null }
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [progressLabel, setProgressLabel] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState(existing?.media_type ?? "NONE");
 
   async function handleSubmit(formData: FormData) {
     setPending(true);
     setError(null);
-    const result = await saveAnnouncementAction(existing?.id ?? null, formData);
-    if (result.error) {
-      setError(result.error);
+
+    const mediaFile = formData.get("media_file") as File | null;
+    // The <input type="file"> is still part of this FormData - strip it before sending to the
+    // server action. Vercel Server Actions cap request bodies at a few MB, so the file itself
+    // is uploaded straight to Supabase Storage from here instead.
+    formData.delete("media_file");
+
+    try {
+      let mediaUrl = existing?.media_url ?? "";
+      let mediaFileName = existing?.media_file_name ?? "";
+
+      if (mediaFile && mediaFile.size > 0) {
+        setProgressLabel(`Enviando arquivo (${(mediaFile.size / (1024 * 1024)).toFixed(1)} MB)...`);
+        const supabase = createClient();
+        const extension = mediaFile.name.split(".").pop() || "bin";
+        const path = `announcements/${crypto.randomUUID()}.${extension}`;
+        const { error: uploadError } = await supabase.storage
+          .from("church-files")
+          .upload(path, mediaFile, { upsert: false });
+        if (uploadError) throw new Error(uploadError.message);
+        const { data } = supabase.storage.from("church-files").getPublicUrl(path);
+        mediaUrl = data.publicUrl;
+        mediaFileName = mediaFile.name;
+      }
+
+      formData.set("media_url", mediaUrl);
+      formData.set("media_file_name", mediaFileName);
+
+      setProgressLabel("Salvando...");
+      const result = await saveAnnouncementAction(existing?.id ?? null, formData);
+      if (result.error) {
+        setError(result.error);
+        setPending(false);
+        setProgressLabel(null);
+        return;
+      }
+      router.push("/admin/anuncios");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha no envio do arquivo.");
       setPending(false);
-      return;
+      setProgressLabel(null);
     }
-    router.push("/admin/anuncios");
-    router.refresh();
   }
 
   return (
@@ -65,8 +102,6 @@ export function AnnouncementForm({ existing }: { existing: Announcement | null }
           <Field label="Substituir arquivo (opcional se já existe um)">
             <input type="file" name="media_file" className={inputClass} />
           </Field>
-          <input type="hidden" name="existing_media_url" value={existing?.media_url ?? ""} />
-          <input type="hidden" name="existing_media_file_name" value={existing?.media_file_name ?? ""} />
         </>
       )}
 
@@ -76,13 +111,14 @@ export function AnnouncementForm({ existing }: { existing: Announcement | null }
       </label>
 
       {error && <p className="text-sm text-error">{error}</p>}
+      {progressLabel && <p className="text-sm text-text-secondary">{progressLabel}</p>}
 
       <button
         type="submit"
         disabled={pending}
         className="self-start rounded-full bg-primary px-5 py-2 text-sm font-medium text-white disabled:opacity-60"
       >
-        {pending ? "Salvando..." : "Salvar"}
+        {pending ? "Enviando..." : "Salvar"}
       </button>
     </form>
   );

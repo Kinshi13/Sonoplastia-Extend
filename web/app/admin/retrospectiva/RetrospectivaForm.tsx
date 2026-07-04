@@ -80,6 +80,11 @@ export function RetrospectivaForm({ existing }: { existing: RetrospectiveItem | 
   async function handleSubmit(formData: FormData) {
     setPending(true);
     setError(null);
+    // The <input type="file"> is still part of this FormData - strip it before it's ever sent
+    // to the server action, since the file itself was already (or is about to be) uploaded
+    // directly to Supabase Storage above. Forwarding it here would re-send the full binary to
+    // the server action, hitting the same body-size ceiling we just worked around.
+    formData.delete("media_file");
 
     try {
       let mediaUrl = existing?.media_url ?? null;

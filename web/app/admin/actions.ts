@@ -116,6 +116,9 @@ export async function deleteDoxologyAction(id: string) {
 
 // Announcements ------------------------------------------------------------
 
+// Media is uploaded directly from the browser to Supabase Storage (see AnnouncementForm) -
+// Vercel Server Actions cap request bodies at a few MB, far below a typical photo/video, so
+// this action only ever receives the resulting URL, never the file itself.
 export async function saveAnnouncementAction(
   id: string | null,
   formData: FormData
@@ -125,23 +128,8 @@ export async function saveAnnouncementAction(
   const supabase = await createClient();
 
   const mediaType = String(formData.get("media_type") ?? "NONE");
-  const mediaFile = formData.get("media_file") as File | null;
-  let mediaUrl = formData.get("existing_media_url") ? String(formData.get("existing_media_url")) : null;
-  let mediaFileName = formData.get("existing_media_file_name")
-    ? String(formData.get("existing_media_file_name"))
-    : null;
-
-  if (mediaFile && mediaFile.size > 0) {
-    const extension = mediaFile.name.split(".").pop() || "bin";
-    const path = `announcements/${crypto.randomUUID()}.${extension}`;
-    const { error: uploadError } = await supabase.storage
-      .from("church-files")
-      .upload(path, mediaFile, { upsert: false });
-    if (uploadError) return { error: uploadError.message };
-    const { data: publicUrlData } = supabase.storage.from("church-files").getPublicUrl(path);
-    mediaUrl = publicUrlData.publicUrl;
-    mediaFileName = mediaFile.name;
-  }
+  const mediaUrl = formData.get("media_url") ? String(formData.get("media_url")) : null;
+  const mediaFileName = formData.get("media_file_name") ? String(formData.get("media_file_name")) : null;
 
   const payload = {
     title: String(formData.get("title")),
@@ -239,34 +227,21 @@ export async function deleteRetrospectiveItemAction(id: string) {
 
 // Sonoplastia shared files -------------------------------------------------
 
-export async function uploadSharedFileAction(formData: FormData): Promise<ActionResult> {
+// The file is uploaded directly from the browser to Supabase Storage (see UploadForm) -
+// Vercel Server Actions cap request bodies at a few MB, far below a typical shared file, so
+// this action only ever receives the resulting metadata, never the file itself.
+export async function saveSharedFileMetadataAction(metadata: {
+  file_name: string;
+  url: string;
+  media_type: "IMAGE" | "VIDEO" | "DOCUMENT";
+  size_bytes: number;
+}): Promise<ActionResult> {
   const adminError = await requireAdmin();
   if (adminError) return { error: adminError };
   const supabase = await createClient();
 
-  const file = formData.get("file") as File | null;
-  if (!file || file.size === 0) return { error: "Selecione um arquivo." };
-
-  const extension = file.name.split(".").pop() || "bin";
-  const path = `sonoplastia/${crypto.randomUUID()}.${extension}`;
-  const { error: uploadError } = await supabase.storage
-    .from("church-files")
-    .upload(path, file, { upsert: false });
-  if (uploadError) return { error: uploadError.message };
-
-  const { data: publicUrlData } = supabase.storage.from("church-files").getPublicUrl(path);
-
-  const mediaType = file.type.startsWith("image/")
-    ? "IMAGE"
-    : file.type.startsWith("video/")
-      ? "VIDEO"
-      : "DOCUMENT";
-
   const { error } = await supabase.from("shared_files").insert({
-    file_name: file.name,
-    url: publicUrlData.publicUrl,
-    media_type: mediaType,
-    size_bytes: file.size,
+    ...metadata,
     uploaded_at: Date.now(),
   });
   if (error) return { error: error.message };
