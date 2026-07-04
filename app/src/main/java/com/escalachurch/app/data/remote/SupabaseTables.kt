@@ -5,6 +5,7 @@ object SupabaseTables {
     const val DOXOLOGIES = "doxologies"
     const val ANNOUNCEMENTS = "announcements"
     const val SHARED_FILES = "shared_files"
+    const val BULLETINS = "bulletins"
 }
 
 /** Public Storage bucket used for both Anúncios media and files shared from Sonoplastia. */

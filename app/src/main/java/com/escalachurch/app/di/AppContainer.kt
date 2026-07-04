@@ -6,6 +6,7 @@ import com.escalachurch.app.data.preferences.SettingsDataStore
 import com.escalachurch.app.data.preferences.UserProfileDataStore
 import com.escalachurch.app.data.remote.SupabaseClientProvider
 import com.escalachurch.app.data.repository.AnnouncementRepository
+import com.escalachurch.app.data.repository.BulletinRepository
 import com.escalachurch.app.data.repository.ChangeLogRepository
 import com.escalachurch.app.data.repository.CustomEventRepository
 import com.escalachurch.app.data.repository.DoxologyRepository
@@ -39,6 +40,7 @@ class AppContainer(context: Context) {
     val settingsRepository = SettingsRepository(settingsDataStore)
     val userProfileRepository = UserProfileRepository(userProfileDataStore)
     val announcementRepository = AnnouncementRepository(supabase)
+    val bulletinRepository = BulletinRepository(supabase)
     val changeLogRepository = ChangeLogRepository(database.changeLogDao())
     val sonoplastiaFileRepository = SonoplastiaFileRepository(supabase)
 

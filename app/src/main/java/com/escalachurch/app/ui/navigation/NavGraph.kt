@@ -22,6 +22,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.escalachurch.app.ui.components.EscalaBottomNavBar
 import com.escalachurch.app.ui.screens.announcements.AnnouncementsScreen
+import com.escalachurch.app.ui.screens.bulletins.BulletinsScreen
 import com.escalachurch.app.ui.screens.calendar.CalendarScreen
 import com.escalachurch.app.ui.screens.doxology.DoxologyScreen
 import com.escalachurch.app.ui.screens.generalscale.GeneralScaleScreen
@@ -33,12 +34,11 @@ import com.escalachurch.app.ui.screens.sonoplastia.SonoplastiaScreen
 // Same left-to-right order as the bottom nav bar (see BottomNavBar.kt's navEntries) - used to
 // decide which way a tab-to-tab transition should slide, so it always matches the swipe direction.
 private val tabOrder = listOf(
-    AppDestination.Doxology.route,
     AppDestination.Program.route,
+    AppDestination.Doxology.route,
     AppDestination.Home.route,
-    AppDestination.Calendar.route,
     AppDestination.Announcements.route,
-    AppDestination.Settings.route
+    AppDestination.Calendar.route
 )
 
 private fun tabIndexOf(route: String?): Int = tabOrder.indexOf(route).takeIf { it >= 0 } ?: tabOrder.indexOf(AppDestination.Home.route)
@@ -80,12 +80,13 @@ fun EscalaChurchNavGraph() {
         AppDestination.Program.route -> AppDestination.Program
         AppDestination.Calendar.route -> AppDestination.Calendar
         AppDestination.Announcements.route -> AppDestination.Announcements
-        AppDestination.Settings.route -> AppDestination.Settings
         else -> AppDestination.Home
     }
 
     val isSecondaryScreen = currentRoute == SecondaryDestination.GENERAL_SCALE_ROUTE ||
-        currentRoute == SecondaryDestination.SONOPLASTIA_ROUTE
+        currentRoute == SecondaryDestination.SONOPLASTIA_ROUTE ||
+        currentRoute == SecondaryDestination.SETTINGS_ROUTE ||
+        currentRoute == SecondaryDestination.BULLETINS_ROUTE
 
     fun navigateToTab(route: String) {
         navController.navigate(route) {
@@ -117,7 +118,8 @@ fun EscalaChurchNavGraph() {
             composable(AppDestination.Home.route) {
                 HomeScreen(
                     onOpenGeneralScale = { date -> navController.navigate(SecondaryDestination.generalScaleRoute(date)) },
-                    onOpenAnnouncements = { navigateToTab(AppDestination.Announcements.route) },
+                    onOpenSettings = { navController.navigate(SecondaryDestination.SETTINGS_ROUTE) },
+                    onOpenBulletins = { navController.navigate(SecondaryDestination.BULLETINS_ROUTE) },
                     onOpenSonoplastia = { navController.navigate(SecondaryDestination.SONOPLASTIA_ROUTE) }
                 )
             }
@@ -126,13 +128,8 @@ fun EscalaChurchNavGraph() {
             composable(AppDestination.Calendar.route) { CalendarScreen() }
             composable(AppDestination.Announcements.route) {
                 AnnouncementsScreen(
-                    onOpenCalendarDate = { navigateToTab(AppDestination.Calendar.route) }
-                )
-            }
-            composable(AppDestination.Settings.route) {
-                SettingsScreen(
-                    onOpenGeneralScale = { navController.navigate(SecondaryDestination.generalScaleRoute(null)) },
-                    onOpenAnnouncements = { navigateToTab(AppDestination.Announcements.route) }
+                    onOpenCalendarDate = { navigateToTab(AppDestination.Calendar.route) },
+                    onOpenBulletins = { navController.navigate(SecondaryDestination.BULLETINS_ROUTE) }
                 )
             }
             composable(
@@ -155,6 +152,26 @@ fun EscalaChurchNavGraph() {
                 popExitTransition = { popExitToRight() }
             ) {
                 SonoplastiaScreen(onBack = { navController.popBackStack() })
+            }
+            composable(
+                SecondaryDestination.SETTINGS_ROUTE,
+                enterTransition = { pushEnter() },
+                exitTransition = { pushExit() },
+                popExitTransition = { popExitToRight() }
+            ) {
+                SettingsScreen(
+                    onOpenGeneralScale = { navController.navigate(SecondaryDestination.generalScaleRoute(null)) },
+                    onOpenAnnouncements = { navigateToTab(AppDestination.Announcements.route) },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                SecondaryDestination.BULLETINS_ROUTE,
+                enterTransition = { pushEnter() },
+                exitTransition = { pushExit() },
+                popExitTransition = { popExitToRight() }
+            ) {
+                BulletinsScreen(onBack = { navController.popBackStack() })
             }
         }
     }

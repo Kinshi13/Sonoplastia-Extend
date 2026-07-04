@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.EditCalendar
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -43,15 +42,15 @@ import kotlin.math.abs
 
 private data class NavEntry(val destination: AppDestination, val label: String, val icon: ImageVector)
 
-// Início sits in the middle of the row (2 items to its left, 3 to its right) instead of first,
-// per design guidance to center it. This same order also defines swipe-navigation order below.
+// Início sits in the middle of the row, per design guidance to center it. This same order also
+// defines swipe-navigation order below. Configurações moved out to an icon on Início/Anúncios
+// instead, so the bar stays to these five.
 private val navEntries = listOf(
-    NavEntry(AppDestination.Doxology, "Doxologia", Icons.Filled.MusicNote),
     NavEntry(AppDestination.Program, "Programar", Icons.Filled.EditCalendar),
+    NavEntry(AppDestination.Doxology, "Doxologia", Icons.Filled.MusicNote),
     NavEntry(AppDestination.Home, "Início", Icons.Filled.Home),
-    NavEntry(AppDestination.Calendar, "Calendário", Icons.Filled.CalendarMonth),
     NavEntry(AppDestination.Announcements, "Anúncios", Icons.Filled.Campaign),
-    NavEntry(AppDestination.Settings, "Ajustes", Icons.Filled.Settings)
+    NavEntry(AppDestination.Calendar, "Calendário", Icons.Filled.CalendarMonth)
 )
 
 private const val TAP_SLOP_DP = 12f

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.EventNote
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Campaign
@@ -23,6 +24,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -53,7 +55,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen(
     onOpenGeneralScale: () -> Unit = {},
-    onOpenAnnouncements: () -> Unit = {}
+    onOpenAnnouncements: () -> Unit = {},
+    onBack: () -> Unit = {}
 ) {
     val viewModel = appViewModel { container ->
         SettingsViewModel(container.settingsRepository, container.userProfileRepository, container.adminSession)
@@ -67,7 +70,12 @@ fun SettingsScreen(
     var loginError by remember { mutableStateOf<String?>(null) }
 
     Column(modifier = Modifier.fillMaxSize().padding(top = 20.dp, start = 20.dp, end = 20.dp)) {
-        Text("Configurações", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+            }
+            Text("Configurações", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+        }
         Spacer(Modifier.height(20.dp))
         PulledUpEntrance(visible = sectionsVisible) {
             LazyColumn(

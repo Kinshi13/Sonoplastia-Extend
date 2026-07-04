@@ -13,9 +13,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.EventNote
-import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Computer
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.EventBusy
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -47,7 +48,8 @@ import com.escalachurch.app.ui.components.rememberEntranceVisible
 @Composable
 fun HomeScreen(
     onOpenGeneralScale: (java.time.LocalDate?) -> Unit = {},
-    onOpenAnnouncements: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
+    onOpenBulletins: () -> Unit = {},
     onOpenSonoplastia: () -> Unit = {}
 ) {
     val viewModel = appViewModel { container ->
@@ -93,8 +95,11 @@ fun HomeScreen(
                 IconButton(onClick = onOpenSonoplastia) {
                     Icon(Icons.Filled.Computer, contentDescription = "Sonoplastia (arquivos remotos)", tint = MaterialTheme.colorScheme.primary)
                 }
-                IconButton(onClick = onOpenAnnouncements) {
-                    Icon(Icons.Filled.Campaign, contentDescription = "Anúncios", tint = MaterialTheme.colorScheme.primary)
+                IconButton(onClick = onOpenBulletins) {
+                    Icon(Icons.Filled.Description, contentDescription = "Boletins", tint = MaterialTheme.colorScheme.primary)
+                }
+                IconButton(onClick = onOpenSettings) {
+                    Icon(Icons.Filled.Settings, contentDescription = "Configurações", tint = MaterialTheme.colorScheme.primary)
                 }
             }
         }
