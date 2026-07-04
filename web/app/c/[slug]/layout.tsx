@@ -30,6 +30,7 @@ export default async function ChurchLayout({
     { href: `/c/${slug}`, label: "Escala" },
     { href: `/c/${slug}/doxologia`, label: "Doxologia" },
     { href: `/c/${slug}/anuncios`, label: "Anúncios" },
+    { href: `/c/${slug}/boletins`, label: "Boletins" },
     { href: `/c/${slug}/retrospectiva`, label: "Retrospectiva" },
   ];
 

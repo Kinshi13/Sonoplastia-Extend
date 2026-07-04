@@ -172,6 +172,33 @@ create policy "retrospective_items: admin update" on retrospective_items for upd
 create policy "retrospective_items: admin delete" on retrospective_items for delete
   using (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = retrospective_items.church_id));
 
+-- Bulletins (Boletins - PDF newsletters from departments/events, optionally linked to one
+-- announcement so its card can show a "Ver boletim" shortcut) -------------
+create table bulletins (
+  id uuid primary key default gen_random_uuid(),
+  church_id uuid not null references churches(id),
+  title text not null,
+  pdf_url text not null,
+  pdf_file_name text,
+  -- First-page render, generated client-side at upload time via pdf.js, so the public feed can
+  -- show a real cover preview instead of a generic file icon.
+  cover_url text,
+  related_announcement_id uuid references announcements(id) on delete set null,
+  published_at bigint not null,
+  updated_at bigint not null,
+  is_active boolean not null default true
+);
+
+alter table bulletins enable row level security;
+
+create policy "bulletins: public read active" on bulletins for select using (is_active);
+create policy "bulletins: admin write" on bulletins for insert
+  with check (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = bulletins.church_id));
+create policy "bulletins: admin update" on bulletins for update
+  using (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = bulletins.church_id));
+create policy "bulletins: admin delete" on bulletins for delete
+  using (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = bulletins.church_id));
+
 -- Shared files (Sonoplastia's remote file sharing: PPT/PDF/photos/videos moved phone <-> PC) ----
 create table shared_files (
   id uuid primary key default gen_random_uuid(),
@@ -201,12 +228,12 @@ create policy "shared_files: admin delete" on shared_files for delete
 -- Without these, PostgREST returns "permission denied for table X" even though the RLS policies
 -- are otherwise satisfied.
 grant usage on schema public to anon, authenticated;
-grant select on public.churches, public.scales, public.doxologies, public.announcements, public.shared_files, public.retrospective_items to anon, authenticated;
-grant insert, update, delete on public.scales, public.doxologies, public.announcements, public.shared_files, public.retrospective_items to authenticated;
+grant select on public.churches, public.scales, public.doxologies, public.announcements, public.shared_files, public.retrospective_items, public.bulletins to anon, authenticated;
+grant insert, update, delete on public.scales, public.doxologies, public.announcements, public.shared_files, public.retrospective_items, public.bulletins to authenticated;
 grant select, insert on public.profiles to authenticated;
 
 -- Realtime: let clients subscribe to live changes on these tables.
-alter publication supabase_realtime add table scales, doxologies, announcements, shared_files, retrospective_items;
+alter publication supabase_realtime add table scales, doxologies, announcements, shared_files, retrospective_items, bulletins;
 
 -- Storage: one public bucket for everything shared from the app (announcement media and
 -- files shared from the Sonoplastia screen). Create the bucket "church-files" first in

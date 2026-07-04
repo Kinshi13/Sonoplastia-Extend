@@ -86,6 +86,19 @@ export type RetrospectiveItem = {
   is_active: boolean;
 };
 
+export type Bulletin = {
+  id: string;
+  church_id: string;
+  title: string;
+  pdf_url: string;
+  pdf_file_name: string | null;
+  cover_url: string | null;
+  related_announcement_id: string | null;
+  published_at: number;
+  updated_at: number;
+  is_active: boolean;
+};
+
 export type SharedFileMediaType = "IMAGE" | "VIDEO" | "DOCUMENT" | "LINK" | "YOUTUBE";
 
 export type SharedFile = {

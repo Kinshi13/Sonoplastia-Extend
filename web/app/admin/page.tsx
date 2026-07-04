@@ -1,4 +1,4 @@
-import { Calendar, BookOpen, Megaphone, FolderOpen, Images } from "lucide-react";
+import { Calendar, BookOpen, Megaphone, FolderOpen, Images, FileText } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminStatus } from "@/lib/supabase/auth";
 import { CardLink } from "@/components/Card";
@@ -12,12 +12,18 @@ export default async function AdminDashboardPage() {
     { count: scalesCount },
     { count: doxologiesCount },
     { count: announcementsCount },
+    { count: bulletinsCount },
     { count: retrospectiveCount },
   ] = await Promise.all([
     supabase.from("scales").select("*", { count: "exact", head: true }).eq("church_id", churchId),
     supabase.from("doxologies").select("*", { count: "exact", head: true }).eq("church_id", churchId),
     supabase
       .from("announcements")
+      .select("*", { count: "exact", head: true })
+      .eq("church_id", churchId)
+      .eq("is_active", true),
+    supabase
+      .from("bulletins")
       .select("*", { count: "exact", head: true })
       .eq("church_id", churchId)
       .eq("is_active", true),
@@ -32,6 +38,7 @@ export default async function AdminDashboardPage() {
     { href: "/admin/escalas", label: "Escalas", count: scalesCount ?? 0, icon: Calendar },
     { href: "/admin/doxologia", label: "Doxologia", count: doxologiesCount ?? 0, icon: BookOpen },
     { href: "/admin/anuncios", label: "Anúncios", count: announcementsCount ?? 0, icon: Megaphone },
+    { href: "/admin/boletins", label: "Boletins", count: bulletinsCount ?? 0, icon: FileText },
     { href: "/admin/retrospectiva", label: "Retrospectiva", count: retrospectiveCount ?? 0, icon: Images },
     { href: "/admin/sonoplastia", label: "Arquivos (Sonoplastia)", count: null, icon: FolderOpen },
   ];

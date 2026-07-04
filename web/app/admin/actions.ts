@@ -252,6 +252,60 @@ export async function deleteRetrospectiveItemAction(id: string) {
   revalidatePath(`/c/${admin.churchSlug}/retrospectiva`);
 }
 
+// Bulletins (Boletins) ------------------------------------------------------
+
+// PDF + cover are uploaded directly from the browser to Supabase Storage (see BulletinForm) -
+// Vercel Server Actions cap request bodies at a few MB, far below a typical PDF, so this action
+// only ever receives URLs, never the file itself.
+export async function saveBulletinAction(id: string | null, formData: FormData): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  if (admin.error) return { error: admin.error };
+  const supabase = await createClient();
+
+  const pdfUrl = String(formData.get("pdf_url") ?? "");
+  if (!pdfUrl) return { error: "Selecione um PDF." };
+
+  const relatedId = formData.get("related_announcement_id")
+    ? String(formData.get("related_announcement_id"))
+    : null;
+
+  const payload = {
+    title: String(formData.get("title") ?? ""),
+    pdf_url: pdfUrl,
+    pdf_file_name: formData.get("pdf_file_name") ? String(formData.get("pdf_file_name")) : null,
+    cover_url: formData.get("cover_url") ? String(formData.get("cover_url")) : null,
+    related_announcement_id: relatedId || null,
+    is_active: true,
+    updated_at: Date.now(),
+  };
+
+  if (id) {
+    const { error } = await supabase.from("bulletins").update(payload).eq("id", id).eq("church_id", admin.churchId);
+    if (error) return { error: error.message };
+  } else {
+    const { error } = await supabase
+      .from("bulletins")
+      .insert({ ...payload, church_id: admin.churchId, published_at: Date.now() });
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath("/admin/boletins");
+  revalidatePath(`/c/${admin.churchSlug}/boletins`);
+  revalidatePath(`/c/${admin.churchSlug}/anuncios`);
+  return {};
+}
+
+export async function deleteBulletinAction(id: string) {
+  const admin = await requireAdmin();
+  if (admin.error) throw new Error(admin.error);
+  const supabase = await createClient();
+  const { error } = await supabase.from("bulletins").delete().eq("id", id).eq("church_id", admin.churchId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/boletins");
+  revalidatePath(`/c/${admin.churchSlug}/boletins`);
+  revalidatePath(`/c/${admin.churchSlug}/anuncios`);
+}
+
 // Sonoplastia shared files -------------------------------------------------
 
 // The file is uploaded directly from the browser to Supabase Storage (see UploadForm) -

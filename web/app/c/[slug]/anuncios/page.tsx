@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
-import { Pin } from "lucide-react";
+import { Pin, FileText } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getChurchBySlug } from "@/lib/church";
-import { Announcement } from "@/lib/types/database";
+import { Announcement, Bulletin } from "@/lib/types/database";
 import { formatPublishedAt } from "@/lib/format";
 import { Card } from "@/components/Card";
 import { EmptyState } from "@/components/EmptyState";
@@ -14,12 +14,24 @@ export default async function AnunciosPage({ params }: { params: Promise<{ slug:
   const church = await getChurchBySlug(slug);
   if (!church || !church.is_active) notFound();
 
+  const today = new Date().toISOString().slice(0, 10);
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("announcements")
-    .select("*")
-    .eq("church_id", church.id)
-    .eq("is_active", true);
+  const [{ data }, { data: bulletinsData }] = await Promise.all([
+    supabase
+      .from("announcements")
+      .select("*")
+      .eq("church_id", church.id)
+      .eq("is_active", true)
+      // An announcement leaves this feed once its event date has passed - it moves to the
+      // Retrospectiva feed instead (see that page), it's never just deleted from here.
+      .or(`related_event_date.is.null,related_event_date.gte.${today}`),
+    supabase.from("bulletins").select("*").eq("church_id", church.id).eq("is_active", true),
+  ]);
+
+  const bulletinByAnnouncement = new Map<string, Bulletin>();
+  for (const bulletin of (bulletinsData as Bulletin[]) ?? []) {
+    if (bulletin.related_announcement_id) bulletinByAnnouncement.set(bulletin.related_announcement_id, bulletin);
+  }
 
   const items = ((data as Announcement[]) ?? []).sort((a, b) => {
     if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
@@ -38,7 +50,11 @@ export default async function AnunciosPage({ params }: { params: Promise<{ slug:
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {items.map((announcement) => (
-            <AnnouncementCard key={announcement.id} announcement={announcement} />
+            <AnnouncementCard
+              key={announcement.id}
+              announcement={announcement}
+              bulletin={bulletinByAnnouncement.get(announcement.id) ?? null}
+            />
           ))}
         </div>
       )}
@@ -46,7 +62,13 @@ export default async function AnunciosPage({ params }: { params: Promise<{ slug:
   );
 }
 
-function AnnouncementCard({ announcement }: { announcement: Announcement }) {
+function AnnouncementCard({
+  announcement,
+  bulletin,
+}: {
+  announcement: Announcement;
+  bulletin: Bulletin | null;
+}) {
   const hasMedia = !!announcement.media_url;
 
   return (
@@ -75,6 +97,16 @@ function AnnouncementCard({ announcement }: { announcement: Announcement }) {
         <p className="text-xs text-text-secondary">{formatPublishedAt(announcement.published_at)}</p>
         {announcement.description && (
           <p className="text-sm text-foreground/90 whitespace-pre-line">{announcement.description}</p>
+        )}
+        {bulletin && (
+          <a
+            href={bulletin.pdf_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 flex w-fit items-center gap-1.5 rounded-full bg-primary-container px-3 py-1.5 text-xs font-medium text-on-primary-container"
+          >
+            <FileText size={13} /> Ver boletim
+          </a>
         )}
       </div>
     </Card>

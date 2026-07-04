@@ -8,6 +8,7 @@ const adminLinks = [
   { href: "/admin/escalas", label: "Escalas" },
   { href: "/admin/doxologia", label: "Doxologia" },
   { href: "/admin/anuncios", label: "Anúncios" },
+  { href: "/admin/boletins", label: "Boletins" },
   { href: "/admin/retrospectiva", label: "Retrospectiva" },
   { href: "/admin/sonoplastia", label: "Sonoplastia" },
 ];
