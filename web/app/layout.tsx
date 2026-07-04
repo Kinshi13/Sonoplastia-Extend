@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,6 +17,22 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Escala Church",
   description: "Escala, doxologia e anúncios da igreja",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Escala Church",
+  },
+  icons: {
+    icon: [{ url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" }],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#3B7DDD",
+  width: "device-width",
+  initialScale: 1,
 };
 
 const navLinks = [
@@ -35,6 +52,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
+        <RegisterServiceWorker />
         <header className="border-b border-divider bg-surface">
           <div className="mx-auto flex max-w-4xl items-center justify-between px-5 py-4">
             <Link href="/" className="text-lg font-semibold text-primary">
