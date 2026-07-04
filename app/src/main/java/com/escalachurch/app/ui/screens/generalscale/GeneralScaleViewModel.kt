@@ -62,22 +62,37 @@ class GeneralScaleViewModel(
 
     fun setOnlyMyClasses(value: Boolean) { onlyMyClasses.value = value }
 
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage
+
+    fun dismissError() { _errorMessage.value = null }
+
     fun save(item: ScaleItem, onSaved: () -> Unit = {}) {
         viewModelScope.launch {
-            generalScaleRepository.saveOfficial(item)
-            onSaved()
+            runCatching { generalScaleRepository.saveOfficial(item) }
+                .onSuccess { onSaved() }
+                .onFailure { _errorMessage.value = it.message ?: "Falha ao salvar a escala." }
         }
     }
 
     fun delete(item: ScaleItem) {
-        viewModelScope.launch { generalScaleRepository.deleteOfficial(item) }
+        viewModelScope.launch {
+            runCatching { generalScaleRepository.deleteOfficial(item) }
+                .onFailure { _errorMessage.value = it.message ?: "Falha ao excluir a escala." }
+        }
     }
 
     fun duplicateTo(item: ScaleItem, date: LocalDate) {
-        viewModelScope.launch { generalScaleRepository.duplicateTo(item, date) }
+        viewModelScope.launch {
+            runCatching { generalScaleRepository.duplicateTo(item, date) }
+                .onFailure { _errorMessage.value = it.message ?: "Falha ao duplicar a escala." }
+        }
     }
 
     fun createExtraDays(template: ScaleItem, dates: List<LocalDate>) {
-        viewModelScope.launch { generalScaleRepository.createExtraDays(template, dates) }
+        viewModelScope.launch {
+            runCatching { generalScaleRepository.createExtraDays(template, dates) }
+                .onFailure { _errorMessage.value = it.message ?: "Falha ao criar os dias extras." }
+        }
     }
 }

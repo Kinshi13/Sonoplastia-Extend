@@ -56,14 +56,23 @@ class DoxologyViewModel(
         }
     }
 
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage
+
+    fun dismissError() { _errorMessage.value = null }
+
     fun save(item: DoxologyItem, onSaved: () -> Unit = {}) {
         viewModelScope.launch {
-            repository.save(item.copy(updatedAt = System.currentTimeMillis()))
-            onSaved()
+            runCatching { repository.save(item.copy(updatedAt = System.currentTimeMillis())) }
+                .onSuccess { onSaved() }
+                .onFailure { _errorMessage.value = it.message ?: "Falha ao salvar a doxologia." }
         }
     }
 
     fun delete(item: DoxologyItem) {
-        viewModelScope.launch { repository.deleteById(item.id) }
+        viewModelScope.launch {
+            runCatching { repository.deleteById(item.id) }
+                .onFailure { _errorMessage.value = it.message ?: "Falha ao excluir a doxologia." }
+        }
     }
 }

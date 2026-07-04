@@ -28,6 +28,7 @@ import com.escalachurch.app.domain.model.DoxologyItem
 import com.escalachurch.app.ui.components.CardCarousel
 import com.escalachurch.app.ui.components.DoxologyCard
 import com.escalachurch.app.ui.components.EmptyState
+import com.escalachurch.app.ui.components.ErrorBanner
 import com.escalachurch.app.ui.components.PrimaryButton
 import com.escalachurch.app.ui.components.PulledUpEntrance
 import com.escalachurch.app.ui.components.SecondaryButton
@@ -37,6 +38,7 @@ import com.escalachurch.app.ui.components.rememberEntranceVisible
 fun DoxologyScreen() {
     val viewModel = appViewModel { container -> DoxologyViewModel(container.doxologyRepository, container.adminSession) }
     val state by viewModel.uiState.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
     val appSettings by rememberAppContainer().settingsRepository.settingsFlow.collectAsState(initial = AppSettings())
     val cardsVisible = rememberEntranceVisible(appSettings.animationsEnabled)
 
@@ -57,6 +59,11 @@ fun DoxologyScreen() {
     Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
         Text("Doxologia", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
         Spacer(Modifier.height(20.dp))
+
+        errorMessage?.let { message ->
+            ErrorBanner(message = message, onDismiss = { viewModel.dismissError() })
+            Spacer(Modifier.height(12.dp))
+        }
 
         if (state.items.isEmpty()) {
             EmptyState(

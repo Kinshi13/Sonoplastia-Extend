@@ -50,6 +50,7 @@ import com.escalachurch.app.domain.model.ScaleItem
 import com.escalachurch.app.ui.components.ConfirmDialog
 import com.escalachurch.app.ui.components.DatePickerField
 import com.escalachurch.app.ui.components.EmptyState
+import com.escalachurch.app.ui.components.ErrorBanner
 import com.escalachurch.app.ui.components.PulledUpEntrance
 import com.escalachurch.app.ui.components.SourceBadge
 import com.escalachurch.app.ui.components.SpecialBadge
@@ -72,6 +73,7 @@ fun GeneralScaleScreen(
         GeneralScaleViewModel(container.generalScaleRepository, container.userProfileRepository, container.adminSession)
     }
     val state by viewModel.uiState.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
     val onlyMyClasses by viewModel.onlyMyClassesFlow.collectAsState()
     val appSettings by rememberAppContainer().settingsRepository.settingsFlow.collectAsState(initial = AppSettings())
     val listVisible = rememberEntranceVisible(appSettings.animationsEnabled)
@@ -125,6 +127,10 @@ fun GeneralScaleScreen(
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp)) {
             Spacer(Modifier.height(8.dp))
+            errorMessage?.let { message ->
+                ErrorBanner(message = message, onDismiss = { viewModel.dismissError() })
+                Spacer(Modifier.height(12.dp))
+            }
             MonthSelector(state.month, onPrevious = { viewModel.setMonth(state.month.minusMonths(1)) }, onNext = { viewModel.setMonth(state.month.plusMonths(1)) })
             Spacer(Modifier.height(12.dp))
 
