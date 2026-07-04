@@ -8,6 +8,7 @@ const adminLinks = [
   { href: "/admin/escalas", label: "Escalas" },
   { href: "/admin/doxologia", label: "Doxologia" },
   { href: "/admin/anuncios", label: "Anúncios" },
+  { href: "/admin/retrospectiva", label: "Retrospectiva" },
   { href: "/admin/sonoplastia", label: "Sonoplastia" },
 ];
 
@@ -20,8 +21,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <div className="mx-auto max-w-md text-center">
         <h1 className="text-xl font-semibold mb-2">Sem acesso de administrador</h1>
         <p className="text-sm text-text-secondary">
-          Sua conta está autenticada, mas não tem permissão de administrador. Fale com quem
-          gerencia o projeto no Supabase.
+          Sua conta está autenticada, mas não administra nenhuma igreja ainda. Se você acabou de
+          comprar, aguarde a confirmação do pagamento - senão, fale com quem gerencia o projeto.
         </p>
       </div>
     );

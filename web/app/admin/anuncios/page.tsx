@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { getAdminStatus } from "@/lib/supabase/auth";
 import { Announcement } from "@/lib/types/database";
 import { formatPublishedAt } from "@/lib/format";
 import { Card } from "@/components/Card";
@@ -11,10 +12,12 @@ import { deleteAnnouncementAction } from "../actions";
 export const revalidate = 0;
 
 export default async function AdminAnunciosPage() {
+  const { churchId } = await getAdminStatus();
   const supabase = await createClient();
   const { data } = await supabase
     .from("announcements")
     .select("*")
+    .eq("church_id", churchId)
     .order("published_at", { ascending: false });
   const items = (data as Announcement[]) ?? [];
 

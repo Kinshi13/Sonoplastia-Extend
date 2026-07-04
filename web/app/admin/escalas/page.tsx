@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Calendar, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { getAdminStatus } from "@/lib/supabase/auth";
 import { Scale } from "@/lib/types/database";
 import { formatDatePt, formatTimePt } from "@/lib/format";
 import { Card } from "@/components/Card";
@@ -11,8 +12,13 @@ import { deleteScaleAction } from "../actions";
 export const revalidate = 0;
 
 export default async function AdminEscalasPage() {
+  const { churchId } = await getAdminStatus();
   const supabase = await createClient();
-  const { data } = await supabase.from("scales").select("*").order("date", { ascending: true });
+  const { data } = await supabase
+    .from("scales")
+    .select("*")
+    .eq("church_id", churchId)
+    .order("date", { ascending: true });
   const items = (data as Scale[]) ?? [];
 
   return (

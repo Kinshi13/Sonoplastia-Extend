@@ -1,10 +1,12 @@
 import { Calendar, BookOpen, Megaphone, FolderOpen, Images } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { getAdminStatus } from "@/lib/supabase/auth";
 import { CardLink } from "@/components/Card";
 
 export const revalidate = 0;
 
 export default async function AdminDashboardPage() {
+  const { churchId } = await getAdminStatus();
   const supabase = await createClient();
   const [
     { count: scalesCount },
@@ -12,10 +14,18 @@ export default async function AdminDashboardPage() {
     { count: announcementsCount },
     { count: retrospectiveCount },
   ] = await Promise.all([
-    supabase.from("scales").select("*", { count: "exact", head: true }),
-    supabase.from("doxologies").select("*", { count: "exact", head: true }),
-    supabase.from("announcements").select("*", { count: "exact", head: true }).eq("is_active", true),
-    supabase.from("retrospective_items").select("*", { count: "exact", head: true }).eq("is_active", true),
+    supabase.from("scales").select("*", { count: "exact", head: true }).eq("church_id", churchId),
+    supabase.from("doxologies").select("*", { count: "exact", head: true }).eq("church_id", churchId),
+    supabase
+      .from("announcements")
+      .select("*", { count: "exact", head: true })
+      .eq("church_id", churchId)
+      .eq("is_active", true),
+    supabase
+      .from("retrospective_items")
+      .select("*", { count: "exact", head: true })
+      .eq("church_id", churchId)
+      .eq("is_active", true),
   ]);
 
   const cards = [

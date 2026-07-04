@@ -1,12 +1,32 @@
 -- Escala Church - Supabase schema
 -- Run this once in Supabase Dashboard -> SQL Editor -> New query -> Run
+--
+-- This file describes the schema for a brand-new project. If you already have a live project
+-- from before multi-tenancy, do NOT re-run this file - use supabase/migrations/002_multi_tenant.sql
+-- instead, which upgrades an existing single-church database in place without losing data.
 
--- Profiles: one row per auth user, admin flag drives write access everywhere else.
--- A brand new signup is never an admin by default - only a project owner can promote one
--- (see the "grant admin" query at the bottom), mirroring how Firebase Auth accounts were
--- created manually in the console.
+-- Churches: one row per paying customer. A church only becomes browsable/writable once
+-- is_active is true, which the Stripe webhook flips after a successful one-time payment.
+create table churches (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique,
+  name text not null,
+  is_active boolean not null default false,
+  created_at bigint not null
+);
+
+alter table churches enable row level security;
+
+-- Public read is open (not scoped by is_active) so the "check se o link existe" flow on
+-- /c/[slug] can tell a real-but-inactive church (payment pending) apart from a typo/404.
+create policy "churches: public read" on churches for select using (true);
+
+-- Profiles: one row per auth user. church_id + is_admin together say "this person
+-- administers this church" - both are set at once by the Stripe webhook, never by the app
+-- directly, so there's no self-serve way to become an admin without paying.
 create table profiles (
   id uuid primary key references auth.users(id) on delete cascade,
+  church_id uuid references churches(id),
   is_admin boolean not null default false,
   created_at timestamptz not null default now()
 );
@@ -35,6 +55,7 @@ create trigger on_auth_user_created
 -- Scales (Escala) --------------------------------------------------------
 create table scales (
   id uuid primary key default gen_random_uuid(),
+  church_id uuid not null references churches(id),
   date date not null,
   start_time time not null,
   end_time time,
@@ -55,18 +76,22 @@ create table scales (
 
 alter table scales enable row level security;
 
+-- Public read stays unrestricted by RLS - a page for one church's slug is scoped by an
+-- explicit `.eq("church_id", ...)` in the query itself, since anonymous visitors have no
+-- session to scope by. RLS's job here is only to stop cross-church writes.
 create policy "scales: public read" on scales for select using (true);
 
 create policy "scales: admin write" on scales for insert
-  with check (exists (select 1 from profiles where id = auth.uid() and is_admin));
+  with check (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = scales.church_id));
 create policy "scales: admin update" on scales for update
-  using (exists (select 1 from profiles where id = auth.uid() and is_admin));
+  using (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = scales.church_id));
 create policy "scales: admin delete" on scales for delete
-  using (exists (select 1 from profiles where id = auth.uid() and is_admin));
+  using (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = scales.church_id));
 
 -- Doxologies (Ordem do culto) ---------------------------------------------
 create table doxologies (
   id uuid primary key default gen_random_uuid(),
+  church_id uuid not null references churches(id),
   date date not null,
   start_time time not null,
   title text not null,
@@ -81,15 +106,16 @@ alter table doxologies enable row level security;
 
 create policy "doxologies: public read" on doxologies for select using (true);
 create policy "doxologies: admin write" on doxologies for insert
-  with check (exists (select 1 from profiles where id = auth.uid() and is_admin));
+  with check (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = doxologies.church_id));
 create policy "doxologies: admin update" on doxologies for update
-  using (exists (select 1 from profiles where id = auth.uid() and is_admin));
+  using (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = doxologies.church_id));
 create policy "doxologies: admin delete" on doxologies for delete
-  using (exists (select 1 from profiles where id = auth.uid() and is_admin));
+  using (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = doxologies.church_id));
 
 -- Announcements (Anúncios) -------------------------------------------------
 create table announcements (
   id uuid primary key default gen_random_uuid(),
+  church_id uuid not null references churches(id),
   title text not null,
   description text not null default '',
   media_type text not null default 'NONE',
@@ -109,15 +135,16 @@ alter table announcements enable row level security;
 
 create policy "announcements: public read active" on announcements for select using (is_active);
 create policy "announcements: admin write" on announcements for insert
-  with check (exists (select 1 from profiles where id = auth.uid() and is_admin));
+  with check (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = announcements.church_id));
 create policy "announcements: admin update" on announcements for update
-  using (exists (select 1 from profiles where id = auth.uid() and is_admin));
+  using (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = announcements.church_id));
 create policy "announcements: admin delete" on announcements for delete
-  using (exists (select 1 from profiles where id = auth.uid() and is_admin));
+  using (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = announcements.church_id));
 
 -- Retrospective (photo/video feed of recent services and events) --------
 create table retrospective_items (
   id uuid primary key default gen_random_uuid(),
+  church_id uuid not null references churches(id),
   title text not null default '',
   description text not null default '',
   media_type text not null default 'IMAGE', -- 'IMAGE' | 'VIDEO'
@@ -139,15 +166,16 @@ alter table retrospective_items enable row level security;
 
 create policy "retrospective_items: public read active" on retrospective_items for select using (is_active);
 create policy "retrospective_items: admin write" on retrospective_items for insert
-  with check (exists (select 1 from profiles where id = auth.uid() and is_admin));
+  with check (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = retrospective_items.church_id));
 create policy "retrospective_items: admin update" on retrospective_items for update
-  using (exists (select 1 from profiles where id = auth.uid() and is_admin));
+  using (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = retrospective_items.church_id));
 create policy "retrospective_items: admin delete" on retrospective_items for delete
-  using (exists (select 1 from profiles where id = auth.uid() and is_admin));
+  using (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = retrospective_items.church_id));
 
 -- Shared files (Sonoplastia's remote file sharing: PPT/PDF/photos/videos moved phone <-> PC) ----
 create table shared_files (
   id uuid primary key default gen_random_uuid(),
+  church_id uuid not null references churches(id),
   file_name text not null,
   url text not null,
   media_type text not null default 'DOCUMENT',
@@ -159,16 +187,16 @@ alter table shared_files enable row level security;
 
 create policy "shared_files: public read" on shared_files for select using (true);
 create policy "shared_files: admin write" on shared_files for insert
-  with check (exists (select 1 from profiles where id = auth.uid() and is_admin));
+  with check (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = shared_files.church_id));
 create policy "shared_files: admin delete" on shared_files for delete
-  using (exists (select 1 from profiles where id = auth.uid() and is_admin));
+  using (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = shared_files.church_id));
 
 -- Grants: RLS policies above only control *which rows* a role can see/touch - Postgres also
 -- requires the role to be granted the privilege to attempt the operation on the table at all.
 -- Without these, PostgREST returns "permission denied for table X" even though the RLS policies
 -- are otherwise satisfied.
 grant usage on schema public to anon, authenticated;
-grant select on public.scales, public.doxologies, public.announcements, public.shared_files, public.retrospective_items to anon, authenticated;
+grant select on public.churches, public.scales, public.doxologies, public.announcements, public.shared_files, public.retrospective_items to anon, authenticated;
 grant insert, update, delete on public.scales, public.doxologies, public.announcements, public.shared_files, public.retrospective_items to authenticated;
 grant select, insert on public.profiles to authenticated;
 
@@ -182,6 +210,11 @@ alter publication supabase_realtime add table scales, doxologies, announcements,
 -- storage.objects already has RLS enabled by Supabase itself and anon/authenticated already
 -- have base table grants out of the box - only the policies below are needed. "drop policy if
 -- exists" makes this block safe to re-run if you already ran an earlier version of it.
+--
+-- Note: write access here only checks is_admin, not which church - any admin can upload to
+-- any path. That's fine since actual reads/writes are always scoped by the church_id column
+-- on the owning row (scales/announcements/etc), and storage paths are namespaced by feature
+-- (announcements/, sonoplastia/, retrospectiva/), not by tenant.
 drop policy if exists "church-files: public read" on storage.objects;
 drop policy if exists "church-files: admin write" on storage.objects;
 drop policy if exists "church-files: admin update" on storage.objects;
@@ -197,9 +230,11 @@ create policy "church-files: admin delete" on storage.objects for delete
   using (bucket_id = 'church-files' and exists (select 1 from profiles where id = auth.uid() and is_admin));
 
 -- -------------------------------------------------------------------------
--- After running the block above, sign up (or ask the admin to sign up) once
--- through the app, then run this to promote that account to admin - replace
--- the email with the real admin's email:
+-- Churches are normally activated by the Stripe webhook (see app/api/stripe/webhook), which
+-- also sets the paying user's profile church_id + is_admin. To do it manually while testing:
 --
--- update profiles set is_admin = true
+-- insert into churches (slug, name, is_active, created_at) values ('minha-igreja', 'Minha Igreja', true, extract(epoch from now()) * 1000)
+-- returning id;
+--
+-- update profiles set is_admin = true, church_id = '<id returned above>'
 -- where id = (select id from auth.users where email = 'admin@example.com');

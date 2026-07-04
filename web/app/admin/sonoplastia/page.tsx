@@ -1,5 +1,6 @@
 import { FileText, Image as ImageIcon, Video, File as FileIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { getAdminStatus } from "@/lib/supabase/auth";
 import { SharedFile } from "@/lib/types/database";
 import { Card } from "@/components/Card";
 import { EmptyState } from "@/components/EmptyState";
@@ -23,10 +24,12 @@ function formatSize(bytes: number): string {
 }
 
 export default async function AdminSonoplastiaPage() {
+  const { churchId } = await getAdminStatus();
   const supabase = await createClient();
   const { data } = await supabase
     .from("shared_files")
     .select("*")
+    .eq("church_id", churchId)
     .order("uploaded_at", { ascending: false });
   const items = (data as SharedFile[]) ?? [];
 

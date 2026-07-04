@@ -1,5 +1,7 @@
+import { notFound } from "next/navigation";
 import { Pin } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { getChurchBySlug } from "@/lib/church";
 import { Announcement } from "@/lib/types/database";
 import { formatPublishedAt } from "@/lib/format";
 import { Card } from "@/components/Card";
@@ -7,11 +9,16 @@ import { EmptyState } from "@/components/EmptyState";
 
 export const revalidate = 0;
 
-export default async function AnunciosPage() {
+export default async function AnunciosPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const church = await getChurchBySlug(slug);
+  if (!church || !church.is_active) notFound();
+
   const supabase = await createClient();
   const { data } = await supabase
     .from("announcements")
     .select("*")
+    .eq("church_id", church.id)
     .eq("is_active", true);
 
   const items = ((data as Announcement[]) ?? []).sort((a, b) => {
@@ -22,7 +29,7 @@ export default async function AnunciosPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Anúncios</h1>
+        <h2 className="text-3xl font-bold tracking-tight">Anúncios</h2>
         <p className="mt-1 text-sm text-text-secondary">Novidades e avisos da igreja.</p>
       </div>
 
@@ -58,7 +65,7 @@ function AnnouncementCard({ announcement }: { announcement: Announcement }) {
 
       <div className="p-5 flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="font-semibold leading-tight">{announcement.title}</h2>
+          <h3 className="font-semibold leading-tight">{announcement.title}</h3>
           {announcement.is_pinned && (
             <span className="flex items-center gap-1 shrink-0 text-xs font-medium text-primary">
               <Pin size={12} /> Fixado

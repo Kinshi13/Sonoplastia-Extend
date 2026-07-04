@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Plus, Video } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { getAdminStatus } from "@/lib/supabase/auth";
 import { RetrospectiveItem } from "@/lib/types/database";
 import { Card } from "@/components/Card";
 import { EmptyState } from "@/components/EmptyState";
@@ -10,10 +11,12 @@ import { deleteRetrospectiveItemAction } from "../actions";
 export const revalidate = 0;
 
 export default async function AdminRetrospectivaPage() {
+  const { churchId } = await getAdminStatus();
   const supabase = await createClient();
   const { data } = await supabase
     .from("retrospective_items")
     .select("*")
+    .eq("church_id", churchId)
     .order("published_at", { ascending: false });
   const items = (data as RetrospectiveItem[]) ?? [];
 

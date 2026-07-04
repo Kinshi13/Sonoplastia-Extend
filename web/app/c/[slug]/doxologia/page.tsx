@@ -1,5 +1,7 @@
+import { notFound } from "next/navigation";
 import { Calendar, Clock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { getChurchBySlug } from "@/lib/church";
 import { Doxology } from "@/lib/types/database";
 import { formatDatePt, formatTimePt } from "@/lib/format";
 import { Card } from "@/components/Card";
@@ -7,12 +9,17 @@ import { EmptyState } from "@/components/EmptyState";
 
 export const revalidate = 0;
 
-export default async function DoxologiaPage() {
+export default async function DoxologiaPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const church = await getChurchBySlug(slug);
+  if (!church || !church.is_active) notFound();
+
   const supabase = await createClient();
   const today = new Date().toISOString().slice(0, 10);
   const { data } = await supabase
     .from("doxologies")
     .select("*")
+    .eq("church_id", church.id)
     .gte("date", today)
     .order("date", { ascending: true })
     .limit(10);
@@ -22,7 +29,7 @@ export default async function DoxologiaPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Doxologia</h1>
+        <h2 className="text-3xl font-bold tracking-tight">Doxologia</h2>
         <p className="mt-1 text-sm text-text-secondary">Ordem do culto para os próximos cultos.</p>
       </div>
 
@@ -45,7 +52,7 @@ function DoxologyCard({ doxology }: { doxology: Doxology }) {
   return (
     <Card className="p-6 flex flex-col gap-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
       <div>
-        <h2 className="text-lg font-semibold">{doxology.title}</h2>
+        <h3 className="text-lg font-semibold">{doxology.title}</h3>
         <p className="mt-1 flex items-center gap-1.5 text-sm text-text-secondary capitalize">
           <Calendar size={14} />
           {formatDatePt(doxology.date)} às {formatTimePt(doxology.start_time)}

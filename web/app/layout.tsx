@@ -35,13 +35,6 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-const navLinks = [
-  { href: "/", label: "Escala" },
-  { href: "/doxologia", label: "Doxologia" },
-  { href: "/anuncios", label: "Anúncios" },
-  { href: "/retrospectiva", label: "Retrospectiva" },
-];
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -60,15 +53,6 @@ export default function RootLayout({
               Escala Church
             </Link>
             <nav className="flex items-center gap-5 text-sm">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="text-foreground/80 hover:text-primary transition-colors"
-                >
-                  {link.label}
-                </Link>
-              ))}
               <Link
                 href="/admin"
                 className="rounded-full bg-primary px-4 py-1.5 text-white hover:opacity-90 transition-opacity"

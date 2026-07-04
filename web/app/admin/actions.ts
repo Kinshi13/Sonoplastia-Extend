@@ -13,18 +13,25 @@ export async function signOutAction() {
   redirect("/login");
 }
 
-/** Returns an error string if the current session isn't an admin - RLS is the real enforcement,
- *  this just avoids a raw Postgres error reaching the form. */
-async function requireAdmin(): Promise<string | null> {
-  const { isAdmin } = await getAdminStatus();
-  return isAdmin ? null : "Apenas administradores podem fazer essa alteração.";
+/** Resolves the current admin's church (id + slug) or an error string - RLS is the real
+ *  enforcement, this just avoids a raw Postgres error reaching the form and gives us the slug
+ *  to revalidate the right public path after a write. */
+async function requireAdmin(): Promise<{ error: string; churchId?: never; churchSlug?: never } | { error?: never; churchId: string; churchSlug: string }> {
+  const { isAdmin, churchId } = await getAdminStatus();
+  if (!isAdmin || !churchId) return { error: "Apenas administradores podem fazer essa alteração." };
+
+  const supabase = await createClient();
+  const { data: church } = await supabase.from("churches").select("slug").eq("id", churchId).single();
+  if (!church) return { error: "Igreja não encontrada." };
+
+  return { churchId, churchSlug: church.slug };
 }
 
 // Scales ---------------------------------------------------------------
 
 export async function saveScaleAction(id: string | null, formData: FormData): Promise<ActionResult> {
-  const adminError = await requireAdmin();
-  if (adminError) return { error: adminError };
+  const admin = await requireAdmin();
+  if (admin.error) return { error: admin.error };
   const supabase = await createClient();
 
   const payload = {
@@ -44,33 +51,35 @@ export async function saveScaleAction(id: string | null, formData: FormData): Pr
   };
 
   if (id) {
-    const { error } = await supabase.from("scales").update(payload).eq("id", id);
+    const { error } = await supabase.from("scales").update(payload).eq("id", id).eq("church_id", admin.churchId);
     if (error) return { error: error.message };
   } else {
-    const { error } = await supabase.from("scales").insert({ ...payload, created_at: Date.now() });
+    const { error } = await supabase
+      .from("scales")
+      .insert({ ...payload, church_id: admin.churchId, created_at: Date.now() });
     if (error) return { error: error.message };
   }
 
   revalidatePath("/admin/escalas");
-  revalidatePath("/");
+  revalidatePath(`/c/${admin.churchSlug}`);
   return {};
 }
 
 export async function deleteScaleAction(id: string) {
-  const adminError = await requireAdmin();
-  if (adminError) throw new Error(adminError);
+  const admin = await requireAdmin();
+  if (admin.error) throw new Error(admin.error);
   const supabase = await createClient();
-  const { error } = await supabase.from("scales").delete().eq("id", id);
+  const { error } = await supabase.from("scales").delete().eq("id", id).eq("church_id", admin.churchId);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/escalas");
-  revalidatePath("/");
+  revalidatePath(`/c/${admin.churchSlug}`);
 }
 
 // Doxologies -------------------------------------------------------------
 
 export async function saveDoxologyAction(id: string | null, formData: FormData): Promise<ActionResult> {
-  const adminError = await requireAdmin();
-  if (adminError) return { error: adminError };
+  const admin = await requireAdmin();
+  if (admin.error) return { error: admin.error };
   const supabase = await createClient();
 
   const stepsRaw = String(formData.get("program_order") ?? "[]");
@@ -92,26 +101,32 @@ export async function saveDoxologyAction(id: string | null, formData: FormData):
   };
 
   if (id) {
-    const { error } = await supabase.from("doxologies").update(payload).eq("id", id);
+    const { error } = await supabase
+      .from("doxologies")
+      .update(payload)
+      .eq("id", id)
+      .eq("church_id", admin.churchId);
     if (error) return { error: error.message };
   } else {
-    const { error } = await supabase.from("doxologies").insert({ ...payload, created_at: Date.now() });
+    const { error } = await supabase
+      .from("doxologies")
+      .insert({ ...payload, church_id: admin.churchId, created_at: Date.now() });
     if (error) return { error: error.message };
   }
 
   revalidatePath("/admin/doxologia");
-  revalidatePath("/doxologia");
+  revalidatePath(`/c/${admin.churchSlug}/doxologia`);
   return {};
 }
 
 export async function deleteDoxologyAction(id: string) {
-  const adminError = await requireAdmin();
-  if (adminError) throw new Error(adminError);
+  const admin = await requireAdmin();
+  if (admin.error) throw new Error(admin.error);
   const supabase = await createClient();
-  const { error } = await supabase.from("doxologies").delete().eq("id", id);
+  const { error } = await supabase.from("doxologies").delete().eq("id", id).eq("church_id", admin.churchId);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/doxologia");
-  revalidatePath("/doxologia");
+  revalidatePath(`/c/${admin.churchSlug}/doxologia`);
 }
 
 // Announcements ------------------------------------------------------------
@@ -123,8 +138,8 @@ export async function saveAnnouncementAction(
   id: string | null,
   formData: FormData
 ): Promise<ActionResult> {
-  const adminError = await requireAdmin();
-  if (adminError) return { error: adminError };
+  const admin = await requireAdmin();
+  if (admin.error) return { error: admin.error };
   const supabase = await createClient();
 
   const mediaType = String(formData.get("media_type") ?? "NONE");
@@ -147,28 +162,32 @@ export async function saveAnnouncementAction(
   };
 
   if (id) {
-    const { error } = await supabase.from("announcements").update(payload).eq("id", id);
+    const { error } = await supabase
+      .from("announcements")
+      .update(payload)
+      .eq("id", id)
+      .eq("church_id", admin.churchId);
     if (error) return { error: error.message };
   } else {
     const { error } = await supabase
       .from("announcements")
-      .insert({ ...payload, published_at: Date.now(), updated_at: Date.now() });
+      .insert({ ...payload, church_id: admin.churchId, published_at: Date.now(), updated_at: Date.now() });
     if (error) return { error: error.message };
   }
 
   revalidatePath("/admin/anuncios");
-  revalidatePath("/anuncios");
+  revalidatePath(`/c/${admin.churchSlug}/anuncios`);
   return {};
 }
 
 export async function deleteAnnouncementAction(id: string) {
-  const adminError = await requireAdmin();
-  if (adminError) throw new Error(adminError);
+  const admin = await requireAdmin();
+  if (admin.error) throw new Error(admin.error);
   const supabase = await createClient();
-  const { error } = await supabase.from("announcements").delete().eq("id", id);
+  const { error } = await supabase.from("announcements").delete().eq("id", id).eq("church_id", admin.churchId);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/anuncios");
-  revalidatePath("/anuncios");
+  revalidatePath(`/c/${admin.churchSlug}/anuncios`);
 }
 
 // Retrospective (photo/video feed) -----------------------------------------
@@ -180,8 +199,8 @@ export async function saveRetrospectiveItemAction(
   id: string | null,
   formData: FormData
 ): Promise<ActionResult> {
-  const adminError = await requireAdmin();
-  if (adminError) return { error: adminError };
+  const admin = await requireAdmin();
+  if (admin.error) return { error: admin.error };
   const supabase = await createClient();
 
   const mediaUrl = String(formData.get("media_url") ?? "");
@@ -201,28 +220,36 @@ export async function saveRetrospectiveItemAction(
   };
 
   if (id) {
-    const { error } = await supabase.from("retrospective_items").update(payload).eq("id", id);
+    const { error } = await supabase
+      .from("retrospective_items")
+      .update(payload)
+      .eq("id", id)
+      .eq("church_id", admin.churchId);
     if (error) return { error: error.message };
   } else {
     const { error } = await supabase
       .from("retrospective_items")
-      .insert({ ...payload, published_at: Date.now() });
+      .insert({ ...payload, church_id: admin.churchId, published_at: Date.now() });
     if (error) return { error: error.message };
   }
 
   revalidatePath("/admin/retrospectiva");
-  revalidatePath("/retrospectiva");
+  revalidatePath(`/c/${admin.churchSlug}/retrospectiva`);
   return {};
 }
 
 export async function deleteRetrospectiveItemAction(id: string) {
-  const adminError = await requireAdmin();
-  if (adminError) throw new Error(adminError);
+  const admin = await requireAdmin();
+  if (admin.error) throw new Error(admin.error);
   const supabase = await createClient();
-  const { error } = await supabase.from("retrospective_items").delete().eq("id", id);
+  const { error } = await supabase
+    .from("retrospective_items")
+    .delete()
+    .eq("id", id)
+    .eq("church_id", admin.churchId);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/retrospectiva");
-  revalidatePath("/retrospectiva");
+  revalidatePath(`/c/${admin.churchSlug}/retrospectiva`);
 }
 
 // Sonoplastia shared files -------------------------------------------------
@@ -236,12 +263,13 @@ export async function saveSharedFileMetadataAction(metadata: {
   media_type: "IMAGE" | "VIDEO" | "DOCUMENT";
   size_bytes: number;
 }): Promise<ActionResult> {
-  const adminError = await requireAdmin();
-  if (adminError) return { error: adminError };
+  const admin = await requireAdmin();
+  if (admin.error) return { error: admin.error };
   const supabase = await createClient();
 
   const { error } = await supabase.from("shared_files").insert({
     ...metadata,
+    church_id: admin.churchId,
     uploaded_at: Date.now(),
   });
   if (error) return { error: error.message };
@@ -251,10 +279,10 @@ export async function saveSharedFileMetadataAction(metadata: {
 }
 
 export async function deleteSharedFileAction(id: string) {
-  const adminError = await requireAdmin();
-  if (adminError) throw new Error(adminError);
+  const admin = await requireAdmin();
+  if (admin.error) throw new Error(admin.error);
   const supabase = await createClient();
-  const { error } = await supabase.from("shared_files").delete().eq("id", id);
+  const { error } = await supabase.from("shared_files").delete().eq("id", id).eq("church_id", admin.churchId);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/sonoplastia");
 }
