@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { RetrospectiveItem } from "@/lib/types/database";
 import { saveRetrospectiveItemAction } from "../actions";
 
@@ -9,7 +10,9 @@ export function RetrospectivaForm({ existing }: { existing: RetrospectiveItem | 
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [progressLabel, setProgressLabel] = useState<string | null>(null);
   const [aspectRatio, setAspectRatio] = useState(existing?.media_aspect_ratio ?? "4:3");
+  const [pickedFile, setPickedFile] = useState<File | null>(null);
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<{ url: string; isVideo: boolean } | null>(
     existing?.media_url ? { url: existing.media_url, isVideo: existing.media_type === "VIDEO" } : null
@@ -17,6 +20,7 @@ export function RetrospectivaForm({ existing }: { existing: RetrospectiveItem | 
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   async function handleFileChange(file: File | null) {
+    setPickedFile(file);
     setPosterFile(null);
     if (!file) {
       setPreview(existing?.media_url ? { url: existing.media_url, isVideo: existing.media_type === "VIDEO" } : null);
@@ -61,18 +65,70 @@ export function RetrospectivaForm({ existing }: { existing: RetrospectiveItem | 
     }
   }
 
+  async function uploadToStorage(file: File, prefix: string): Promise<string> {
+    const supabase = createClient();
+    const extension = file.name.split(".").pop() || "bin";
+    const path = `retrospectiva/${prefix}${crypto.randomUUID()}.${extension}`;
+    const { error: uploadError } = await supabase.storage
+      .from("church-files")
+      .upload(path, file, { upsert: false });
+    if (uploadError) throw new Error(uploadError.message);
+    const { data } = supabase.storage.from("church-files").getPublicUrl(path);
+    return data.publicUrl;
+  }
+
   async function handleSubmit(formData: FormData) {
     setPending(true);
     setError(null);
-    if (posterFile) formData.set("poster_file", posterFile);
-    const result = await saveRetrospectiveItemAction(existing?.id ?? null, formData);
-    if (result.error) {
-      setError(result.error);
+
+    try {
+      let mediaUrl = existing?.media_url ?? null;
+      let mediaFileName = existing?.media_file_name ?? null;
+      let mediaType = existing?.media_type ?? "IMAGE";
+      let posterUrl = existing?.poster_url ?? null;
+
+      if (pickedFile) {
+        setProgressLabel(
+          `Enviando ${pickedFile.type.startsWith("video/") ? "vídeo" : "foto"} (${(pickedFile.size / (1024 * 1024)).toFixed(1)} MB)...`
+        );
+        mediaUrl = await uploadToStorage(pickedFile, "");
+        mediaFileName = pickedFile.name;
+        mediaType = pickedFile.type.startsWith("video/") ? "VIDEO" : "IMAGE";
+
+        if (posterFile) {
+          setProgressLabel("Enviando miniatura do vídeo...");
+          posterUrl = await uploadToStorage(posterFile, "posters/");
+        }
+      }
+
+      if (!mediaUrl) {
+        setError("Selecione uma foto ou vídeo.");
+        setPending(false);
+        setProgressLabel(null);
+        return;
+      }
+
+      formData.set("media_url", mediaUrl);
+      formData.set("media_file_name", mediaFileName ?? "");
+      formData.set("media_type", mediaType);
+      formData.set("media_aspect_ratio", aspectRatio);
+      formData.set("poster_url", mediaType === "VIDEO" ? (posterUrl ?? "") : "");
+
+      setProgressLabel("Salvando...");
+      const result = await saveRetrospectiveItemAction(existing?.id ?? null, formData);
+      if (result.error) {
+        setError(result.error);
+        setPending(false);
+        setProgressLabel(null);
+        return;
+      }
+      router.push("/admin/retrospectiva");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha no envio do arquivo.");
       setPending(false);
-      return;
+      setProgressLabel(null);
     }
-    router.push("/admin/retrospectiva");
-    router.refresh();
   }
 
   return (
@@ -111,20 +167,15 @@ export function RetrospectivaForm({ existing }: { existing: RetrospectiveItem | 
         </div>
       )}
 
-      <input type="hidden" name="media_aspect_ratio" value={aspectRatio} />
-      <input type="hidden" name="existing_media_url" value={existing?.media_url ?? ""} />
-      <input type="hidden" name="existing_media_file_name" value={existing?.media_file_name ?? ""} />
-      <input type="hidden" name="existing_media_type" value={existing?.media_type ?? "IMAGE"} />
-      <input type="hidden" name="existing_poster_url" value={existing?.poster_url ?? ""} />
-
       {error && <p className="text-sm text-error">{error}</p>}
+      {progressLabel && <p className="text-sm text-text-secondary">{progressLabel}</p>}
 
       <button
         type="submit"
         disabled={pending}
         className="self-start rounded-full bg-primary px-5 py-2 text-sm font-medium text-white disabled:opacity-60"
       >
-        {pending ? "Salvando..." : "Salvar"}
+        {pending ? "Enviando..." : "Salvar"}
       </button>
     </form>
   );

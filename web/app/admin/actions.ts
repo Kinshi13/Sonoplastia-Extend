@@ -185,6 +185,9 @@ export async function deleteAnnouncementAction(id: string) {
 
 // Retrospective (photo/video feed) -----------------------------------------
 
+// Large photo/video files are uploaded directly from the browser to Supabase Storage
+// (see RetrospectivaForm) - Vercel Serverless/Server Actions cap request bodies at a few MB,
+// far below a typical video file, so this action only ever receives URLs, never the file itself.
 export async function saveRetrospectiveItemAction(
   id: string | null,
   formData: FormData
@@ -193,51 +196,17 @@ export async function saveRetrospectiveItemAction(
   if (adminError) return { error: adminError };
   const supabase = await createClient();
 
-  const mediaFile = formData.get("media_file") as File | null;
-  const posterFile = formData.get("poster_file") as File | null;
-  let mediaUrl = formData.get("existing_media_url") ? String(formData.get("existing_media_url")) : null;
-  let mediaFileName = formData.get("existing_media_file_name")
-    ? String(formData.get("existing_media_file_name"))
-    : null;
-  let posterUrl = formData.get("existing_poster_url") ? String(formData.get("existing_poster_url")) : null;
-  let mediaType = formData.get("existing_media_type")
-    ? String(formData.get("existing_media_type"))
-    : "IMAGE";
-  const aspectRatio = String(formData.get("media_aspect_ratio") ?? "4:3");
-
-  if (mediaFile && mediaFile.size > 0) {
-    const extension = mediaFile.name.split(".").pop() || "bin";
-    const path = `retrospectiva/${crypto.randomUUID()}.${extension}`;
-    const { error: uploadError } = await supabase.storage
-      .from("church-files")
-      .upload(path, mediaFile, { upsert: false });
-    if (uploadError) return { error: uploadError.message };
-    const { data: publicUrlData } = supabase.storage.from("church-files").getPublicUrl(path);
-    mediaUrl = publicUrlData.publicUrl;
-    mediaFileName = mediaFile.name;
-    mediaType = mediaFile.type.startsWith("video/") ? "VIDEO" : "IMAGE";
-  }
-
+  const mediaUrl = String(formData.get("media_url") ?? "");
   if (!mediaUrl) return { error: "Selecione uma foto ou vídeo." };
-
-  if (posterFile && posterFile.size > 0) {
-    const path = `retrospectiva/posters/${crypto.randomUUID()}.jpg`;
-    const { error: uploadError } = await supabase.storage
-      .from("church-files")
-      .upload(path, posterFile, { upsert: false });
-    if (uploadError) return { error: uploadError.message };
-    const { data: publicUrlData } = supabase.storage.from("church-files").getPublicUrl(path);
-    posterUrl = publicUrlData.publicUrl;
-  }
 
   const payload = {
     title: String(formData.get("title") ?? ""),
     description: String(formData.get("description") ?? ""),
-    media_type: mediaType,
+    media_type: String(formData.get("media_type") ?? "IMAGE"),
     media_url: mediaUrl,
-    media_file_name: mediaFileName,
-    media_aspect_ratio: aspectRatio,
-    poster_url: mediaType === "VIDEO" ? posterUrl : null,
+    media_file_name: formData.get("media_file_name") ? String(formData.get("media_file_name")) : null,
+    media_aspect_ratio: String(formData.get("media_aspect_ratio") ?? "4:3"),
+    poster_url: formData.get("poster_url") ? String(formData.get("poster_url")) : null,
     event_date: formData.get("event_date") ? String(formData.get("event_date")) : null,
     is_active: true,
     updated_at: Date.now(),
