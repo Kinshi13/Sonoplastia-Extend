@@ -264,13 +264,6 @@ fun SettingsScreen(
 
         item {
             SettingsSection(title = "Áudio") {
-                Text("Volume da música", style = MaterialTheme.typography.titleSmall)
-                Slider(
-                    value = settings.musicVolume,
-                    onValueChange = { value -> viewModel.update { it.copy(musicVolume = value) } },
-                    colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary, activeTrackColor = MaterialTheme.colorScheme.primary)
-                )
-                Spacer(Modifier.height(8.dp))
                 Text("Volume dos efeitos sonoros", style = MaterialTheme.typography.titleSmall)
                 Slider(
                     value = settings.effectsVolume,

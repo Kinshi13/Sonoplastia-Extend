@@ -7,11 +7,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Icon
@@ -23,10 +25,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -40,33 +42,38 @@ import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
 
-private val NODE_SIZE = 52.dp
-private val ARC_RADIUS = 116.dp
-private const val STAGGER_STEP_MS = 55
+private val NODE_SIZE = 78.dp
+private val ARC_RADIUS = 96.dp
+private const val STAGGER_STEP_MS = 45
 
 /**
- * The fan of action nodes above Stella Core - an upper arc/semicircle (Fase 5 Section 2: "arco
- * superior... evitar lista vertical, grid"), connected to the core by thin constellation lines.
- * A dimming scrim behind the fan closes the menu on tap-outside, without becoming a generic
- * bottom sheet (it never covers more than the arc's own footprint plus the scrim).
+ * The fan of action nodes above Stella Core - an upper arc hugging close to the core (Fase 5
+ * Section 2: "arco superior... evitar lista vertical, grid"), connected by thin constellation
+ * lines. Cards are large rounded squares (icon + label together, not a tiny circle with a
+ * separate floating caption) sitting close enough to slightly overlap, matching the density of a
+ * real shortcut fan instead of a thin ring of distant dots. A dimming scrim behind the fan closes
+ * the menu on tap-outside, without becoming a generic bottom sheet.
  */
 @Composable
 fun StellaCoreMenu(
     actions: List<ResolvedStellaCoreAction>,
     reducedMotion: Boolean,
     onActionSelected: (ResolvedStellaCoreAction) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
     val radiusPx = with(density) { ARC_RADIUS.toPx() }
     val nodeCount = actions.size
     // Spread nodes across an upward-opening arc: for 1 node, straight up; for more, fan out
     // symmetrically, capped so it never wraps past horizontal (stays a fan, not a full circle).
-    val spreadDegrees = min(150f, 34f + nodeCount * 24f)
+    // A tighter spread than a plain semicircle so cards sit close/slightly overlapping, not
+    // strung out along a thin distant necklace.
+    val spreadDegrees = min(130f, 46f + nodeCount * 16f)
     val startAngle = -90f - spreadDegrees / 2f
     val angleStep = if (nodeCount > 1) spreadDegrees / (nodeCount - 1) else 0f
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -97,7 +104,6 @@ fun StellaCoreMenu(
         Canvas(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .offset(y = (-16).dp)
                 .size(ARC_RADIUS * 2)
         ) {
             val center = Offset(this.size.width / 2f, this.size.height)
@@ -107,7 +113,7 @@ fun StellaCoreMenu(
                     x = center.x + (target.x - center.x) * lineProgress.value,
                     y = center.y + (target.y - center.y) * lineProgress.value
                 )
-                drawLine(color = lineColor.copy(alpha = 0.45f), start = center, end = drawnTarget, strokeWidth = 2.5f)
+                drawLine(color = lineColor.copy(alpha = 0.4f), start = center, end = drawnTarget, strokeWidth = 2.5f)
             }
         }
 
@@ -119,7 +125,7 @@ fun StellaCoreMenu(
                 staggerDelayMs = if (reducedMotion) 0 else index * STAGGER_STEP_MS,
                 reducedMotion = reducedMotion,
                 onClick = { onActionSelected(resolved) },
-                modifier = Modifier.align(Alignment.BottomCenter).offset(y = (-16).dp)
+                modifier = Modifier.align(Alignment.BottomCenter)
             )
         }
     }
@@ -148,12 +154,13 @@ private fun StellaCoreNode(
         modifier = modifier.offset(x = offsetDp.x, y = offsetDp.y),
         contentAlignment = Alignment.Center
     ) {
-        Box(
+        Column(
             modifier = Modifier
                 .scale(appear.value)
                 .size(NODE_SIZE)
-                .background(tokens.nebula, CircleShape)
-                .background((if (resolved.isLocked) tokens.comet else tokens.polaris).copy(alpha = 0.14f), CircleShape)
+                .clip(RoundedCornerShape(20.dp))
+                .background(tokens.nebulaElevated)
+                .background((if (resolved.isLocked) tokens.comet else tokens.polaris).copy(alpha = 0.10f))
                 .semantics {
                     role = androidx.compose.ui.semantics.Role.Button
                     contentDescription = resolved.action.label + if (resolved.isLocked) " (recurso do plano superior)" else ""
@@ -162,38 +169,40 @@ private fun StellaCoreNode(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = onClick
-                ),
-            contentAlignment = Alignment.Center
+                )
+                .padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
         ) {
-            Icon(
-                resolved.action.icon,
-                contentDescription = null,
-                tint = if (resolved.isLocked) tokens.comet else tokens.polaris,
-                modifier = Modifier.size(22.dp)
-            )
-            if (resolved.isLocked) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .offset(x = 2.dp, y = (-2).dp)
-                        .size(16.dp)
-                        .background(tokens.comet, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Filled.Lock, contentDescription = null, tint = tokens.nebula, modifier = Modifier.size(10.dp))
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    resolved.action.icon,
+                    contentDescription = null,
+                    tint = if (resolved.isLocked) tokens.comet else tokens.polaris,
+                    modifier = Modifier.size(26.dp)
+                )
+                if (resolved.isLocked) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = 10.dp, y = (-6).dp)
+                            .size(16.dp)
+                            .clip(CircleShape)
+                            .background(tokens.comet),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Filled.Lock, contentDescription = null, tint = tokens.nebula, modifier = Modifier.size(10.dp))
+                    }
                 }
             }
+            Text(
+                resolved.action.label,
+                modifier = Modifier.padding(top = 6.dp),
+                style = MaterialTheme.typography.labelSmall,
+                textAlign = TextAlign.Center,
+                color = tokens.starlight,
+                maxLines = 2
+            )
         }
-
-        Text(
-            resolved.action.label,
-            modifier = Modifier
-                .scale(appear.value)
-                .offset(y = NODE_SIZE / 2 + 6.dp)
-                .padding(horizontal = 4.dp),
-            style = MaterialTheme.typography.labelSmall,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurface
-        )
     }
 }

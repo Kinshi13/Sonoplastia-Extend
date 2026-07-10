@@ -2,46 +2,26 @@ package com.escalachurch.app.audio
 
 import android.content.Context
 import android.media.AudioAttributes
-import android.media.MediaPlayer
 import android.media.SoundPool
 import com.escalachurch.app.R
 
 /**
- * App-wide singleton for the background music loop and short UI sound effects (e.g. the nav bar
- * swipe pop), volume-controlled from Configurações -> Áudio. A plain object (not part of
- * AppContainer's DI) so composables that don't otherwise touch the container - like the bottom
- * nav bar - can still trigger a sound effect without threading it through every screen.
+ * App-wide singleton for short UI sound effects (the nav bar swipe pop), volume-controlled from
+ * Configurações -> Áudio. A plain object (not part of AppContainer's DI) so composables that
+ * don't otherwise touch the container - like the bottom nav bar - can still trigger a sound
+ * effect without threading it through every screen.
+ *
+ * There used to also be a looped background-music track here (MediaPlayer, R.raw.background_music).
+ * It was removed entirely: it was never tied to any lifecycle callback (no onPause/onStop, no
+ * Service), so once started it kept looping - and draining battery - even after the app was
+ * backgrounded or closed, until the OS killed the process. Rather than wire up proper lifecycle
+ * handling for a decorative background loop, the feature was dropped.
  */
 object AppSoundPlayer {
 
-    private var musicPlayer: MediaPlayer? = null
     private var soundPool: SoundPool? = null
     private var swipeSoundId: Int = 0
     private var swipeSoundLoaded = false
-
-    /** Starts the looped background track if it isn't already running, and applies [volume] (0..1). */
-    fun ensureMusicStarted(context: Context, volume: Float) {
-        if (musicPlayer == null) {
-            musicPlayer = runCatching {
-                MediaPlayer.create(context, R.raw.background_music)?.apply { isLooping = true }
-            }.getOrNull()
-        }
-        setMusicVolume(volume)
-    }
-
-    /** Applies [volume] (0..1) live; pauses playback entirely at 0 instead of just silencing it. */
-    fun setMusicVolume(volume: Float) {
-        val clamped = volume.coerceIn(0f, 1f)
-        val player = musicPlayer ?: return
-        runCatching {
-            player.setVolume(clamped, clamped)
-            if (clamped <= 0f) {
-                if (player.isPlaying) player.pause()
-            } else if (!player.isPlaying) {
-                player.start()
-            }
-        }
-    }
 
     /** Loads the swipe sound ahead of time so the very first swipe isn't silent while it loads. */
     fun preloadSwipeEffect(context: Context) {
@@ -77,8 +57,6 @@ object AppSoundPlayer {
     }
 
     fun release() {
-        musicPlayer?.release()
-        musicPlayer = null
         soundPool?.release()
         soundPool = null
         swipeSoundLoaded = false

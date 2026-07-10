@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,6 +45,7 @@ import com.escalachurch.app.ui.screens.settings.SettingsScreen
 import com.escalachurch.app.ui.screens.sonoplastia.SonoplastiaScreen
 import com.escalachurch.app.ui.stellacore.StellaCore
 import com.escalachurch.app.ui.stellacore.StellaCoreAction
+import com.escalachurch.app.ui.stellacore.StellaCoreMenu
 import com.escalachurch.app.ui.stellacore.rememberStellaCoreActions
 
 // Same left-to-right order as the bottom nav bar (see BottomNavBar.kt's navEntries) - used to
@@ -119,6 +121,10 @@ fun EscalaChurchNavGraph() {
         onNavigateRoute = { route -> navController.navigate(route) }
     )
     var lockedActionPreview by remember { mutableStateOf<StellaCoreAction?>(null) }
+    var stellaOpen by remember { mutableStateOf(false) }
+    // Stella Core visually replaces Início in the bar (see BottomNavBar.kt) - closing it whenever
+    // the route changes underneath it keeps a stale open fan from lingering after navigation.
+    LaunchedEffect(currentRoute) { stellaOpen = false }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -126,7 +132,9 @@ fun EscalaChurchNavGraph() {
                 if (!isSecondaryScreen) {
                     EscalaBottomNavBar(
                         currentDestination = currentDestination,
-                        onNavigate = { destination -> navigateToTab(destination.route) }
+                        onNavigate = { destination -> navigateToTab(destination.route) },
+                        stellaOpen = stellaOpen,
+                        onStellaOpenChange = { stellaOpen = it }
                     )
                 }
             }
@@ -211,14 +219,33 @@ fun EscalaChurchNavGraph() {
         }
         }
 
-        StellaCore(
-            actions = stellaCoreActions,
-            reducedMotion = !appSettings.animationsEnabled,
-            onLockedActionClick = { action -> lockedActionPreview = action },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = if (isSecondaryScreen) 0.dp else 92.dp)
-        )
+        if (isSecondaryScreen) {
+            // No bottom bar here to embed a star into - fall back to the floating standalone
+            // variant (still single-tap-to-open / double-tap-to-Início, same as the bar).
+            StellaCore(
+                actions = stellaCoreActions,
+                reducedMotion = !appSettings.animationsEnabled,
+                onLockedActionClick = { action -> lockedActionPreview = action },
+                onNavigateHome = { navigateToTab(AppDestination.Home.route) },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+        } else if (stellaOpen && stellaCoreActions.isNotEmpty()) {
+            // The star itself lives inside EscalaBottomNavBar (dead center of 5 equal slots, i.e.
+            // exactly screen-center) - only the fan needs to be drawn here, anchored just above
+            // the 84dp-tall bar so it reads as growing out of the star, not floating separately.
+            StellaCoreMenu(
+                actions = stellaCoreActions,
+                reducedMotion = !appSettings.animationsEnabled,
+                onActionSelected = { resolved ->
+                    stellaOpen = false
+                    if (resolved.isLocked) lockedActionPreview = resolved.action else resolved.action.onClick()
+                },
+                onDismiss = { stellaOpen = false },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 84.dp)
+            )
+        }
     }
 
     lockedActionPreview?.let { action ->
