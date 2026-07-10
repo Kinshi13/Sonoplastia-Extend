@@ -20,6 +20,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,6 +54,14 @@ fun CalendarScreen() {
 
     var month by remember { mutableStateOf(YearMonth.now()) }
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
+
+    LaunchedEffect(Unit) {
+        com.escalachurch.app.ui.stellacore.StellaCoreBus.events().collect { command ->
+            if (command == com.escalachurch.app.ui.stellacore.StellaCoreCommand.GoToTodayCalendar) {
+                month = YearMonth.now(); selectedDate = LocalDate.now()
+            }
+        }
+    }
 
     val markedDates = remember(entries) { entries.map { it.date }.toSet() }
     val dayEntries = remember(entries, selectedDate) {

@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getAdminStatus } from "@/lib/supabase/auth";
+import { getEntitlements } from "@/lib/entitlements";
+import { AdminStellaCore } from "@/components/AdminStellaCore";
 import { signOutAction } from "./actions";
 
 const adminLinks = [
@@ -15,7 +17,7 @@ const adminLinks = [
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, isAdmin } = await getAdminStatus();
+  const { user, isAdmin, churchId } = await getAdminStatus();
 
   if (!user) redirect("/login");
   if (!isAdmin) {
@@ -29,6 +31,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </div>
     );
   }
+
+  const entitlements = churchId ? await getEntitlements(churchId) : null;
+  const hasAdvancedMedia = entitlements?.features.has("ADVANCED_MEDIA") ?? false;
 
   return (
     <div className="flex flex-col gap-6">
@@ -50,6 +55,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </form>
       </div>
       {children}
+      <AdminStellaCore hasAdvancedMedia={hasAdvancedMedia} />
     </div>
   );
 }

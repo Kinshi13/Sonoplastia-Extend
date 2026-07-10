@@ -23,37 +23,54 @@ import androidx.compose.ui.unit.dp
  * - comet: gold, reserved for premium/Founder moments (reuses the existing SpecialGold hue)
  * - nova: error/danger
  */
+/** One concrete instance of the Constellation Calm role set - lets callers hold "the current
+ *  palette" as a single value (`if (isDark) ConstellationColors.Dark else ConstellationColors.Light`)
+ *  and still resolve member access, instead of two unrelated `object`s with no shared type. */
+data class ConstellationPalette(
+    val void: Color,
+    val nebula: Color,
+    val nebulaElevated: Color,
+    val starlight: Color,
+    val stardust: Color,
+    val horizon: Color,
+    val polaris: Color,
+    val polarisSoft: Color,
+    val aurora: Color,
+    val comet: Color,
+    val nova: Color
+)
+
 object ConstellationColors {
 
-    object Dark {
-        val void = Color(0xFF090B14)
-        val nebula = Color(0xFF12162A)
-        val nebulaElevated = Color(0xFF1A1F3B)
-        val starlight = Color(0xFFF3F4FA)
-        val stardust = Color(0xFFA6ABC7)
-        val horizon = Color(0xFF2A2F52)
-        val polaris = Color(0xFF7C9CFF)
-        val polarisSoft = Color(0xFF33396E)
-        val aurora = Color(0xFF9C7CFF)
-        val comet = SpecialGold
-        val nova = Color(0xFFE5657A)
-    }
+    val Dark = ConstellationPalette(
+        void = Color(0xFF090B14),
+        nebula = Color(0xFF12162A),
+        nebulaElevated = Color(0xFF1A1F3B),
+        starlight = Color(0xFFF3F4FA),
+        stardust = Color(0xFFA6ABC7),
+        horizon = Color(0xFF2A2F52),
+        polaris = Color(0xFF7C9CFF),
+        polarisSoft = Color(0xFF33396E),
+        aurora = Color(0xFF9C7CFF),
+        comet = SpecialGold,
+        nova = Color(0xFFE5657A)
+    )
 
     /** Same roles, tuned for a bright surface - "daylight constellation": the sky is pale, the
      *  stars still read as considered accents rather than a simple color inversion. */
-    object Light {
-        val void = Color(0xFFF6F7FC)
-        val nebula = Color(0xFFFFFFFF)
-        val nebulaElevated = Color(0xFFEFF1FA)
-        val starlight = Color(0xFF171B2E)
-        val stardust = Color(0xFF5C6280)
-        val horizon = Color(0xFFDEE1F1)
-        val polaris = Color(0xFF4A5FE0)
-        val polarisSoft = Color(0xFFE1E5FC)
-        val aurora = Color(0xFF7C5CE0)
-        val comet = SpecialGold
-        val nova = Color(0xFFD0324B)
-    }
+    val Light = ConstellationPalette(
+        void = Color(0xFFF6F7FC),
+        nebula = Color(0xFFFFFFFF),
+        nebulaElevated = Color(0xFFEFF1FA),
+        starlight = Color(0xFF171B2E),
+        stardust = Color(0xFF5C6280),
+        horizon = Color(0xFFDEE1F1),
+        polaris = Color(0xFF4A5FE0),
+        polarisSoft = Color(0xFFE1E5FC),
+        aurora = Color(0xFF7C5CE0),
+        comet = SpecialGold,
+        nova = Color(0xFFD0324B)
+    )
 }
 
 /** 4pt grid - every layout gap/padding in the redesign should resolve to one of these instead of

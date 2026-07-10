@@ -63,6 +63,14 @@ fun AnnouncementsScreen(
 
     LaunchedEffect(Unit) { viewModel.markAllSeen() }
 
+    LaunchedEffect(Unit) {
+        com.escalachurch.app.ui.stellacore.StellaCoreBus.events().collect { command ->
+            if (command == com.escalachurch.app.ui.stellacore.StellaCoreCommand.NewAnnouncement) {
+                editingTarget = AnnouncementEditTarget(null); isEditing = true
+            }
+        }
+    }
+
     if (isEditing) {
         AnnouncementEditScreen(
             existing = editingTarget?.item,

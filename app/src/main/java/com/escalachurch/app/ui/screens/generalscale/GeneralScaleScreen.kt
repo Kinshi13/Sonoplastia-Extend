@@ -89,6 +89,23 @@ fun GeneralScaleScreen(
         initialDate?.let { viewModel.setMonth(YearMonth.from(it)) }
     }
 
+    LaunchedEffect(Unit) {
+        com.escalachurch.app.ui.stellacore.StellaCoreBus.events().collect { command ->
+            when (command) {
+                com.escalachurch.app.ui.stellacore.StellaCoreCommand.NewOfficialScale -> {
+                    isCreatingNew = true; editingTarget = null; isEditing = true
+                }
+                com.escalachurch.app.ui.stellacore.StellaCoreCommand.ToggleOnlyMyClassesGeneralScale -> {
+                    viewModel.setOnlyMyClasses(!onlyMyClasses)
+                }
+                com.escalachurch.app.ui.stellacore.StellaCoreCommand.GoToTodayGeneralScale -> {
+                    viewModel.setMonth(YearMonth.now())
+                }
+                else -> Unit
+            }
+        }
+    }
+
     if (isEditing) {
         ScaleEditScreen(
             existing = if (isCreatingNew) null else editingTarget,

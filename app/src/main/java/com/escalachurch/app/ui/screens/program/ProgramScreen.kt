@@ -13,6 +13,7 @@ import androidx.compose.material.icons.automirrored.filled.EventNote
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -48,6 +49,14 @@ fun ProgramScreen() {
     var editingTarget by remember { mutableStateOf<ProgramEditTarget?>(null) }
     var isEditing by remember { mutableStateOf(false) }
     var currentPage by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        com.escalachurch.app.ui.stellacore.StellaCoreBus.events().collect { command ->
+            if (command == com.escalachurch.app.ui.stellacore.StellaCoreCommand.NewPersonalEvent) {
+                editingTarget = ProgramEditTarget(null); isEditing = true
+            }
+        }
+    }
 
     if (isEditing) {
         ProgramEditScreen(

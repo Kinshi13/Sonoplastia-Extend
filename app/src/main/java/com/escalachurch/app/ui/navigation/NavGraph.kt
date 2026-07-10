@@ -7,11 +7,19 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -20,7 +28,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.escalachurch.app.di.rememberAppContainer
+import com.escalachurch.app.domain.model.AppSettings
 import com.escalachurch.app.ui.components.EscalaBottomNavBar
+import com.escalachurch.app.ui.components.PremiumPreviewSheet
 import com.escalachurch.app.ui.screens.announcements.AnnouncementsScreen
 import com.escalachurch.app.ui.screens.bulletins.BulletinsScreen
 import com.escalachurch.app.ui.screens.calendar.CalendarScreen
@@ -31,6 +42,9 @@ import com.escalachurch.app.ui.screens.plans.PlansScreen
 import com.escalachurch.app.ui.screens.program.ProgramScreen
 import com.escalachurch.app.ui.screens.settings.SettingsScreen
 import com.escalachurch.app.ui.screens.sonoplastia.SonoplastiaScreen
+import com.escalachurch.app.ui.stellacore.StellaCore
+import com.escalachurch.app.ui.stellacore.StellaCoreAction
+import com.escalachurch.app.ui.stellacore.rememberStellaCoreActions
 
 // Same left-to-right order as the bottom nav bar (see BottomNavBar.kt's navEntries) - used to
 // decide which way a tab-to-tab transition should slide, so it always matches the swipe direction.
@@ -98,25 +112,34 @@ fun EscalaChurchNavGraph() {
         }
     }
 
-    Scaffold(
-        bottomBar = {
-            if (!isSecondaryScreen) {
-                EscalaBottomNavBar(
-                    currentDestination = currentDestination,
-                    onNavigate = { destination -> navigateToTab(destination.route) }
-                )
+    val appSettings by rememberAppContainer().settingsRepository.settingsFlow.collectAsState(initial = AppSettings())
+    val stellaCoreActions = rememberStellaCoreActions(
+        currentRoute = currentRoute,
+        onNavigateTab = { destination -> navigateToTab(destination.route) },
+        onNavigateRoute = { route -> navController.navigate(route) }
+    )
+    var lockedActionPreview by remember { mutableStateOf<StellaCoreAction?>(null) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            bottomBar = {
+                if (!isSecondaryScreen) {
+                    EscalaBottomNavBar(
+                        currentDestination = currentDestination,
+                        onNavigate = { destination -> navigateToTab(destination.route) }
+                    )
+                }
             }
-        }
-    ) { padding ->
-        NavHost(
-            navController = navController,
-            startDestination = AppDestination.Home.route,
-            modifier = Modifier.padding(padding),
-            enterTransition = { tabEnter() },
-            exitTransition = { tabExit() },
-            popEnterTransition = { tabEnter() },
-            popExitTransition = { tabExit() }
-        ) {
+        ) { padding ->
+            NavHost(
+                navController = navController,
+                startDestination = AppDestination.Home.route,
+                modifier = Modifier.padding(padding),
+                enterTransition = { tabEnter() },
+                exitTransition = { tabExit() },
+                popEnterTransition = { tabEnter() },
+                popExitTransition = { tabExit() }
+            ) {
             composable(AppDestination.Home.route) {
                 HomeScreen(
                     onOpenGeneralScale = { date -> navController.navigate(SecondaryDestination.generalScaleRoute(date)) },
@@ -186,5 +209,24 @@ fun EscalaChurchNavGraph() {
                 PlansScreen(onBack = { navController.popBackStack() })
             }
         }
+        }
+
+        StellaCore(
+            actions = stellaCoreActions,
+            reducedMotion = !appSettings.animationsEnabled,
+            onLockedActionClick = { action -> lockedActionPreview = action },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = if (isSecondaryScreen) 0.dp else 92.dp)
+        )
+    }
+
+    lockedActionPreview?.let { action ->
+        PremiumPreviewSheet(
+            featureName = action.label,
+            featureDescription = "Esse recurso faz parte de um plano superior. Veja os planos disponíveis para desbloqueá-lo.",
+            onSeePlans = { lockedActionPreview = null; navController.navigate(SecondaryDestination.PLANS_ROUTE) },
+            onDismiss = { lockedActionPreview = null }
+        )
     }
 }
