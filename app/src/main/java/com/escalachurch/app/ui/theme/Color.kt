@@ -2,7 +2,10 @@ package com.escalachurch.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Palette: white base, soft blues, generous contrast for readability across ages.
+// Legacy pre-Constellation-Calm palette. No longer wired into Theme.kt (see ConstellationTokens.kt
+// and Fase 6 of the Master Plan) - kept only because SpecialGold is still the app's one "special
+// event" gold accent (same hue as ConstellationColors.comet). Prefer MaterialTheme.colorScheme.*
+// or ConstellationColors in new code instead of adding call sites for the constants below.
 val White = Color(0xFFFFFFFF)
 val OffWhite = Color(0xFFF7F9FC)
 val LightBlue = Color(0xFFDCEBFF)

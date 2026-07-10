@@ -31,7 +31,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.escalachurch.app.di.appViewModel
 import com.escalachurch.app.entitlements.Plan
-import com.escalachurch.app.ui.theme.MediumBlue
 
 private fun formatPrice(cents: Int?, currency: String): String {
     if (cents == null) return "-"
@@ -88,7 +87,7 @@ private fun PlanCard(plan: Plan, isCurrent: Boolean) {
                     AssistChip(
                         onClick = {},
                         label = { Text("Atual") },
-                        colors = AssistChipDefaults.assistChipColors(containerColor = MediumBlue.copy(alpha = 0.15f))
+                        colors = AssistChipDefaults.assistChipColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
                     )
                 }
             }
@@ -99,13 +98,13 @@ private fun PlanCard(plan: Plan, isCurrent: Boolean) {
                 if (plan.billingPeriod == "one_time") "${formatPrice(plan.monthlyPriceCents, plan.currency)} (pagamento único)"
                 else "${formatPrice(plan.monthlyPriceCents, plan.currency)}/mês",
                 style = MaterialTheme.typography.titleMedium,
-                color = MediumBlue,
+                color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
             )
             Spacer(Modifier.height(10.dp))
             plan.features.take(6).forEach { feature ->
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MediumBlue, modifier = Modifier.height(16.dp))
+                    Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.height(16.dp))
                     Text(feature.name.lowercase().replace('_', ' '), style = MaterialTheme.typography.bodySmall)
                 }
             }

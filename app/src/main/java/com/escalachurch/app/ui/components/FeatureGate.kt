@@ -22,7 +22,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.escalachurch.app.entitlements.FeatureKey
-import com.escalachurch.app.ui.theme.MediumBlue
 
 /**
  * Wraps [content] and only renders it when [service] grants [feature]; otherwise renders
@@ -61,7 +60,7 @@ fun PremiumPreviewSheet(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = MediumBlue, modifier = Modifier.size(28.dp))
+                Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
                 Text("Recurso premium", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
             }
             Text(featureName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
@@ -73,7 +72,7 @@ fun PremiumPreviewSheet(
             Button(
                 onClick = onSeePlans,
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = MediumBlue)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Text("Ver planos e recursos")
             }

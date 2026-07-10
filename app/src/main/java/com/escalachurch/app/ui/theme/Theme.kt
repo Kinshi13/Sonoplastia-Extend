@@ -9,38 +9,44 @@ import com.escalachurch.app.domain.model.AppSettings
 import com.escalachurch.app.domain.model.FontSizeOption
 import com.escalachurch.app.domain.model.ThemeMode
 
+// Fase 6 (Master Plan): the app's Material color scheme now sources every value from the
+// Constellation Calm tokens (ConstellationTokens.kt, Fase 4) instead of the old standalone
+// MediumBlue/DeepBlue/... constants below - one edit here recolors every screen that reads
+// MaterialTheme.colorScheme (effectively the whole app; see Color.kt). Same role structure as
+// before (primary/onPrimary/...), so this is a re-skin, not a rewrite: no screen's layout,
+// navigation, or behavior changes, only the palette they render with.
 private val LightColors = lightColorScheme(
-    primary = MediumBlue,
-    onPrimary = White,
-    primaryContainer = LightBlue,
-    onPrimaryContainer = DeepBlue,
-    secondary = SoftBlue,
-    onSecondary = DeepBlue,
-    background = OffWhite,
-    onBackground = TextPrimaryLight,
-    surface = White,
-    onSurface = TextPrimaryLight,
-    surfaceVariant = LightBlue,
-    onSurfaceVariant = TextSecondaryLight,
-    outline = DividerLight,
-    error = ErrorRed
+    primary = ConstellationColors.Light.polaris,
+    onPrimary = ConstellationColors.Light.nebula,
+    primaryContainer = ConstellationColors.Light.polarisSoft,
+    onPrimaryContainer = ConstellationColors.Light.starlight,
+    secondary = ConstellationColors.Light.aurora,
+    onSecondary = ConstellationColors.Light.nebula,
+    background = ConstellationColors.Light.void,
+    onBackground = ConstellationColors.Light.starlight,
+    surface = ConstellationColors.Light.nebula,
+    onSurface = ConstellationColors.Light.starlight,
+    surfaceVariant = ConstellationColors.Light.nebulaElevated,
+    onSurfaceVariant = ConstellationColors.Light.stardust,
+    outline = ConstellationColors.Light.horizon,
+    error = ConstellationColors.Light.nova
 )
 
 private val DarkColors = darkColorScheme(
-    primary = SoftBlue,
-    onPrimary = DeepBlue,
-    primaryContainer = SoftBlueDark,
-    onPrimaryContainer = White,
-    secondary = SoftBlueDark,
-    onSecondary = White,
-    background = DarkBackground,
-    onBackground = TextPrimaryDark,
-    surface = DarkSurface,
-    onSurface = TextPrimaryDark,
-    surfaceVariant = DarkSurfaceAlt,
-    onSurfaceVariant = TextSecondaryDark,
-    outline = DividerDark,
-    error = ErrorRed
+    primary = ConstellationColors.Dark.polaris,
+    onPrimary = ConstellationColors.Dark.void,
+    primaryContainer = ConstellationColors.Dark.polarisSoft,
+    onPrimaryContainer = ConstellationColors.Dark.starlight,
+    secondary = ConstellationColors.Dark.aurora,
+    onSecondary = ConstellationColors.Dark.void,
+    background = ConstellationColors.Dark.void,
+    onBackground = ConstellationColors.Dark.starlight,
+    surface = ConstellationColors.Dark.nebula,
+    onSurface = ConstellationColors.Dark.starlight,
+    surfaceVariant = ConstellationColors.Dark.nebulaElevated,
+    onSurfaceVariant = ConstellationColors.Dark.stardust,
+    outline = ConstellationColors.Dark.horizon,
+    error = ConstellationColors.Dark.nova
 )
 
 /**
