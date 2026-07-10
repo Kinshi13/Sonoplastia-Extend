@@ -1,5 +1,6 @@
 package com.escalachurch.app.data.repository
 
+import com.escalachurch.app.BuildConfig
 import com.escalachurch.app.data.remote.LocalRefreshTrigger
 import com.escalachurch.app.data.remote.SupabaseTables
 import com.escalachurch.app.data.remote.dto.BulletinDto
@@ -17,8 +18,9 @@ class BulletinRepository(private val client: SupabaseClient) {
     private val table get() = client.postgrest.from(SupabaseTables.BULLETINS)
     private val refreshTrigger = LocalRefreshTrigger()
 
+    // See ScaleRepository.observeAll for why this filters by church_id client-side.
     fun observeActive(): Flow<List<Bulletin>> = client.observeTable(SupabaseTables.BULLETINS, refreshTrigger) {
-        table.select { filter { eq("is_active", true) } }
+        table.select { filter { eq("is_active", true); eq("church_id", BuildConfig.CHURCH_ID) } }
             .decodeList<BulletinDto>()
             .mapNotNull { it.toBulletin() }
             .sortedByDescending { it.publishedAt }

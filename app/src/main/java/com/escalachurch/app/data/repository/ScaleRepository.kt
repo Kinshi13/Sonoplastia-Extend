@@ -1,5 +1,6 @@
 package com.escalachurch.app.data.repository
 
+import com.escalachurch.app.BuildConfig
 import com.escalachurch.app.data.remote.LocalRefreshTrigger
 import com.escalachurch.app.data.remote.SupabaseTables
 import com.escalachurch.app.data.remote.dto.ScaleDto
@@ -22,12 +23,18 @@ class ScaleRepository(private val client: SupabaseClient) {
     private val table get() = client.postgrest.from(SupabaseTables.SCALES)
     private val refreshTrigger = LocalRefreshTrigger()
 
+    // Reads aren't restricted by RLS to one church (public read is open) - the app only ever
+    // shows/writes its own configured church's data, so every read is scoped client-side. See
+    // BuildConfig.CHURCH_ID (Fase 2 fix: this used to read every church's rows unfiltered).
     fun observeAll(): Flow<List<ScaleItem>> = client.observeTable(SupabaseTables.SCALES, refreshTrigger) {
-        table.select().decodeList<ScaleDto>().mapNotNull { it.toScaleItem() }
+        table.select { filter { eq("church_id", BuildConfig.CHURCH_ID) } }
+            .decodeList<ScaleDto>()
+            .mapNotNull { it.toScaleItem() }
     }
 
     suspend fun getById(id: String): ScaleItem? =
-        table.select { filter { eq("id", id) } }.decodeSingleOrNull<ScaleDto>()?.toScaleItem()
+        table.select { filter { eq("id", id); eq("church_id", BuildConfig.CHURCH_ID) } }
+            .decodeSingleOrNull<ScaleDto>()?.toScaleItem()
 
     /** Creates (blank id) or overwrites (existing id) a scale; returns the resulting row id. */
     suspend fun save(item: ScaleItem): String {

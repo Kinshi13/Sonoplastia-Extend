@@ -1,5 +1,6 @@
 package com.escalachurch.app.data.repository
 
+import com.escalachurch.app.BuildConfig
 import com.escalachurch.app.data.remote.LocalRefreshTrigger
 import com.escalachurch.app.data.remote.SupabaseTables
 import com.escalachurch.app.data.remote.dto.DoxologyDto
@@ -18,8 +19,11 @@ class DoxologyRepository(private val client: SupabaseClient) {
     private val table get() = client.postgrest.from(SupabaseTables.DOXOLOGIES)
     private val refreshTrigger = LocalRefreshTrigger()
 
+    // See ScaleRepository.observeAll for why this filters by church_id client-side.
     fun observeAll(): Flow<List<DoxologyItem>> = client.observeTable(SupabaseTables.DOXOLOGIES, refreshTrigger) {
-        table.select().decodeList<DoxologyDto>().mapNotNull { it.toDoxologyItem() }
+        table.select { filter { eq("church_id", BuildConfig.CHURCH_ID) } }
+            .decodeList<DoxologyDto>()
+            .mapNotNull { it.toDoxologyItem() }
     }
 
     suspend fun save(item: DoxologyItem): String {

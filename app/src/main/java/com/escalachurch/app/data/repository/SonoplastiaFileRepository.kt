@@ -2,6 +2,7 @@ package com.escalachurch.app.data.repository
 
 import android.content.Context
 import android.net.Uri
+import com.escalachurch.app.BuildConfig
 import com.escalachurch.app.data.remote.LocalRefreshTrigger
 import com.escalachurch.app.data.remote.SupabaseTables
 import com.escalachurch.app.data.remote.dto.SharedFileDto
@@ -23,8 +24,10 @@ class SonoplastiaFileRepository(private val client: SupabaseClient) {
     private val table get() = client.postgrest.from(SupabaseTables.SHARED_FILES)
     private val refreshTrigger = LocalRefreshTrigger()
 
+    // See ScaleRepository.observeAll for why this filters by church_id client-side.
     fun observeAll(): Flow<List<SharedFile>> = client.observeTable(SupabaseTables.SHARED_FILES, refreshTrigger) {
-        table.select().decodeList<SharedFileDto>()
+        table.select { filter { eq("church_id", BuildConfig.CHURCH_ID) } }
+            .decodeList<SharedFileDto>()
             .mapNotNull { it.toSharedFile() }
             .sortedByDescending { it.uploadedAt }
     }

@@ -3,6 +3,7 @@ package com.escalachurch.app.data.repository
 import android.content.Context
 import android.net.Uri
 import android.webkit.MimeTypeMap
+import com.escalachurch.app.BuildConfig
 import com.escalachurch.app.data.remote.CHURCH_FILES_BUCKET
 import com.escalachurch.app.data.remote.LocalRefreshTrigger
 import com.escalachurch.app.data.remote.SupabaseTables
@@ -28,8 +29,9 @@ class AnnouncementRepository(private val client: SupabaseClient) {
     private val table get() = client.postgrest.from(SupabaseTables.ANNOUNCEMENTS)
     private val refreshTrigger = LocalRefreshTrigger()
 
+    // See ScaleRepository.observeAll for why this filters by church_id client-side.
     fun observeActive(): Flow<List<Announcement>> = client.observeTable(SupabaseTables.ANNOUNCEMENTS, refreshTrigger) {
-        table.select { filter { eq("is_active", true) } }
+        table.select { filter { eq("is_active", true); eq("church_id", BuildConfig.CHURCH_ID) } }
             .decodeList<AnnouncementDto>()
             .mapNotNull { it.toAnnouncement() }
             .sortedWith(compareByDescending<Announcement> { it.isPinned }.thenByDescending { it.publishedAt })
