@@ -23,16 +23,19 @@ class LocalRefreshTrigger {
 
 /**
  * Turns a Postgres table into a live [Flow]: fetches once immediately, then re-fetches the whole
- * table every time Realtime reports a change, or [localTrigger] is bumped. Simpler and safer than
- * trying to patch individual rows into a cached list by hand, at the cost of an extra round trip
- * per change - fine at this app's scale (a handful of scales/announcements, not thousands).
+ * table every time Realtime reports a change, [localTrigger] is bumped, or the app returns to the
+ * foreground (see [AppForegroundSignal]). Simpler and safer than trying to patch individual rows
+ * into a cached list by hand, at the cost of an extra round trip per change - fine at this app's
+ * scale (a handful of scales/announcements, not thousands).
  *
- * [localTrigger] is collected in its own coroutine, started immediately - it must never be gated
- * behind Realtime's subscribe() call, which can take many seconds to confirm and would otherwise
- * delay the writer's own refresh by that same amount. Realtime subscription failures are swallowed
- * rather than propagated: if the websocket can't confirm a subscription, the table is still
- * readable via the initial fetch and [localTrigger] - it just won't live-update from other devices
- * until Realtime recovers.
+ * [localTrigger] and [AppForegroundSignal] are each collected in their own coroutine, started
+ * immediately - neither must ever be gated behind Realtime's subscribe() call, which can take many
+ * seconds to confirm and would otherwise delay the refresh by that same amount. Realtime
+ * subscription failures are swallowed rather than propagated: if the websocket can't confirm a
+ * subscription (or silently dies while the app is backgrounded - a known gap, since Realtime has
+ * no built-in reconnect-on-resume), the table is still kept fresh via the initial fetch,
+ * [localTrigger], and the foreground signal - it just won't live-update from other devices while
+ * this screen is open in the background *and* Realtime is down at the same time.
  */
 fun <T> io.github.jan.supabase.SupabaseClient.observeTable(
     table: String,
@@ -43,6 +46,10 @@ fun <T> io.github.jan.supabase.SupabaseClient.observeTable(
 
     val localJob = launch {
         localTrigger.asFlow().collect { send(fetch()) }
+    }
+
+    val foregroundJob = launch {
+        AppForegroundSignal.events.collect { send(fetch()) }
     }
 
     val realtimeJob = launch {
@@ -58,6 +65,7 @@ fun <T> io.github.jan.supabase.SupabaseClient.observeTable(
 
     awaitClose {
         localJob.cancel()
+        foregroundJob.cancel()
         realtimeJob.cancel()
     }
 }
