@@ -6,6 +6,8 @@ object SupabaseTables {
     const val ANNOUNCEMENTS = "announcements"
     const val SHARED_FILES = "shared_files"
     const val BULLETINS = "bulletins"
+    const val PLANS = "plans"
+    const val SUBSCRIPTIONS = "subscriptions"
 }
 
 /** Public Storage bucket used for both Anúncios media and files shared from Sonoplastia. */

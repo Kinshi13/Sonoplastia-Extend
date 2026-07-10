@@ -18,6 +18,7 @@ object SecondaryDestination {
     const val SONOPLASTIA_ROUTE = "sonoplastia"
     const val SETTINGS_ROUTE = "settings"
     const val BULLETINS_ROUTE = "bulletins"
+    const val PLANS_ROUTE = "plans"
 
     fun generalScaleRoute(date: java.time.LocalDate?): String =
         "general_scale?date=${date?.toString() ?: ""}"

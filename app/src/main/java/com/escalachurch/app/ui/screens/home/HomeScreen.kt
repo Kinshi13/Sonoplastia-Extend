@@ -50,7 +50,8 @@ fun HomeScreen(
     onOpenGeneralScale: (java.time.LocalDate?) -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onOpenBulletins: () -> Unit = {},
-    onOpenSonoplastia: () -> Unit = {}
+    onOpenSonoplastia: () -> Unit = {},
+    onOpenPlans: () -> Unit = {}
 ) {
     val viewModel = appViewModel { container ->
         HomeViewModel(
@@ -138,7 +139,12 @@ fun HomeScreen(
                         initialPage = state.startIndex ?: 0,
                         onPageChanged = { currentPage = it }
                     ) { scale ->
-                        ScaleCard(scale, highlightClasses = state.myClasses)
+                        ScaleCard(
+                            scale,
+                            highlightClasses = state.myClasses,
+                            entitlementService = container.entitlementService,
+                            onSeePlans = onOpenPlans
+                        )
                     }
                 }
             }

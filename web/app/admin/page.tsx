@@ -1,4 +1,4 @@
-import { Calendar, BookOpen, Megaphone, FolderOpen, Images, FileText } from "lucide-react";
+import { Calendar, BookOpen, Megaphone, FolderOpen, Images, FileText, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminStatus } from "@/lib/supabase/auth";
 import { CardLink } from "@/components/Card";
@@ -41,6 +41,7 @@ export default async function AdminDashboardPage() {
     { href: "/admin/boletins", label: "Boletins", count: bulletinsCount ?? 0, icon: FileText },
     { href: "/admin/retrospectiva", label: "Retrospectiva", count: retrospectiveCount ?? 0, icon: Images },
     { href: "/admin/sonoplastia", label: "Arquivos (Sonoplastia)", count: null, icon: FolderOpen },
+    { href: "/admin/planos", label: "Planos e recursos", count: null, icon: Sparkles },
   ];
 
   return (

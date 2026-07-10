@@ -1,0 +1,110 @@
+package com.escalachurch.app.entitlements
+
+import com.escalachurch.app.data.repository.PlanRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.stateIn
+
+/** The hardcoded floor every church always gets, even fully offline with no cache at all - see
+ *  Fase 3 Section 6 (Free-tier guarantees) and Section 11 (never fail closed below FREE). */
+private val FREE_FEATURES = setOf(
+    FeatureKey.VIEW_OFFICIAL_SCALE,
+    FeatureKey.VIEW_DOXOLOGY,
+    FeatureKey.VIEW_ANNOUNCEMENTS,
+    FeatureKey.VIEW_CALENDAR,
+    FeatureKey.CLASS_HIGHLIGHTS,
+    FeatureKey.PERSONAL_EVENTS,
+    FeatureKey.PERSONAL_CARDS
+)
+private val FREE_LIMITS = PlanLimits(
+    maxAdmins = 1, maxPersonalEvents = 10, maxPersonalCards = 5,
+    historyMonths = 1, maxAnnouncements = null, maxMediaStorageMb = 100, maxOrganizations = 1
+)
+
+/** What every screen actually reads - resolved once here instead of each screen re-deriving it
+ *  from a raw Plan + Subscription pair. */
+data class Entitlements(
+    val planCode: PlanCode,
+    val planName: String,
+    val status: SubscriptionStatus,
+    val features: Set<FeatureKey>,
+    val limits: PlanLimits,
+    val isFromCache: Boolean
+) {
+    fun has(feature: FeatureKey): Boolean = feature in features
+}
+
+private val FREE_FLOOR = Entitlements(
+    planCode = PlanCode.FREE,
+    planName = "Free",
+    status = SubscriptionStatus.FREE,
+    features = FREE_FEATURES,
+    limits = FREE_LIMITS,
+    isFromCache = false
+)
+
+/**
+ * Single source of truth for "what can this church do right now." Combines the live plan catalog
+ * + this church's subscription; while offline (no plan/subscription flow emission), falls back to
+ * the last cached entitlement if it's still fresh, and to the hardcoded FREE floor otherwise -
+ * never grants indefinite premium access purely from a stale cache (Fase 3 Section 11).
+ */
+class EntitlementService(
+    private val planRepository: PlanRepository,
+    private val cacheStore: EntitlementCacheStore,
+    scope: CoroutineScope
+) {
+    val entitlements: StateFlow<Entitlements> = combine(
+        planRepository.observePlans(),
+        planRepository.observeSubscription()
+    ) { plans, subscription ->
+        val plan = subscription?.let { sub -> plans.firstOrNull { it.id == sub.planId } }
+        if (plan == null || subscription == null || !subscription.status.grantsAccess) {
+            FREE_FLOOR
+        } else {
+            Entitlements(
+                planCode = plan.code,
+                planName = plan.name,
+                status = subscription.status,
+                features = plan.features,
+                limits = plan.limits,
+                isFromCache = false
+            )
+        }
+    }
+        .catch { emit(resolveFromCache()) }
+        .stateIn(scope, SharingStarted.WhileSubscribed(5000), FREE_FLOOR)
+
+    init {
+        // Keep the cache warm any time we resolve a real (non-cache, non-error) entitlement, so a
+        // later offline session has something better than FREE_FLOOR to fall back to.
+        entitlements.onEach { current ->
+            if (!current.isFromCache) {
+                cacheStore.save(current.planCode, current.status, current.features)
+            }
+        }.launchIn(scope)
+    }
+
+    private suspend fun resolveFromCache(): Entitlements {
+        val cached = cacheStore.current() ?: return FREE_FLOOR
+        if (!cached.isFresh()) return FREE_FLOOR
+        return Entitlements(
+            planCode = cached.planCode,
+            planName = cached.planCode.name,
+            status = cached.status,
+            features = cached.features,
+            limits = FREE_LIMITS,
+            isFromCache = true
+        )
+    }
+
+    fun has(feature: FeatureKey): Boolean = entitlements.value.has(feature)
+
+    /** Null means "no ceiling for this field on the current plan." */
+    fun limit(selector: (PlanLimits) -> Int?): Int? = selector(entitlements.value.limits)
+}

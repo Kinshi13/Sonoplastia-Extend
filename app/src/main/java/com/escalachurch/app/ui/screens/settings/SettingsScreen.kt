@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.EventNote
 import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Lock
@@ -56,6 +57,7 @@ import kotlinx.coroutines.launch
 fun SettingsScreen(
     onOpenGeneralScale: () -> Unit = {},
     onOpenAnnouncements: () -> Unit = {},
+    onOpenPlans: () -> Unit = {},
     onBack: () -> Unit = {}
 ) {
     val viewModel = appViewModel { container ->
@@ -121,6 +123,12 @@ fun SettingsScreen(
             SettingsSection(title = "Escala e Anúncios") {
                 NavRow(icon = Icons.AutoMirrored.Filled.EventNote, label = "Escala geral", onClick = onOpenGeneralScale)
                 NavRow(icon = Icons.Filled.Campaign, label = "Anúncios", onClick = onOpenAnnouncements)
+            }
+        }
+
+        item {
+            SettingsSection(title = "Assinatura") {
+                NavRow(icon = Icons.Filled.AutoAwesome, label = "Planos e recursos", onClick = onOpenPlans)
             }
         }
 

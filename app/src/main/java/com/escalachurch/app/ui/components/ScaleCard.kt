@@ -42,6 +42,8 @@ import androidx.compose.ui.unit.dp
 import com.escalachurch.app.domain.model.ScaleItem
 import com.escalachurch.app.domain.model.SourceType
 import com.escalachurch.app.domain.model.UserClass
+import com.escalachurch.app.entitlements.EntitlementService
+import com.escalachurch.app.entitlements.FeatureKey
 import com.escalachurch.app.export.ExportFormat
 import com.escalachurch.app.export.ScaleExporter
 import com.escalachurch.app.ui.theme.CardShape
@@ -60,10 +62,16 @@ fun ScaleCard(
     modifier: Modifier = Modifier,
     highlightClasses: Set<UserClass> = emptySet(),
     recentlyUpdated: Boolean = false,
-    showExportAction: Boolean = true
+    showExportAction: Boolean = true,
+    // Null keeps every existing caller ungated (e.g. previews/tests); real screens pass the
+    // container's EntitlementService so EXPORT can be checked - see Fase 3 FeatureGate pattern.
+    entitlementService: EntitlementService? = null,
+    onSeePlans: () -> Unit = {}
 ) {
     var showExportDialog by remember { mutableStateOf(false) }
+    var showPremiumPreview by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val canExport = entitlementService?.has(FeatureKey.EXPORT) ?: true
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -132,7 +140,9 @@ fun ScaleCard(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    androidx.compose.material3.TextButton(onClick = { showExportDialog = true }) {
+                    androidx.compose.material3.TextButton(onClick = {
+                        if (canExport) showExportDialog = true else showPremiumPreview = true
+                    }) {
                         Icon(Icons.Filled.Share, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.height(18.dp))
                         Spacer(Modifier.width(6.dp))
                         Text("Exportar escala", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
@@ -163,6 +173,16 @@ fun ScaleCard(
                     showExportDialog = false
                 }) { Text("JPEG") }
             }
+        )
+    }
+
+    if (showPremiumPreview) {
+        PremiumPreviewSheet(
+            featureName = "Exportar escala",
+            featureDescription = "Exportar a escala em PDF ou JPEG faz parte dos planos pagos. " +
+                "Veja os planos disponíveis para desbloquear esse e outros recursos.",
+            onSeePlans = { showPremiumPreview = false; onSeePlans() },
+            onDismiss = { showPremiumPreview = false }
         )
     }
 }

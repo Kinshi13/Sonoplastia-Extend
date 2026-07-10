@@ -11,11 +11,17 @@ import com.escalachurch.app.data.repository.ChangeLogRepository
 import com.escalachurch.app.data.repository.CustomEventRepository
 import com.escalachurch.app.data.repository.DoxologyRepository
 import com.escalachurch.app.data.repository.GeneralScaleRepository
+import com.escalachurch.app.data.repository.PlanRepository
 import com.escalachurch.app.data.repository.ScaleRepository
 import com.escalachurch.app.data.repository.SettingsRepository
 import com.escalachurch.app.data.repository.SonoplastiaFileRepository
 import com.escalachurch.app.data.repository.UserProfileRepository
+import com.escalachurch.app.entitlements.EntitlementCacheStore
+import com.escalachurch.app.entitlements.EntitlementService
 import com.escalachurch.app.security.AdminSession
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 /**
  * Minimal, manual dependency container. No DI framework is required; this keeps the build
@@ -43,6 +49,14 @@ class AppContainer(context: Context) {
     val bulletinRepository = BulletinRepository(supabase)
     val changeLogRepository = ChangeLogRepository(database.changeLogDao())
     val sonoplastiaFileRepository = SonoplastiaFileRepository(supabase)
+
+    // Lives for as long as the container (effectively the process), same lifetime as the
+    // Supabase client itself - entitlements need to keep resolving in the background regardless
+    // of which screen is on top, not just while one screen's ViewModel is alive.
+    private val containerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    val planRepository = PlanRepository(supabase)
+    val entitlementCacheStore = EntitlementCacheStore(context)
+    val entitlementService = EntitlementService(planRepository, entitlementCacheStore, containerScope)
 
     val generalScaleRepository = GeneralScaleRepository(
         context = context,

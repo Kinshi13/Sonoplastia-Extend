@@ -202,6 +202,76 @@ create policy "bulletins: admin update" on bulletins for update
 create policy "bulletins: admin delete" on bulletins for delete
   using (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = bulletins.church_id));
 
+-- Plans + Subscriptions (Fase 3 - entitlements catalog) ------------------
+-- Features/limits live as jsonb on the plan row, not normalized join/limit tables - a plan's
+-- feature set and limits always change together as one unit, so this avoids joins without
+-- losing governance (FeatureKey is still a single closed enum in app code on both platforms).
+create table plans (
+  id uuid primary key default gen_random_uuid(),
+  code text not null unique, -- FREE | ESSENTIAL | PRO | ORGANIZATION | FOUNDER
+  name text not null,
+  description text not null default '',
+  monthly_price_cents integer,
+  yearly_price_cents integer,
+  currency text not null default 'BRL',
+  billing_period text not null default 'recurring', -- 'recurring' | 'one_time'
+  is_active boolean not null default true,
+  is_public boolean not null default true,
+  sort_order integer not null default 0,
+  features jsonb not null default '[]',
+  limits jsonb not null default '{}',
+  created_at bigint not null,
+  updated_at bigint not null
+);
+
+alter table plans enable row level security;
+create policy "plans: public read" on plans for select using (true);
+
+create table subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  church_id uuid not null unique references churches(id),
+  plan_id uuid not null references plans(id),
+  status text not null default 'FREE',
+  started_at bigint not null,
+  expires_at bigint,
+  trial_ends_at bigint,
+  grace_period_ends_at bigint,
+  source text not null default 'manual',
+  updated_at bigint not null
+);
+
+alter table subscriptions enable row level security;
+create policy "subscriptions: public read" on subscriptions for select using (true);
+create policy "subscriptions: admin update" on subscriptions for update
+  using (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = subscriptions.church_id));
+
+grant select on public.plans, public.subscriptions to anon, authenticated;
+grant update on public.subscriptions to authenticated;
+
+alter publication supabase_realtime add table plans, subscriptions;
+
+insert into plans (code, name, description, monthly_price_cents, yearly_price_cents, currency, billing_period, is_active, is_public, sort_order, features, limits, updated_at, created_at) values
+  ('FREE', 'Free', 'O essencial para acompanhar sua igreja, sem custo.', 0, 0, 'BRL', 'recurring', true, true, 0,
+    '["VIEW_OFFICIAL_SCALE","VIEW_DOXOLOGY","VIEW_ANNOUNCEMENTS","VIEW_CALENDAR","CLASS_HIGHLIGHTS","PERSONAL_EVENTS","PERSONAL_CARDS"]',
+    '{"maxAdmins":1,"maxPersonalEvents":10,"maxPersonalCards":5,"historyMonths":1,"maxAnnouncements":null,"maxMediaStorageMb":100,"maxOrganizations":1}',
+    extract(epoch from now()) * 1000, extract(epoch from now()) * 1000),
+  ('ESSENTIAL', 'Essencial', 'Mais histórico, personalização e exportação.', 1490, 14900, 'BRL', 'recurring', true, true, 1,
+    '["VIEW_OFFICIAL_SCALE","VIEW_DOXOLOGY","VIEW_ANNOUNCEMENTS","VIEW_CALENDAR","CLASS_HIGHLIGHTS","PERSONAL_EVENTS","PERSONAL_CARDS","EXTENDED_HISTORY","ADVANCED_NOTIFICATIONS","CUSTOM_FONTS","CUSTOM_THEMES","EXPORT"]',
+    '{"maxAdmins":2,"maxPersonalEvents":50,"maxPersonalCards":30,"historyMonths":6,"maxAnnouncements":null,"maxMediaStorageMb":1000,"maxOrganizations":1}',
+    extract(epoch from now()) * 1000, extract(epoch from now()) * 1000),
+  ('PRO', 'Pro', 'Administração avançada, relatórios e mídia sem limites apertados.', 2990, 29900, 'BRL', 'recurring', true, true, 2,
+    '["VIEW_OFFICIAL_SCALE","VIEW_DOXOLOGY","VIEW_ANNOUNCEMENTS","VIEW_CALENDAR","CLASS_HIGHLIGHTS","PERSONAL_EVENTS","PERSONAL_CARDS","EXTENDED_HISTORY","ADVANCED_NOTIFICATIONS","CUSTOM_FONTS","CUSTOM_THEMES","EXPORT","ADVANCED_ADMIN","PREMIUM_FONTS","PREMIUM_THEMES","REPORTS","ADVANCED_MEDIA","PRIORITY_SYNC"]',
+    '{"maxAdmins":5,"maxPersonalEvents":200,"maxPersonalCards":100,"historyMonths":24,"maxAnnouncements":null,"maxMediaStorageMb":5000,"maxOrganizations":1}',
+    extract(epoch from now()) * 1000, extract(epoch from now()) * 1000),
+  ('ORGANIZATION', 'Organização', 'Para redes com múltiplos administradores e identidade própria.', 7990, 79900, 'BRL', 'recurring', true, true, 3,
+    '["VIEW_OFFICIAL_SCALE","VIEW_DOXOLOGY","VIEW_ANNOUNCEMENTS","VIEW_CALENDAR","CLASS_HIGHLIGHTS","PERSONAL_EVENTS","PERSONAL_CARDS","EXTENDED_HISTORY","ADVANCED_NOTIFICATIONS","CUSTOM_FONTS","CUSTOM_THEMES","EXPORT","ADVANCED_ADMIN","PREMIUM_FONTS","PREMIUM_THEMES","REPORTS","ADVANCED_MEDIA","PRIORITY_SYNC","MULTI_ADMIN","ORGANIZATION_BRANDING","AUTOMATIONS"]',
+    '{"maxAdmins":null,"maxPersonalEvents":null,"maxPersonalCards":null,"historyMonths":null,"maxAnnouncements":null,"maxMediaStorageMb":20000,"maxOrganizations":3}',
+    extract(epoch from now()) * 1000, extract(epoch from now()) * 1000),
+  ('FOUNDER', 'Fundador Vitalício', 'Acesso vitalício completo - campanha de lançamento, por elegibilidade.', 24900, null, 'BRL', 'one_time', true, false, 4,
+    '["VIEW_OFFICIAL_SCALE","VIEW_DOXOLOGY","VIEW_ANNOUNCEMENTS","VIEW_CALENDAR","CLASS_HIGHLIGHTS","PERSONAL_EVENTS","PERSONAL_CARDS","EXTENDED_HISTORY","ADVANCED_NOTIFICATIONS","CUSTOM_FONTS","CUSTOM_THEMES","EXPORT","ADVANCED_ADMIN","PREMIUM_FONTS","PREMIUM_THEMES","REPORTS","ADVANCED_MEDIA","PRIORITY_SYNC","MULTI_ADMIN","ORGANIZATION_BRANDING","AUTOMATIONS"]',
+    '{"maxAdmins":null,"maxPersonalEvents":null,"maxPersonalCards":null,"historyMonths":null,"maxAnnouncements":null,"maxMediaStorageMb":null,"maxOrganizations":null}',
+    extract(epoch from now()) * 1000, extract(epoch from now()) * 1000);
+
 -- Shared files (Sonoplastia's remote file sharing: PPT/PDF/photos/videos moved phone <-> PC) ----
 create table shared_files (
   id uuid primary key default gen_random_uuid(),

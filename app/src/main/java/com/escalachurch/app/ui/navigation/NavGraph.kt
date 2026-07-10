@@ -27,6 +27,7 @@ import com.escalachurch.app.ui.screens.calendar.CalendarScreen
 import com.escalachurch.app.ui.screens.doxology.DoxologyScreen
 import com.escalachurch.app.ui.screens.generalscale.GeneralScaleScreen
 import com.escalachurch.app.ui.screens.home.HomeScreen
+import com.escalachurch.app.ui.screens.plans.PlansScreen
 import com.escalachurch.app.ui.screens.program.ProgramScreen
 import com.escalachurch.app.ui.screens.settings.SettingsScreen
 import com.escalachurch.app.ui.screens.sonoplastia.SonoplastiaScreen
@@ -86,7 +87,8 @@ fun EscalaChurchNavGraph() {
     val isSecondaryScreen = currentRoute == SecondaryDestination.GENERAL_SCALE_ROUTE ||
         currentRoute == SecondaryDestination.SONOPLASTIA_ROUTE ||
         currentRoute == SecondaryDestination.SETTINGS_ROUTE ||
-        currentRoute == SecondaryDestination.BULLETINS_ROUTE
+        currentRoute == SecondaryDestination.BULLETINS_ROUTE ||
+        currentRoute == SecondaryDestination.PLANS_ROUTE
 
     fun navigateToTab(route: String) {
         navController.navigate(route) {
@@ -120,7 +122,8 @@ fun EscalaChurchNavGraph() {
                     onOpenGeneralScale = { date -> navController.navigate(SecondaryDestination.generalScaleRoute(date)) },
                     onOpenSettings = { navController.navigate(SecondaryDestination.SETTINGS_ROUTE) },
                     onOpenBulletins = { navController.navigate(SecondaryDestination.BULLETINS_ROUTE) },
-                    onOpenSonoplastia = { navController.navigate(SecondaryDestination.SONOPLASTIA_ROUTE) }
+                    onOpenSonoplastia = { navController.navigate(SecondaryDestination.SONOPLASTIA_ROUTE) },
+                    onOpenPlans = { navController.navigate(SecondaryDestination.PLANS_ROUTE) }
                 )
             }
             composable(AppDestination.Doxology.route) { DoxologyScreen() }
@@ -162,6 +165,7 @@ fun EscalaChurchNavGraph() {
                 SettingsScreen(
                     onOpenGeneralScale = { navController.navigate(SecondaryDestination.generalScaleRoute(null)) },
                     onOpenAnnouncements = { navigateToTab(AppDestination.Announcements.route) },
+                    onOpenPlans = { navController.navigate(SecondaryDestination.PLANS_ROUTE) },
                     onBack = { navController.popBackStack() }
                 )
             }
@@ -172,6 +176,14 @@ fun EscalaChurchNavGraph() {
                 popExitTransition = { popExitToRight() }
             ) {
                 BulletinsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(
+                SecondaryDestination.PLANS_ROUTE,
+                enterTransition = { pushEnter() },
+                exitTransition = { pushExit() },
+                popExitTransition = { popExitToRight() }
+            ) {
+                PlansScreen(onBack = { navController.popBackStack() })
             }
         }
     }

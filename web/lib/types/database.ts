@@ -120,6 +120,81 @@ export type Profile = {
   created_at: string;
 };
 
+// Fase 3 - plan catalog + per-church subscription. Mirrors 006_plans_entitlements.sql and the
+// Android entitlements/ package - see lib/entitlements.ts for the resolved-entitlement logic.
+export type PlanCode = "FREE" | "ESSENTIAL" | "PRO" | "ORGANIZATION" | "FOUNDER";
+
+export type SubscriptionStatus =
+  | "FREE"
+  | "TRIAL"
+  | "ACTIVE"
+  | "PAST_DUE"
+  | "GRACE_PERIOD"
+  | "CANCELED"
+  | "EXPIRED";
+
+export type FeatureKey =
+  | "VIEW_OFFICIAL_SCALE"
+  | "VIEW_DOXOLOGY"
+  | "VIEW_ANNOUNCEMENTS"
+  | "VIEW_CALENDAR"
+  | "CLASS_HIGHLIGHTS"
+  | "PERSONAL_EVENTS"
+  | "PERSONAL_CARDS"
+  | "EXTENDED_HISTORY"
+  | "ADVANCED_ADMIN"
+  | "MULTI_ADMIN"
+  | "ADVANCED_NOTIFICATIONS"
+  | "CUSTOM_FONTS"
+  | "PREMIUM_FONTS"
+  | "CUSTOM_THEMES"
+  | "PREMIUM_THEMES"
+  | "EXPORT"
+  | "REPORTS"
+  | "ORGANIZATION_BRANDING"
+  | "ADVANCED_MEDIA"
+  | "PRIORITY_SYNC"
+  | "AUTOMATIONS";
+
+export type PlanLimits = {
+  maxAdmins: number | null;
+  maxPersonalEvents: number | null;
+  maxPersonalCards: number | null;
+  historyMonths: number | null;
+  maxAnnouncements: number | null;
+  maxMediaStorageMb: number | null;
+  maxOrganizations: number | null;
+};
+
+export type Plan = {
+  id: string;
+  code: PlanCode;
+  name: string;
+  description: string;
+  monthly_price_cents: number | null;
+  yearly_price_cents: number | null;
+  currency: string;
+  billing_period: "recurring" | "one_time";
+  is_active: boolean;
+  is_public: boolean;
+  sort_order: number;
+  features: FeatureKey[];
+  limits: PlanLimits;
+};
+
+export type Subscription = {
+  id: string;
+  church_id: string;
+  plan_id: string;
+  status: SubscriptionStatus;
+  started_at: number;
+  expires_at: number | null;
+  trial_ends_at: number | null;
+  grace_period_ends_at: number | null;
+  source: string;
+  updated_at: number;
+};
+
 export const USER_CLASS_LABELS: Record<string, string> = {
   SONOPLASTA: "Sonoplasta",
   REGENTE: "Regente",
