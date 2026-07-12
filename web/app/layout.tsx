@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 import { IosInstallHint } from "@/components/IosInstallHint";
+import { ParallaxStarfield } from "@/components/ParallaxStarfield";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -53,13 +54,14 @@ export default function RootLayout({
       lang="pt-BR"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground">
+      <body className="isolate min-h-full flex flex-col bg-background text-foreground">
+        <ParallaxStarfield />
         <RegisterServiceWorker />
         <header
           className="border-b border-divider bg-surface"
           style={{ paddingTop: "env(safe-area-inset-top)" }}
         >
-          <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
+          <div className="mx-auto flex max-w-[1400px] items-center justify-between px-5 py-4">
             <Link href="/" className="text-lg font-semibold text-primary">
               Escala Church
             </Link>
@@ -73,7 +75,7 @@ export default function RootLayout({
             </nav>
           </div>
         </header>
-        <main className="flex-1 mx-auto w-full max-w-6xl px-5 py-8">{children}</main>
+        <main className="flex-1 mx-auto w-full max-w-[1400px] px-5 py-8">{children}</main>
         <footer className="border-t border-divider py-6 text-center text-xs text-text-secondary">
           Escala Church
         </footer>

@@ -47,7 +47,7 @@ export default async function AdminDashboardPage() {
   return (
     <div>
       <h1 className="text-2xl font-semibold mb-6">Painel administrativo</h1>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {cards.map((card) => (
           <CardLink key={card.href} href={card.href} className="p-5 flex items-center gap-4">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-container text-on-primary-container">
