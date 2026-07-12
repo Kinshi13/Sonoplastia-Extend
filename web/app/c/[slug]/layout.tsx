@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { getChurchBySlug } from "@/lib/church";
+import { ChurchNav } from "@/components/ChurchNav";
 
 export default async function ChurchLayout({
   children,
@@ -36,15 +36,9 @@ export default async function ChurchLayout({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-divider pb-4">
+      <div className="sticky top-0 z-10 -mx-5 flex flex-col gap-3 border-b border-divider bg-background/95 px-5 pb-4 pt-2 backdrop-blur-sm sm:static sm:mx-0 sm:flex-row sm:items-center sm:justify-between sm:px-0 sm:pt-0">
         <h1 className="text-lg font-semibold text-primary">{church.name}</h1>
-        <nav className="flex flex-wrap gap-4 text-sm">
-          {navLinks.map((link) => (
-            <Link key={link.href} href={link.href} className="text-foreground/80 hover:text-primary transition-colors">
-              {link.label}
-            </Link>
-          ))}
-        </nav>
+        <ChurchNav links={navLinks} />
       </div>
       {children}
     </div>

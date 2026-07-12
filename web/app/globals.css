@@ -1,57 +1,10 @@
 @import "tailwindcss";
 
-:root {
-  --background: #f7f9fc;
-  --foreground: #17233d;
-  --surface: #ffffff;
-  --primary: #3b7ddd;
-  --primary-container: #dcebff;
-  --on-primary-container: #1e3a8a;
-  --text-secondary: #64748b;
-  --divider: #e2e8f0;
-  --error: #dc2626;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-surface: var(--surface);
-  --color-primary: var(--primary);
-  --color-primary-container: var(--primary-container);
-  --color-on-primary-container: var(--on-primary-container);
-  --color-text-secondary: var(--text-secondary);
-  --color-divider: var(--divider);
-  --color-error: var(--error);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0f1626;
-    --foreground: #f1f5f9;
-    --surface: #17223b;
-    --primary: #a9cbff;
-    --primary-container: #3e5b99;
-    --on-primary-container: #ffffff;
-    --text-secondary: #a9b6cc;
-    --divider: #2a3a5c;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
-}
-
 /*
- * "Constellation Calm" - Fase 4 design tokens (Master Plan). Namespaced under --cc-* on purpose:
- * nothing above this comment reads these yet, so shipping this file changes zero pixels. The web
- * mobile redesign phase adopts them screen by screen, mirroring
- * app/src/main/java/com/escalachurch/app/ui/theme/ConstellationTokens.kt role-for-role (void,
- * nebula, starlight, stardust, horizon, polaris, aurora, comet, nova) so both platforms read from
- * the same astral/stellar, minimalist-premium vocabulary instead of drifting apart.
+ * "Constellation Calm" tokens (Fase 4 of the Master Plan) - defined first so the active theme
+ * below can read from them directly instead of duplicating hex literals. Same role names as
+ * app/src/main/java/com/escalachurch/app/ui/theme/ConstellationTokens.kt (void, nebula,
+ * starlight, stardust, horizon, polaris, aurora, comet, nova), so both platforms stay one system.
  */
 :root {
   --cc-void: #f6f7fc;
@@ -94,4 +47,43 @@ body {
     --cc-comet: #c98a2c;
     --cc-nova: #e5657a;
   }
+}
+
+/*
+ * Fase 8 (Master Plan): the site's active palette now reads from the Constellation Calm tokens
+ * above instead of the old standalone blue hex values - same re-skin-not-rewrite move as Fase 6
+ * did for Theme.kt on Android. Every component already styles itself through these --color-*
+ * Tailwind tokens (bg-background, text-foreground, border-divider, ...), so this one file change
+ * recolors the whole site, admin and public pages alike.
+ */
+:root {
+  --background: var(--cc-void);
+  --foreground: var(--cc-starlight);
+  --surface: var(--cc-nebula);
+  --primary: var(--cc-polaris);
+  --primary-container: var(--cc-polaris-soft);
+  --on-primary-container: var(--cc-starlight);
+  --text-secondary: var(--cc-stardust);
+  --divider: var(--cc-horizon);
+  --error: var(--cc-nova);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-primary: var(--primary);
+  --color-primary-container: var(--primary-container);
+  --color-on-primary-container: var(--on-primary-container);
+  --color-text-secondary: var(--text-secondary);
+  --color-divider: var(--divider);
+  --color-error: var(--error);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
