@@ -18,9 +18,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
+import kotlin.math.abs
 
 /**
  * Generic horizontal-swipe card carousel used by both the Início (scales) and
@@ -31,6 +34,15 @@ import androidx.compose.ui.unit.dp
  * [sidePadding] insets the pager from the screen edges so the card's rounded
  * corners and shadow always have breathing room and are never clipped by the
  * viewport - without it, a full-bleed page reads as "cut off" at the sides.
+ *
+ * Fase 7 (Android parallax): neighboring pages scale down and fade slightly as they recede from
+ * center, purely as a function of the pager's own live scroll offset - not a timer, not a sensor,
+ * so there is zero cost while idle and nothing to leak in the background (see the battery lesson
+ * from the old background-music player, removed in Fase 6). [reducedMotion] disables the effect
+ * entirely (pages render flat/full-size), same convention as the rest of the app.
+ * [onScrollFractionChanged] exposes that same live offset (in "pages", e.g. 1.35) so a screen can
+ * drive an ambient background layer (see ParallaxStarfield) in sync with the same gesture, without
+ * this component needing to know anything about that background.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -39,7 +51,9 @@ fun <T> CardCarousel(
     initialPage: Int,
     modifier: Modifier = Modifier,
     sidePadding: androidx.compose.ui.unit.Dp = 10.dp,
+    reducedMotion: Boolean = false,
     onPageChanged: (Int) -> Unit = {},
+    onScrollFractionChanged: (Float) -> Unit = {},
     pageContent: @Composable (T) -> Unit
 ) {
     val pagerState = rememberPagerState(initialPage = initialPage.coerceIn(0, (items.size - 1).coerceAtLeast(0))) {
@@ -50,6 +64,12 @@ fun <T> CardCarousel(
         onPageChanged(pagerState.currentPage)
     }
 
+    LaunchedEffect(pagerState, reducedMotion) {
+        if (reducedMotion) return@LaunchedEffect
+        snapshotFlow { pagerState.currentPage + pagerState.currentPageOffsetFraction }
+            .collect { fraction -> onScrollFractionChanged(fraction) }
+    }
+
     Column(modifier = modifier) {
         HorizontalPager(
             state = pagerState,
@@ -57,7 +77,21 @@ fun <T> CardCarousel(
             contentPadding = PaddingValues(horizontal = sidePadding),
             pageSpacing = 16.dp
         ) { page ->
-            pageContent(items[page])
+            val pageModifier = if (reducedMotion) {
+                Modifier
+            } else {
+                Modifier.graphicsLayer {
+                    val distance = abs((pagerState.currentPage + pagerState.currentPageOffsetFraction) - page)
+                        .coerceIn(0f, 1f)
+                    val scale = 1f - distance * 0.08f
+                    scaleX = scale
+                    scaleY = scale
+                    alpha = 1f - distance * 0.35f
+                }
+            }
+            Box(modifier = pageModifier) {
+                pageContent(items[page])
+            }
         }
         PageIndicator(pagerState = pagerState)
     }

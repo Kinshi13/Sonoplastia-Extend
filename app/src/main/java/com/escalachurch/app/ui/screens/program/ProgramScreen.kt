@@ -99,6 +99,7 @@ fun ProgramScreen() {
                     CardCarousel(
                         items = state.events,
                         initialPage = state.startIndex ?: 0,
+                        reducedMotion = !appSettings.animationsEnabled,
                         onPageChanged = { currentPage = it }
                     ) { event ->
                         ProgramCard(event)

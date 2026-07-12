@@ -94,6 +94,7 @@ fun DoxologyScreen() {
                     CardCarousel(
                         items = state.items,
                         initialPage = state.startIndex ?: 0,
+                        reducedMotion = !appSettings.animationsEnabled,
                         onPageChanged = { currentPage = it }
                     ) { item -> DoxologyCard(item, isLive = item.id == state.liveItemId) }
                 }

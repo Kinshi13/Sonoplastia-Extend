@@ -39,11 +39,13 @@ import com.escalachurch.app.domain.model.ScaleItem
 import com.escalachurch.app.ui.components.CardCarousel
 import com.escalachurch.app.ui.components.ChangeNewsDialog
 import com.escalachurch.app.ui.components.EmptyState
+import com.escalachurch.app.ui.components.ParallaxStarfield
 import com.escalachurch.app.ui.components.PrimaryButton
 import com.escalachurch.app.ui.components.PulledUpEntrance
 import com.escalachurch.app.ui.components.ScaleCard
 import com.escalachurch.app.ui.components.SecondaryButton
 import com.escalachurch.app.ui.components.rememberEntranceVisible
+import androidx.compose.runtime.mutableFloatStateOf
 
 @Composable
 fun HomeScreen(
@@ -72,8 +74,10 @@ fun HomeScreen(
 
     var editingTarget by remember { mutableStateOf<EditTarget?>(null) }
     var currentPage by remember { mutableIntStateOf(0) }
+    var carouselScrollFraction by remember { mutableFloatStateOf(0f) }
 
     val cardsVisible = rememberEntranceVisible(appSettings.animationsEnabled)
+    val reducedMotion = !appSettings.animationsEnabled
 
     editingTarget?.let { target ->
         ScaleEditScreen(
@@ -89,7 +93,10 @@ fun HomeScreen(
         return
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        ParallaxStarfield(scrollFraction = carouselScrollFraction, reducedMotion = reducedMotion)
+
+        Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("Próxima Escala", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
             Row {
@@ -137,7 +144,9 @@ fun HomeScreen(
                     CardCarousel(
                         items = state.scales,
                         initialPage = state.startIndex ?: 0,
-                        onPageChanged = { currentPage = it }
+                        reducedMotion = reducedMotion,
+                        onPageChanged = { currentPage = it },
+                        onScrollFractionChanged = { carouselScrollFraction = it }
                     ) { scale ->
                         ScaleCard(
                             scale,
@@ -175,6 +184,7 @@ fun HomeScreen(
                     )
                 }
             }
+        }
         }
     }
 
