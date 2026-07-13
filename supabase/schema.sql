@@ -220,6 +220,10 @@ create table plans (
   sort_order integer not null default 0,
   features jsonb not null default '[]',
   limits jsonb not null default '{}',
+  -- Fase 10: Stripe Price IDs for this plan's recurring billing - null on FREE/FOUNDER (FOUNDER
+  -- keeps its own one-time price via the STRIPE_PRICE_ID env var, unrelated to this table).
+  stripe_price_id_monthly text,
+  stripe_price_id_yearly text,
   created_at bigint not null,
   updated_at bigint not null
 );
@@ -237,6 +241,10 @@ create table subscriptions (
   trial_ends_at bigint,
   grace_period_ends_at bigint,
   source text not null default 'manual',
+  -- Fase 10: resolves subscription.updated/deleted webhook events (which only carry Stripe's own
+  -- IDs) back to a church, and lets the app open a Stripe Billing Portal session for this church.
+  stripe_customer_id text,
+  stripe_subscription_id text,
   updated_at bigint not null
 );
 
@@ -244,6 +252,10 @@ alter table subscriptions enable row level security;
 create policy "subscriptions: public read" on subscriptions for select using (true);
 create policy "subscriptions: admin update" on subscriptions for update
   using (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = subscriptions.church_id));
+
+create unique index subscriptions_stripe_subscription_id_key
+  on subscriptions (stripe_subscription_id)
+  where stripe_subscription_id is not null;
 
 grant select on public.plans, public.subscriptions to anon, authenticated;
 grant update on public.subscriptions to authenticated;

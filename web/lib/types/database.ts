@@ -180,6 +180,8 @@ export type Plan = {
   sort_order: number;
   features: FeatureKey[];
   limits: PlanLimits;
+  stripe_price_id_monthly: string | null;
+  stripe_price_id_yearly: string | null;
 };
 
 export type Subscription = {
@@ -192,6 +194,8 @@ export type Subscription = {
   trial_ends_at: number | null;
   grace_period_ends_at: number | null;
   source: string;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
   updated_at: number;
 };
 
