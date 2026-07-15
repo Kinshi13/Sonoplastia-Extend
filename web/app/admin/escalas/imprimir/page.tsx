@@ -4,7 +4,7 @@ import { getAdminStatus } from "@/lib/supabase/auth";
 import { getEntitlements } from "@/lib/entitlements";
 import { Scale } from "@/lib/types/database";
 import { formatDatePt, formatTimePt } from "@/lib/format";
-import { constellationForDay, constellationLabel } from "@/components/celestial/DayConstellation";
+import { constellationForDay, constellationLabel, ConstellationKind } from "@/components/celestial/DayConstellation";
 import { PrintTrigger } from "./PrintTrigger";
 
 export const revalidate = 0;
@@ -17,19 +17,30 @@ const ROLE_FIELDS: { key: keyof Scale; label: string }[] = [
   { key: "musical_message_person", label: "Mensagem musical" },
 ];
 
+// Fase 11.8 (Parte 19): print/PDF-mode accent per constellation - visible ink only in "celestial"
+// mode; "economic" always renders pure black/gray regardless of this map.
+const KIND_ACCENT: Record<ConstellationKind, string> = {
+  BEACON: "#4A5FE0",
+  CROWN: "#C98A2C",
+  DAWN: "#7C5CE0",
+  PILGRIM: "#8B6CF0",
+};
+
 /**
- * Fase 11.7 (Parte 10, "impressão"): a dedicated print-optimized route instead of a print
- * stylesheet bolted onto the interactive admin list - the browser's own "Salvar como PDF" in the
- * print dialog is the PDF path for this phase (see export-actions.ts's comment on why a
- * dedicated PDF-generation library wasn't added blind). Constellations appear only as a discrete
- * watermark, per Parte 21 - the weekday text is always the real label.
+ * Fase 11.7/11.8 (Parte 10/19, "impressão"/PDF): a dedicated print-optimized route - the
+ * browser's own "Salvar como PDF" in the print dialog is the PDF path for this phase (see
+ * export-actions.ts for why a dedicated PDF-generation library wasn't added blind). Two themes:
+ * "celestial" keeps the day-accent colors and constellation labels for digital sharing;
+ * "economic" (Parte 19) strips color entirely for low-ink printing, keeping only the same
+ * structure and the constellation name as a plain-text watermark label.
  */
 export default async function PrintGeneralScalePage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{ month?: string; theme?: string }>;
 }) {
-  const { month } = await searchParams;
+  const { month, theme } = await searchParams;
+  const isEconomic = theme === "economic";
   const { isAdmin, churchId } = await getAdminStatus();
   if (!isAdmin || !churchId) redirect("/login");
 
@@ -69,7 +80,9 @@ export default async function PrintGeneralScalePage({
       <header className="flex items-center justify-between border-b border-black/20 pb-4 mb-6">
         <div>
           <h1 className="text-2xl font-semibold">{church?.name ?? "Escala Church"}</h1>
-          <p className="text-sm text-black/60">Escala Geral{month ? ` · ${month}` : ""}</p>
+          <p className="text-sm text-black/60">
+            Escala Geral{month ? ` · ${month}` : ""} · {isEconomic ? "Modo econômico" : "Celestial"}
+          </p>
         </div>
         <p className="text-xs text-black/50">Gerado em {new Date().toLocaleString("pt-BR")}</p>
       </header>
@@ -77,10 +90,17 @@ export default async function PrintGeneralScalePage({
       <div className="flex flex-col gap-4">
         {items.map((scale) => {
           const kind = constellationForDay(new Date(`${scale.date}T00:00:00`).getDay(), scale.is_special_event);
+          const accent = isEconomic ? "#000000" : KIND_ACCENT[kind];
           const roles = ROLE_FIELDS.filter(({ key }) => typeof scale[key] === "string" && (scale[key] as string).trim());
           return (
-            <div key={scale.id} className="relative overflow-hidden rounded-lg border border-black/15 p-4 break-inside-avoid">
-              <p className="text-[10px] uppercase tracking-wider text-black/40">{constellationLabel(kind)}</p>
+            <div
+              key={scale.id}
+              className="relative overflow-hidden rounded-lg border p-4 break-inside-avoid"
+              style={{ borderColor: isEconomic ? "rgba(0,0,0,0.25)" : `${accent}55` }}
+            >
+              <p className="text-[10px] uppercase tracking-wider" style={{ color: isEconomic ? "rgba(0,0,0,0.5)" : accent }}>
+                {constellationLabel(kind)}
+              </p>
               <p className="font-semibold">{scale.title}</p>
               <p className="text-sm text-black/60 capitalize">
                 {formatDatePt(scale.date)} às {formatTimePt(scale.start_time)}
@@ -103,6 +123,10 @@ export default async function PrintGeneralScalePage({
         })}
         {items.length === 0 && <p className="text-sm text-black/50">Nenhuma escala para o período selecionado.</p>}
       </div>
+
+      <footer className="mt-8 border-t border-black/10 pt-3 text-center text-[10px] text-black/35">
+        Gerado pelo Escala Church · Legenda: Farol = quarta, Coroa = sábado, Aurora = domingo, Peregrina = especial
+      </footer>
     </div>
   );
 }

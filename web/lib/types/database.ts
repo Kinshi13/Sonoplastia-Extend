@@ -163,7 +163,12 @@ export type FeatureKey =
   | "EXPORT_SCALE_PDF"
   | "EXPORT_SCALE_IMAGE"
   | "EXPORT_SCALE_CSV"
-  | "PUBLIC_READONLY_LINK";
+  | "PUBLIC_READONLY_LINK"
+  // Fase 11.8 (Parte 25) - reserved, not wired to any UI yet (see the phase report).
+  | "EXPORT_DOXOLOGY"
+  | "EXPORT_PRINT"
+  | "EXPORT_CUSTOM_BRANDING"
+  | "EXPORT_STORY_FORMAT";
 
 export type PlanLimits = {
   maxAdmins: number | null;

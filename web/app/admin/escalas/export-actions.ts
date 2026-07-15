@@ -7,6 +7,7 @@ import { Scale } from "@/lib/types/database";
 import { formatTimePt } from "@/lib/format";
 
 export type ExportResult = { csv?: string; filename?: string; error?: string };
+export type ScaleForExportResult = { scale?: Scale; error?: string };
 
 const ROLE_COLUMNS: { key: keyof Scale; label: string }[] = [
   { key: "reception_person", label: "Recepção" },
@@ -79,6 +80,48 @@ function nextMonthIso(month: string): string {
   const [y, m] = month.split("-").map(Number);
   const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
   return `${next}-01`;
+}
+
+/**
+ * Fase 11.8 (Parte 20): fetches the next upcoming scale for the PNG share-card export, gated by
+ * EXPORT_SCALE_IMAGE specifically (separate from CSV/print's keys, per Parte 25's "granular
+ * FeatureKeys"). The actual PNG drawing happens client-side (see export-png.ts) since it's a
+ * canvas render, not something a server action can return as a file directly - this action's job
+ * is just to authorize the request and hand back the data to draw, plus log the audit entry.
+ */
+export async function getNextScaleForExportAction(): Promise<ScaleForExportResult> {
+  const { user, isAdmin, churchId } = await getAdminStatus();
+  if (!user || !isAdmin || !churchId) return { error: "Apenas administradores podem exportar a escala." };
+
+  const entitlements = await getEntitlements(churchId);
+  if (!entitlements.features.has("EXPORT_SCALE_IMAGE")) {
+    return { error: "Exportar como imagem faz parte de um plano superior. Veja Planos e recursos." };
+  }
+
+  const supabase = await createClient();
+  const today = new Date().toISOString().slice(0, 10);
+  const { data, error } = await supabase
+    .from("scales")
+    .select("*")
+    .eq("church_id", churchId)
+    .gte("date", today)
+    .order("date", { ascending: true })
+    .order("start_time", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (error) return { error: error.message };
+  if (!data) return { error: "Nenhuma escala futura para exportar." };
+
+  await supabase.from("export_audit_log").insert({
+    church_id: churchId,
+    user_id: user.id,
+    format: "image",
+    period: "next",
+    filters: {},
+    created_at: Date.now(),
+  });
+
+  return { scale: data as Scale };
 }
 
 /** Used by the print view to confirm access + log the export before rendering (Parte 11: the

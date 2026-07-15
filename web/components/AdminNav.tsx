@@ -16,61 +16,43 @@ const adminLinks: { href: string; label: string; icon: LucideIcon }[] = [
 ];
 
 /**
- * Fase 11.5 (Etapa 6): the admin area used to share the same flat top-nav-row treatment as the
- * public site. A back office reads as more professional with a persistent rail instead of a row
- * that just wraps onto a second line as items grow - this renders as a sticky sidebar on desktop
- * (lg+) and collapses to the same horizontal pill-scroll pattern as the public ChurchNav on
- * mobile, so neither surface fights for the same treatment.
+ * Fase 11.5 (Etapa 6) / Fase 11.8 (Parte 3): desktop-only persistent sidebar - Stella Core stays
+ * a floating contextual núcleo on desktop (see AdminStellaCore), per the Master Plan's explicit
+ * allowance that it "pode ficar integrada à sidebar... ou como núcleo contextual flutuante" and
+ * doesn't have to sit centered at the bottom like the mobile dock. Mobile no longer uses this
+ * component at all - see AdminStellaDock, which replaces both this pill row and the standalone
+ * floating star with one bottom dock.
  */
 export function AdminNav({ planName }: { planName?: string }) {
   const pathname = usePathname();
 
   return (
-    <>
-      <nav className="hidden lg:flex lg:sticky lg:top-24 lg:h-fit lg:w-56 lg:shrink-0 lg:flex-col lg:gap-1">
-        {planName && (
-          <div className="mb-3 flex items-center gap-2 rounded-[var(--radius-md)] border border-border-soft bg-surface px-3 py-2 text-xs">
-            <span className="text-accent-star" aria-hidden="true">✦</span>
-            <span className="text-text-secondary">Plano</span>
-            <span className="ml-auto font-medium text-foreground">{planName}</span>
-          </div>
-        )}
-        {adminLinks.map((link) => {
-          const active = pathname === link.href;
-          const Icon = link.icon;
-          return (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`flex items-center gap-3 rounded-[var(--radius-md)] px-3 py-2.5 text-sm font-medium transition-colors ${
-                active
-                  ? "bg-primary-container text-on-primary-container"
-                  : "text-foreground/75 hover:bg-surface hover:text-foreground"
-              }`}
-            >
-              <Icon size={17} className="shrink-0" />
-              {link.label}
-            </Link>
-          );
-        })}
-      </nav>
-
-      <nav className="lg:hidden -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {adminLinks.map((link) => {
-          const active = pathname === link.href;
-          return (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                active ? "bg-primary text-white" : "bg-primary-container/40 text-foreground/80 hover:text-primary"
-              }`}
-            >
-              {link.label}
-            </Link>
-          );
-        })}
-      </nav>
-    </>
+    <nav className="hidden lg:flex lg:sticky lg:top-24 lg:h-fit lg:w-56 lg:shrink-0 lg:flex-col lg:gap-1">
+      {planName && (
+        <div className="mb-3 flex items-center gap-2 rounded-[var(--radius-md)] border border-border-soft bg-surface px-3 py-2 text-xs">
+          <span className="text-accent-star" aria-hidden="true">✦</span>
+          <span className="text-text-secondary">Plano</span>
+          <span className="ml-auto font-medium text-foreground">{planName}</span>
+        </div>
+      )}
+      {adminLinks.map((link) => {
+        const active = pathname === link.href;
+        const Icon = link.icon;
+        return (
+          <Link
+            key={link.href}
+            href={link.href}
+            className={`flex items-center gap-3 rounded-[var(--radius-md)] px-3 py-2.5 text-sm font-medium transition-colors ${
+              active
+                ? "bg-primary-container text-on-primary-container"
+                : "text-foreground/75 hover:bg-surface hover:text-foreground"
+            }`}
+          >
+            <Icon size={17} className="shrink-0" />
+            {link.label}
+          </Link>
+        );
+      })}
+    </nav>
   );
 }

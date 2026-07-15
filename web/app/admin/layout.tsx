@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getAdminStatus } from "@/lib/supabase/auth";
 import { getEntitlements } from "@/lib/entitlements";
 import { AdminStellaCore } from "@/components/AdminStellaCore";
+import { AdminStellaDock } from "@/components/AdminStellaDock";
 import { AdminNav } from "@/components/AdminNav";
 import { signOutAction } from "./actions";
 
@@ -25,7 +26,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const hasAdvancedMedia = entitlements?.features.has("ADVANCED_MEDIA") ?? false;
 
   return (
-    <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
+    <div className="flex flex-col gap-6 pb-28 lg:flex-row lg:items-start lg:gap-8 lg:pb-6">
       <AdminNav planName={entitlements?.planName} />
 
       <div className="flex min-w-0 flex-1 flex-col gap-6">
@@ -42,7 +43,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </div>
         {children}
       </div>
-      <AdminStellaCore hasAdvancedMedia={hasAdvancedMedia} />
+
+      {/* Fase 11.8 (Parte 3): floating núcleo on desktop (sidebar already carries the nav job
+          there), full dock replacing both the pill row and the lone star on mobile. */}
+      <div className="hidden lg:block">
+        <AdminStellaCore hasAdvancedMedia={hasAdvancedMedia} />
+      </div>
+      <div className="lg:hidden">
+        <AdminStellaDock hasAdvancedMedia={hasAdvancedMedia} />
+      </div>
     </div>
   );
 }

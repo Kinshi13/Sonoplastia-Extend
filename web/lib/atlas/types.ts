@@ -105,3 +105,15 @@ export const ATLAS_API_CONTRACTS = [
   "GET /api/v1/atlas/organizations/{id}/changes",
   "GET /api/v1/atlas/organizations/{id}/summary",
 ] as const;
+
+// Fase 11.8 (Parte 29) - the Celestial Card System's own vocabulary, documented so a future Atlas
+// (or any other future Stella surface) can request "a card" and get back something built from the
+// same closed set of variants/identities/themes this app already renders, instead of guessing at
+// a layout. Mirrors the names already used in code: components/celestial/CelestialCard.tsx
+// (CardVariant), components/celestial/DayConstellation.tsx (DayIdentity/ConstellationType), and
+// export-actions.ts/export-png.ts (ExportPreset).
+export type CardVariant = "hero" | "scale" | "compact" | "doxology" | "announcement" | "export" | "share" | "print";
+export type DayIdentity = "WEDNESDAY" | "SATURDAY" | "SUNDAY" | "SPECIAL";
+export type ConstellationType = "BEACON" | "CROWN" | "DAWN" | "PILGRIM";
+export type ThemeVariant = "celestial" | "economic";
+export type ExportPreset = "pdf_monthly" | "print" | "png_card_4x5" | "png_story_9x16" | "png_landscape_16x9" | "csv";

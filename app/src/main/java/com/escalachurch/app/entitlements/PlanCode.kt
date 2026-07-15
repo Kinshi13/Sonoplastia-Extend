@@ -68,5 +68,11 @@ enum class FeatureKey {
     EXPORT_SCALE_PDF,
     EXPORT_SCALE_IMAGE,
     EXPORT_SCALE_CSV,
-    PUBLIC_READONLY_LINK
+    PUBLIC_READONLY_LINK,
+
+    // Fase 11.8 (web Parte 25) - reserved, not wired to any UI yet on either platform.
+    EXPORT_DOXOLOGY,
+    EXPORT_PRINT,
+    EXPORT_CUSTOM_BRANDING,
+    EXPORT_STORY_FORMAT
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LucideIcon, Lock } from "lucide-react";
 
 export type StellaCoreAction = {
@@ -17,9 +17,28 @@ export type StellaCoreAction = {
  * lines connecting them, instead of a generic FAB "+" or a dropdown menu. Screens hand it their
  * own small action list (see getStellaCoreActions below); this component only knows how to lay
  * them out and animate.
+ *
+ * Fase 11.8 (Parte 9): Escape closes the menu and returns focus to the trigger; the first action
+ * receives focus on open so keyboard users don't have to tab past the backdrop.
  */
-export function StellaCore({ actions }: { actions: StellaCoreAction[] }) {
+export function StellaCore({ actions, embedded = false }: { actions: StellaCoreAction[]; embedded?: boolean }) {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const firstActionRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    firstActionRef.current?.focus();
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open]);
+
   if (actions.length === 0) return null;
 
   const spread = Math.min(150, 34 + actions.length * 24);
@@ -28,7 +47,7 @@ export function StellaCore({ actions }: { actions: StellaCoreAction[] }) {
   const radius = 108;
 
   return (
-    <div className="fixed inset-x-0 bottom-6 z-40 flex justify-center pointer-events-none">
+    <div className={embedded ? "relative flex justify-center pointer-events-none" : "fixed inset-x-0 bottom-6 z-40 flex justify-center pointer-events-none"}>
       <div className="relative pointer-events-auto">
         {open && (
           <>
@@ -74,6 +93,8 @@ export function StellaCore({ actions }: { actions: StellaCoreAction[] }) {
               return (
                 <button
                   key={action.id}
+                  ref={i === 0 ? firstActionRef : undefined}
+                  role="menuitem"
                   onClick={() => {
                     setOpen(false);
                     action.onClick();
@@ -115,8 +136,11 @@ export function StellaCore({ actions }: { actions: StellaCoreAction[] }) {
         )}
 
         <button
+          ref={triggerRef}
           onClick={() => setOpen((v) => !v)}
           aria-label={open ? "Fechar menu de ações" : "Abrir menu de ações (Stella Core)"}
+          aria-haspopup="menu"
+          aria-expanded={open}
           className="relative flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-transform active:scale-90"
           style={{ background: "var(--cc-nebula)", border: "1px solid var(--cc-horizon)" }}
         >

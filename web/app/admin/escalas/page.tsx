@@ -9,7 +9,7 @@ import { CelestialAdminCard, CelestialDayBadge } from "@/components/celestial/Ce
 import { constellationForDay, constellationLabel } from "@/components/celestial/DayConstellation";
 import { DeleteButton } from "../DeleteButton";
 import { deleteScaleAction } from "../actions";
-import { ExportScaleDialog } from "./ExportScaleDialog";
+import { ExportStudio } from "./ExportStudio";
 
 export const revalidate = 0;
 
@@ -28,7 +28,7 @@ export default async function AdminEscalasPage() {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="font-display text-2xl">Escalas</h1>
         <div className="flex items-center gap-2">
-          <ExportScaleDialog />
+          <ExportStudio />
           <Link
             href="/admin/escalas/nova"
             className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-white"
