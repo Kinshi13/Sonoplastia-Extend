@@ -6,6 +6,8 @@ import { Scale } from "@/lib/types/database";
 import { formatDatePt, formatTimePt } from "@/lib/format";
 import { Card } from "@/components/Card";
 import { EmptyState } from "@/components/EmptyState";
+import { CelestialHeroCard, CelestialCompactCard, CelestialDayBadge } from "@/components/celestial/CelestialCard";
+import { constellationForDay, constellationLabel } from "@/components/celestial/DayConstellation";
 
 export const revalidate = 0;
 
@@ -16,6 +18,10 @@ const ROLE_FIELDS: { key: keyof Scale; label: string; icon: typeof Mic2 }[] = [
   { key: "preaching_person", label: "Pregação", icon: BookOpen },
   { key: "reception_person", label: "Recepção", icon: Users },
 ];
+
+function dayKindFor(scale: Scale) {
+  return constellationForDay(new Date(`${scale.date}T00:00:00`).getDay(), scale.is_special_event);
+}
 
 export default async function ChurchHomePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -42,7 +48,7 @@ export default async function ChurchHomePage({ params }: { params: Promise<{ slu
         <Hero church={church.name} next={next} upcomingCount={items.length} />
       ) : (
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Próximas Escalas</h2>
+          <h2 className="font-display text-3xl tracking-tight">Próximas Escalas</h2>
           <p className="mt-1 text-sm text-text-secondary">Quem está escalado nos próximos cultos e eventos.</p>
         </div>
       )}
@@ -51,7 +57,7 @@ export default async function ChurchHomePage({ params }: { params: Promise<{ slu
         <EmptyState message="Nenhuma escala futura cadastrada." />
       ) : rest.length > 0 ? (
         <div className="flex flex-col gap-4">
-          <h3 className="text-lg font-semibold text-foreground/90">Depois dessa</h3>
+          <h3 className="font-display text-lg text-foreground/90">Depois dessa</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
             {rest.map((scale) => (
               <ScaleCard key={scale.id} scale={scale} />
@@ -64,31 +70,27 @@ export default async function ChurchHomePage({ params }: { params: Promise<{ slu
 }
 
 /**
- * Fase 11.5 (Etapa 5): the site's Home used to open directly on a grid of same-weight cards - a
- * functional list, not a product's front door. The very next scale now gets its own hero: a
- * two-column composition on desktop (the scale itself + a small "at a glance" panel), collapsing
- * to one column on mobile without losing the highlight treatment.
+ * Fase 11.7 (Parte 8): the hero now carries the day's own constellation identity - Coroa for
+ * sábado gets the "solene" cut-corner treatment automatically (CelestialHeroCard maps CROWN to
+ * `solemn`), a title set in fontDisplay, and the constellation watermarked low-opacity in the
+ * background instead of a generic radial blob.
  */
 function Hero({ church, next, upcomingCount }: { church: string; next: Scale; upcomingCount: number }) {
   const roles = ROLE_FIELDS.filter(({ key }) => {
     const value = next[key];
     return typeof value === "string" && value.trim().length > 0;
   });
+  const kind = dayKindFor(next);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-5">
-      <Card className="relative overflow-hidden p-7 sm:p-9 [box-shadow:var(--elevation-floating)]">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full opacity-40 blur-2xl"
-          style={{ background: "radial-gradient(circle, var(--accent-constellation), transparent 70%)" }}
-        />
-        <div className="relative flex flex-col gap-5">
-          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-accent-constellation">
-            <span aria-hidden="true">✦</span> Próxima escala em {church}
+      <CelestialHeroCard kind={kind} className="p-7 sm:p-9">
+        <div className="flex flex-col gap-5">
+          <div className="flex items-center justify-between gap-3">
+            <CelestialDayBadge kind={kind} label={`${constellationLabel(kind)} · ${church}`} />
           </div>
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-balance">{next.title}</h1>
+            <h1 className="font-display text-3xl sm:text-4xl tracking-tight text-balance">{next.title}</h1>
             {next.is_special_event && (
               <span className="flex items-center gap-1 shrink-0 rounded-full bg-primary-container px-3 py-1 text-xs font-medium text-on-primary-container">
                 <Sparkles size={12} /> Especial
@@ -122,7 +124,7 @@ function Hero({ church, next, upcomingCount }: { church: string; next: Scale; up
             <p className="text-sm text-text-secondary italic border-t border-border-soft pt-4">{next.notes}</p>
           )}
         </div>
-      </Card>
+      </CelestialHeroCard>
 
       <div className="flex flex-col gap-5">
         <Card className="p-6 flex items-center gap-4">
@@ -153,13 +155,15 @@ function ScaleCard({ scale }: { scale: Scale }) {
     const value = scale[key];
     return typeof value === "string" && value.trim().length > 0;
   });
+  const kind = dayKindFor(scale);
 
   return (
-    <Card className="p-6 flex flex-col gap-4">
+    <CelestialCompactCard kind={kind} className="p-6 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-3">
-        <div>
+        <div className="flex flex-col gap-1.5">
+          <CelestialDayBadge kind={kind} label={constellationLabel(kind)} />
           <h3 className="text-lg font-semibold leading-tight">{scale.title}</h3>
-          <p className="mt-1 flex items-center gap-1.5 text-sm text-text-secondary capitalize">
+          <p className="flex items-center gap-1.5 text-sm text-text-secondary capitalize">
             <Calendar size={14} className="shrink-0" />
             {formatDatePt(scale.date)} às {formatTimePt(scale.start_time)}
             {scale.end_time ? ` - ${formatTimePt(scale.end_time)}` : ""}
@@ -194,6 +198,6 @@ function ScaleCard({ scale }: { scale: Scale }) {
           {scale.notes}
         </p>
       )}
-    </Card>
+    </CelestialCompactCard>
   );
 }

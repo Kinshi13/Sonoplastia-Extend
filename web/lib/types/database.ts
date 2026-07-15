@@ -154,7 +154,16 @@ export type FeatureKey =
   | "ORGANIZATION_BRANDING"
   | "ADVANCED_MEDIA"
   | "PRIORITY_SYNC"
-  | "AUTOMATIONS";
+  | "AUTOMATIONS"
+  // Fase 11.7 (Parte 10): granular export permissions for the Escala Geral export center.
+  // EXPORT_SCALE_PDF/EXPORT_SCALE_IMAGE/PUBLIC_READONLY_LINK are reserved (in the plan catalog,
+  // gated by FeatureGate wherever they're checked) but have no shipped feature behind them yet -
+  // only EXPORT_GENERAL_SCALE (the export flow itself) and EXPORT_SCALE_CSV are wired to real UI.
+  | "EXPORT_GENERAL_SCALE"
+  | "EXPORT_SCALE_PDF"
+  | "EXPORT_SCALE_IMAGE"
+  | "EXPORT_SCALE_CSV"
+  | "PUBLIC_READONLY_LINK";
 
 export type PlanLimits = {
   maxAdmins: number | null;

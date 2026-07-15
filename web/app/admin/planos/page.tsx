@@ -1,9 +1,9 @@
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Satellite } from "lucide-react";
 import { getAdminStatus } from "@/lib/supabase/auth";
 import { getEntitlements, getPlanCatalog } from "@/lib/entitlements";
 import { createClient } from "@/lib/supabase/server";
 import { Subscription } from "@/lib/types/database";
-import { Card } from "@/components/Card";
+import { CelestialPlanCard } from "@/components/celestial/CelestialCard";
 import { PlanActionButtons } from "./PlanActionButtons";
 
 export const revalidate = 0;
@@ -46,6 +46,11 @@ const FEATURE_LABELS: Record<string, string> = {
   ADVANCED_MEDIA: "Mídia avançada",
   PRIORITY_SYNC: "Sincronização prioritária",
   AUTOMATIONS: "Automações",
+  EXPORT_GENERAL_SCALE: "Exportar Escala Geral",
+  EXPORT_SCALE_CSV: "Exportar em CSV",
+  EXPORT_SCALE_PDF: "Exportar em PDF",
+  EXPORT_SCALE_IMAGE: "Exportar como imagem",
+  PUBLIC_READONLY_LINK: "Link público somente leitura",
 };
 
 export default async function PlanosPage({
@@ -83,7 +88,7 @@ export default async function PlanosPage({
       )}
 
       <div>
-        <h1 className="text-2xl font-semibold">Planos e recursos</h1>
+        <h1 className="font-display text-2xl">Planos e recursos</h1>
         {current && (
           <p className="mt-1 text-sm text-text-secondary">
             Plano atual da igreja: <span className="font-medium text-foreground">{current.planName}</span>
@@ -102,9 +107,10 @@ export default async function PlanosPage({
           const isCurrent = current?.planCode === plan.code;
           const isFree = plan.code === "FREE";
           return (
-            <Card
+            <CelestialPlanCard
               key={plan.id}
-              className={`p-5 flex flex-col gap-3 ${isCurrent ? "border-primary/50 shadow-md" : ""}`}
+              glow={isCurrent ? "active" : "hover"}
+              className={`p-5 flex flex-col gap-3`}
             >
               <div className="flex items-center justify-between gap-2">
                 <h2 className="text-lg font-semibold">{plan.name}</h2>
@@ -139,9 +145,36 @@ export default async function PlanosPage({
                   hasYearly={!!plan.stripe_price_id_yearly}
                 />
               )}
-            </Card>
+            </CelestialPlanCard>
           );
         })}
+      </div>
+
+      <IntegracoesStellaPanel />
+    </div>
+  );
+}
+
+/**
+ * Fase 11.7 (Parte 19): a settings area for a future Stella Atlas connection - informational
+ * only, no working "conectar" button (the spec is explicit: "não exibir botão funcional falso").
+ * Wiring it for real is Parte 14-18's job, once an Atlas actually exists to connect to.
+ */
+function IntegracoesStellaPanel() {
+  return (
+    <div className="rounded-[var(--radius-lg)] border border-dashed border-border-soft p-6 flex items-start gap-4">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-primary-container text-on-primary-container">
+        <Satellite size={18} />
+      </span>
+      <div>
+        <h2 className="font-display text-base">Integrações Stella</h2>
+        <p className="mt-1 text-sm text-text-secondary">
+          Stella Atlas · <span className="font-medium text-foreground">Preparado para integração futura</span>
+        </p>
+        <p className="mt-2 text-xs text-text-muted max-w-md">
+          Quando o Stella Atlas estiver disponível, esta área vai mostrar status de sincronização,
+          permissões compartilhadas e a opção de conectar ou desconectar esta organização.
+        </p>
       </div>
     </div>
   );

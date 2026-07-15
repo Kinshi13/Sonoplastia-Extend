@@ -58,5 +58,15 @@ enum class FeatureKey {
     ORGANIZATION_BRANDING,
     ADVANCED_MEDIA,
     PRIORITY_SYNC,
-    AUTOMATIONS
+    AUTOMATIONS,
+
+    // Fase 11.7 (web Etapa 10) - the export center lives on the web admin panel only for now
+    // (Android has no Escala Geral export flow), but the keys are mirrored here so the plan
+    // catalog's `features` list stays one closed enum shared by both platforms, not two drifting
+    // ones. EXPORT_SCALE_PDF/EXPORT_SCALE_IMAGE/PUBLIC_READONLY_LINK are reserved, unused so far.
+    EXPORT_GENERAL_SCALE,
+    EXPORT_SCALE_PDF,
+    EXPORT_SCALE_IMAGE,
+    EXPORT_SCALE_CSV,
+    PUBLIC_READONLY_LINK
 }

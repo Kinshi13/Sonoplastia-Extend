@@ -268,21 +268,56 @@ insert into plans (code, name, description, monthly_price_cents, yearly_price_ce
     '{"maxAdmins":1,"maxPersonalEvents":10,"maxPersonalCards":5,"historyMonths":1,"maxAnnouncements":null,"maxMediaStorageMb":100,"maxOrganizations":1}',
     extract(epoch from now()) * 1000, extract(epoch from now()) * 1000),
   ('ESSENTIAL', 'Essencial', 'Mais histórico, personalização e exportação.', 1490, 14900, 'BRL', 'recurring', true, true, 1,
-    '["VIEW_OFFICIAL_SCALE","VIEW_DOXOLOGY","VIEW_ANNOUNCEMENTS","VIEW_CALENDAR","CLASS_HIGHLIGHTS","PERSONAL_EVENTS","PERSONAL_CARDS","EXTENDED_HISTORY","ADVANCED_NOTIFICATIONS","CUSTOM_FONTS","CUSTOM_THEMES","EXPORT"]',
+    '["VIEW_OFFICIAL_SCALE","VIEW_DOXOLOGY","VIEW_ANNOUNCEMENTS","VIEW_CALENDAR","CLASS_HIGHLIGHTS","PERSONAL_EVENTS","PERSONAL_CARDS","EXTENDED_HISTORY","ADVANCED_NOTIFICATIONS","CUSTOM_FONTS","CUSTOM_THEMES","EXPORT","EXPORT_GENERAL_SCALE","EXPORT_SCALE_CSV"]',
     '{"maxAdmins":2,"maxPersonalEvents":50,"maxPersonalCards":30,"historyMonths":6,"maxAnnouncements":null,"maxMediaStorageMb":1000,"maxOrganizations":1}',
     extract(epoch from now()) * 1000, extract(epoch from now()) * 1000),
   ('PRO', 'Pro', 'Administração avançada, relatórios e mídia sem limites apertados.', 2990, 29900, 'BRL', 'recurring', true, true, 2,
-    '["VIEW_OFFICIAL_SCALE","VIEW_DOXOLOGY","VIEW_ANNOUNCEMENTS","VIEW_CALENDAR","CLASS_HIGHLIGHTS","PERSONAL_EVENTS","PERSONAL_CARDS","EXTENDED_HISTORY","ADVANCED_NOTIFICATIONS","CUSTOM_FONTS","CUSTOM_THEMES","EXPORT","ADVANCED_ADMIN","PREMIUM_FONTS","PREMIUM_THEMES","REPORTS","ADVANCED_MEDIA","PRIORITY_SYNC"]',
+    '["VIEW_OFFICIAL_SCALE","VIEW_DOXOLOGY","VIEW_ANNOUNCEMENTS","VIEW_CALENDAR","CLASS_HIGHLIGHTS","PERSONAL_EVENTS","PERSONAL_CARDS","EXTENDED_HISTORY","ADVANCED_NOTIFICATIONS","CUSTOM_FONTS","CUSTOM_THEMES","EXPORT","ADVANCED_ADMIN","PREMIUM_FONTS","PREMIUM_THEMES","REPORTS","ADVANCED_MEDIA","PRIORITY_SYNC","EXPORT_GENERAL_SCALE","EXPORT_SCALE_CSV","EXPORT_SCALE_PDF","EXPORT_SCALE_IMAGE","PUBLIC_READONLY_LINK"]',
     '{"maxAdmins":5,"maxPersonalEvents":200,"maxPersonalCards":100,"historyMonths":24,"maxAnnouncements":null,"maxMediaStorageMb":5000,"maxOrganizations":1}',
     extract(epoch from now()) * 1000, extract(epoch from now()) * 1000),
   ('ORGANIZATION', 'Organização', 'Para redes com múltiplos administradores e identidade própria.', 7990, 79900, 'BRL', 'recurring', true, true, 3,
-    '["VIEW_OFFICIAL_SCALE","VIEW_DOXOLOGY","VIEW_ANNOUNCEMENTS","VIEW_CALENDAR","CLASS_HIGHLIGHTS","PERSONAL_EVENTS","PERSONAL_CARDS","EXTENDED_HISTORY","ADVANCED_NOTIFICATIONS","CUSTOM_FONTS","CUSTOM_THEMES","EXPORT","ADVANCED_ADMIN","PREMIUM_FONTS","PREMIUM_THEMES","REPORTS","ADVANCED_MEDIA","PRIORITY_SYNC","MULTI_ADMIN","ORGANIZATION_BRANDING","AUTOMATIONS"]',
+    '["VIEW_OFFICIAL_SCALE","VIEW_DOXOLOGY","VIEW_ANNOUNCEMENTS","VIEW_CALENDAR","CLASS_HIGHLIGHTS","PERSONAL_EVENTS","PERSONAL_CARDS","EXTENDED_HISTORY","ADVANCED_NOTIFICATIONS","CUSTOM_FONTS","CUSTOM_THEMES","EXPORT","ADVANCED_ADMIN","PREMIUM_FONTS","PREMIUM_THEMES","REPORTS","ADVANCED_MEDIA","PRIORITY_SYNC","MULTI_ADMIN","ORGANIZATION_BRANDING","AUTOMATIONS","EXPORT_GENERAL_SCALE","EXPORT_SCALE_CSV","EXPORT_SCALE_PDF","EXPORT_SCALE_IMAGE","PUBLIC_READONLY_LINK"]',
     '{"maxAdmins":null,"maxPersonalEvents":null,"maxPersonalCards":null,"historyMonths":null,"maxAnnouncements":null,"maxMediaStorageMb":20000,"maxOrganizations":3}',
     extract(epoch from now()) * 1000, extract(epoch from now()) * 1000),
   ('FOUNDER', 'Fundador Vitalício', 'Acesso vitalício completo - campanha de lançamento, por elegibilidade.', 24900, null, 'BRL', 'one_time', true, false, 4,
-    '["VIEW_OFFICIAL_SCALE","VIEW_DOXOLOGY","VIEW_ANNOUNCEMENTS","VIEW_CALENDAR","CLASS_HIGHLIGHTS","PERSONAL_EVENTS","PERSONAL_CARDS","EXTENDED_HISTORY","ADVANCED_NOTIFICATIONS","CUSTOM_FONTS","CUSTOM_THEMES","EXPORT","ADVANCED_ADMIN","PREMIUM_FONTS","PREMIUM_THEMES","REPORTS","ADVANCED_MEDIA","PRIORITY_SYNC","MULTI_ADMIN","ORGANIZATION_BRANDING","AUTOMATIONS"]',
+    '["VIEW_OFFICIAL_SCALE","VIEW_DOXOLOGY","VIEW_ANNOUNCEMENTS","VIEW_CALENDAR","CLASS_HIGHLIGHTS","PERSONAL_EVENTS","PERSONAL_CARDS","EXTENDED_HISTORY","ADVANCED_NOTIFICATIONS","CUSTOM_FONTS","CUSTOM_THEMES","EXPORT","ADVANCED_ADMIN","PREMIUM_FONTS","PREMIUM_THEMES","REPORTS","ADVANCED_MEDIA","PRIORITY_SYNC","MULTI_ADMIN","ORGANIZATION_BRANDING","AUTOMATIONS","EXPORT_GENERAL_SCALE","EXPORT_SCALE_CSV","EXPORT_SCALE_PDF","EXPORT_SCALE_IMAGE","PUBLIC_READONLY_LINK"]',
     '{"maxAdmins":null,"maxPersonalEvents":null,"maxPersonalCards":null,"historyMonths":null,"maxAnnouncements":null,"maxMediaStorageMb":null,"maxOrganizations":null}',
     extract(epoch from now()) * 1000, extract(epoch from now()) * 1000);
+
+-- Export audit log + dormant Atlas integration outbox (Fase 11.7, Parte 10-11 / 16) ------------
+create table export_audit_log (
+  id uuid primary key default gen_random_uuid(),
+  church_id uuid not null references churches(id),
+  user_id uuid not null references auth.users(id),
+  format text not null,
+  period text,
+  filters jsonb not null default '{}',
+  created_at bigint not null
+);
+alter table export_audit_log enable row level security;
+create policy "export_audit_log: admin read own church" on export_audit_log for select
+  using (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = export_audit_log.church_id));
+create policy "export_audit_log: admin insert own church" on export_audit_log for insert
+  with check (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = export_audit_log.church_id));
+grant select, insert on public.export_audit_log to authenticated;
+
+-- Not yet written to by any app code - see lib/atlas/types.ts for the event contract this table
+-- is meant to queue (Parte 16, outbox pattern). No client-facing RLS policy on purpose.
+create table integration_outbox (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references churches(id),
+  app_code text not null default 'STELLA_SCALE',
+  event_type text not null,
+  entity_type text not null,
+  entity_id uuid not null,
+  payload jsonb not null default '{}',
+  status text not null default 'PENDING',
+  attempts integer not null default 0,
+  created_at bigint not null,
+  processed_at bigint,
+  last_error text
+);
+alter table integration_outbox enable row level security;
 
 -- Shared files (Sonoplastia's remote file sharing: PPT/PDF/photos/videos moved phone <-> PC) ----
 create table shared_files (

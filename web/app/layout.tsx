@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Marcellus, Manrope } from "next/font/google";
 import Link from "next/link";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 import { IosInstallHint } from "@/components/IosInstallHint";
@@ -14,6 +14,25 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+// Parte 6: fontDisplay (Marcellus) for page titles/hero/day names/institutional headings only -
+// never long-form text. fontBody (Manrope) for everything read at length - names, times, forms,
+// tables. `display: "swap"` avoids a blocked first paint; the fallback stack keeps layout shift
+// minimal since both are broadly-metrics-compatible serif/sans-serif fallbacks.
+const marcellus = Marcellus({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+  fallback: ["Georgia", "serif"],
+});
+
+const manrope = Manrope({
+  subsets: ["latin"],
+  variable: "--font-body",
+  display: "swap",
+  fallback: ["Geist", "system-ui", "sans-serif"],
 });
 
 export const metadata: Metadata = {
@@ -52,7 +71,7 @@ export default function RootLayout({
   return (
     <html
       lang="pt-BR"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${marcellus.variable} ${manrope.variable} h-full antialiased`}
     >
       <body className="isolate min-h-full flex flex-col bg-background text-foreground">
         <ConstellationScene />
@@ -62,7 +81,7 @@ export default function RootLayout({
           style={{ paddingTop: "env(safe-area-inset-top)" }}
         >
           <div className="mx-auto flex max-w-[1400px] items-center justify-between px-5 py-4">
-            <Link href="/" className="flex items-center gap-2 text-lg font-semibold tracking-tight text-primary">
+            <Link href="/" className="flex items-center gap-2 font-display text-lg tracking-tight text-primary">
               <span aria-hidden="true" className="text-accent-star">✦</span>
               Escala Church
             </Link>

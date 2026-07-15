@@ -4,10 +4,12 @@ import { createClient } from "@/lib/supabase/server";
 import { getAdminStatus } from "@/lib/supabase/auth";
 import { Scale } from "@/lib/types/database";
 import { formatDatePt, formatTimePt } from "@/lib/format";
-import { Card } from "@/components/Card";
 import { EmptyState } from "@/components/EmptyState";
+import { CelestialAdminCard, CelestialDayBadge } from "@/components/celestial/CelestialCard";
+import { constellationForDay, constellationLabel } from "@/components/celestial/DayConstellation";
 import { DeleteButton } from "../DeleteButton";
 import { deleteScaleAction } from "../actions";
+import { ExportScaleDialog } from "./ExportScaleDialog";
 
 export const revalidate = 0;
 
@@ -23,40 +25,44 @@ export default async function AdminEscalasPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold">Escalas</h1>
-        <Link
-          href="/admin/escalas/nova"
-          className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-white"
-        >
-          <Plus size={16} /> Nova escala
-        </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <h1 className="font-display text-2xl">Escalas</h1>
+        <div className="flex items-center gap-2">
+          <ExportScaleDialog />
+          <Link
+            href="/admin/escalas/nova"
+            className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-white"
+          >
+            <Plus size={16} /> Nova escala
+          </Link>
+        </div>
       </div>
 
       {items.length === 0 ? (
         <EmptyState message="Nenhuma escala cadastrada." />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {items.map((scale) => (
-            <Card
-              key={scale.id}
-              className="p-5 flex flex-col gap-3 hover:shadow-md hover:-translate-y-0.5"
-            >
-              <div>
-                <p className="font-semibold leading-tight">{scale.title}</p>
-                <p className="mt-1 flex items-center gap-1.5 text-sm text-text-secondary capitalize">
-                  <Calendar size={14} className="shrink-0" />
-                  {formatDatePt(scale.date)} às {formatTimePt(scale.start_time)}
-                </p>
-              </div>
-              <div className="mt-auto flex items-center justify-between gap-3 border-t border-divider pt-3">
-                <Link href={`/admin/escalas/${scale.id}`} className="text-sm font-medium text-primary">
-                  Editar
-                </Link>
-                <DeleteButton id={scale.id} action={deleteScaleAction} />
-              </div>
-            </Card>
-          ))}
+          {items.map((scale) => {
+            const kind = constellationForDay(new Date(`${scale.date}T00:00:00`).getDay(), scale.is_special_event);
+            return (
+              <CelestialAdminCard key={scale.id} kind={kind} className="p-5 flex flex-col gap-3">
+                <div>
+                  <CelestialDayBadge kind={kind} label={constellationLabel(kind)} />
+                  <p className="font-semibold leading-tight mt-1.5">{scale.title}</p>
+                  <p className="mt-1 flex items-center gap-1.5 text-sm text-text-secondary capitalize">
+                    <Calendar size={14} className="shrink-0" />
+                    {formatDatePt(scale.date)} às {formatTimePt(scale.start_time)}
+                  </p>
+                </div>
+                <div className="mt-auto flex items-center justify-between gap-3 border-t border-border-soft pt-3">
+                  <Link href={`/admin/escalas/${scale.id}`} className="text-sm font-medium text-primary">
+                    Editar
+                  </Link>
+                  <DeleteButton id={scale.id} action={deleteScaleAction} />
+                </div>
+              </CelestialAdminCard>
+            );
+          })}
         </div>
       )}
     </div>
