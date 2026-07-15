@@ -153,6 +153,31 @@ export async function POST(request: NextRequest) {
       if (profileError) {
         return NextResponse.json({ error: profileError.message }, { status: 500 });
       }
+
+      // Fase 11 integration fix: a brand-new church from this one-time payment never got a
+      // `subscriptions` row (006_plans_entitlements.sql only backfilled churches that already
+      // existed at migration time) - without this, every church created via this flow would
+      // silently fall back to the FREE feature set despite having paid for lifetime access.
+      const { data: founderPlan } = await supabase.from("plans").select("id").eq("code", "FOUNDER").single();
+      if (founderPlan) {
+        const now = Date.now();
+        await supabase.from("subscriptions").upsert(
+          {
+            church_id: church.id,
+            plan_id: founderPlan.id,
+            status: "ACTIVE",
+            started_at: now,
+            expires_at: null,
+            trial_ends_at: null,
+            grace_period_ends_at: null,
+            source: "founder_grant",
+            stripe_customer_id: typeof session.customer === "string" ? session.customer : (session.customer?.id ?? null),
+            stripe_subscription_id: null,
+            updated_at: now,
+          },
+          { onConflict: "church_id" }
+        );
+      }
     }
   }
 
