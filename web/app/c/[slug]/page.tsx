@@ -6,8 +6,8 @@ import { Scale } from "@/lib/types/database";
 import { formatDatePt, formatTimePt } from "@/lib/format";
 import { Card } from "@/components/Card";
 import { EmptyState } from "@/components/EmptyState";
-import { CelestialHeroCard, CelestialCompactCard, CelestialDayBadge } from "@/components/celestial/CelestialCard";
-import { constellationForDay, constellationLabel } from "@/components/celestial/DayConstellation";
+import { CelestialHeroCard, CelestialCompactCard, CelestialOfficialHeader } from "@/components/celestial/CelestialCard";
+import { constellationForDay } from "@/components/celestial/DayConstellation";
 
 export const revalidate = 0;
 
@@ -87,7 +87,7 @@ function Hero({ church, next, upcomingCount }: { church: string; next: Scale; up
       <CelestialHeroCard kind={kind} className="p-7 sm:p-9">
         <div className="flex flex-col gap-5">
           <div className="flex items-center justify-between gap-3">
-            <CelestialDayBadge kind={kind} label={`${constellationLabel(kind)} · ${church}`} />
+            <CelestialOfficialHeader kind={kind} org={church} />
           </div>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <h1 className="font-display text-3xl sm:text-4xl tracking-tight text-balance">{next.title}</h1>
@@ -161,7 +161,7 @@ function ScaleCard({ scale }: { scale: Scale }) {
     <CelestialCompactCard kind={kind} className="p-6 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-1.5">
-          <CelestialDayBadge kind={kind} label={constellationLabel(kind)} />
+          <CelestialOfficialHeader kind={kind} org="" showOrg={false} />
           <h3 className="text-lg font-semibold leading-tight">{scale.title}</h3>
           <p className="flex items-center gap-1.5 text-sm text-text-secondary capitalize">
             <Calendar size={14} className="shrink-0" />

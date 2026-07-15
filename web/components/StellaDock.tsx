@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LucideIcon } from "lucide-react";
@@ -16,12 +16,11 @@ export type StellaDockItem = { href: string; label: string; icon: LucideIcon };
  * stretches edge-to-edge on a tablet or desktop window. Compacts (shrinks, drops labels) on
  * continued downward scroll and expands again on upward scroll/idle.
  *
- * Fase 11.8.1 fixes: the dock's own rendered height is measured (ResizeObserver) and passed to
- * StellaCore as `reserveBottom`, so the menu's geometry always knows exactly how much vertical
- * space to stay clear of (Parte 3's "dockSafeZone") instead of guessing via a fixed offset.
- * While the Core is open: labels hide, non-active icons dim and stop accepting clicks, and the
- * compact/expand scroll toggle freezes at whatever state it was in (Parte 11) - and the menu
- * force-closes on every route change so it can never linger over a new page (Parte 14).
+ * Fase 11.8.2 (Bloco A): StellaCore's menu is now a compact grid anchored to the star itself, so
+ * it no longer needs to know the dock's measured height to stay clear of it. While the Core is
+ * open: labels hide, non-active icons dim and stop accepting clicks, and the compact/expand
+ * scroll toggle freezes at whatever state it was in - and the menu force-closes on every route
+ * change so it can never linger over a new page.
  */
 export function StellaDock({
   items,
@@ -33,8 +32,6 @@ export function StellaDock({
   const pathname = usePathname();
   const scrollCompact = useScrollDirection();
   const [coreOpen, setCoreOpen] = useState(false);
-  const [dockHeight, setDockHeight] = useState(84);
-  const barRef = useRef<HTMLDivElement>(null);
   const [left, leftInner, rightInner, right] = items;
 
   // Freeze whatever compact state the dock was in the moment the Core opens - Parte 11: "evitar
@@ -57,26 +54,18 @@ export function StellaDock({
     if (coreOpen) setCoreOpen(false);
   }
 
-  useEffect(() => {
-    const el = barRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver((entries) => {
-      const height = entries[0]?.contentRect.height;
-      if (height) setDockHeight(height);
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
   return (
     <nav
       aria-label="Navegação principal"
       className="fixed inset-x-0 bottom-0 flex justify-center px-3 pointer-events-none sm:bottom-4"
       style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0px)", zIndex: zVar("var(--z-dock)") }}
     >
+      {/* No backdrop-blur here on purpose (Bloco A7/A9 fix): `backdrop-filter` on this bar was
+          creating a new CSS containing block for every `position: fixed` descendant - including
+          StellaCore's own full-screen dim/blur overlay when the menu opens, which as a result
+          rendered clipped to this bar's own small box instead of covering the viewport. */}
       <div
-        ref={barRef}
-        className={`pointer-events-auto flex w-full items-center justify-between gap-1 border border-border-soft bg-surface-glass backdrop-blur-md transition-[height,padding] duration-300 sm:w-auto sm:min-w-[320px] sm:gap-2 sm:px-2 sm:rounded-[var(--radius-hero)] ${
+        className={`pointer-events-auto flex w-full items-center justify-between gap-1 border border-border-soft bg-surface-glass transition-[height,padding] duration-300 sm:w-auto sm:min-w-[320px] sm:gap-2 sm:px-2 sm:rounded-[var(--radius-hero)] ${
           compact ? "h-14 px-2" : "h-[68px] px-3"
         }`}
         style={{
@@ -88,7 +77,7 @@ export function StellaDock({
         <DockLink item={leftInner} active={pathname === leftInner.href} compact={compact} dimmed={coreOpen} />
 
         <div className="relative -mt-8 shrink-0 sm:-mt-9">
-          <StellaCore actions={stellaCoreActions} embedded reserveBottom={dockHeight + 12} onOpenChange={setCoreOpen} />
+          <StellaCore actions={stellaCoreActions} embedded onOpenChange={setCoreOpen} />
         </div>
 
         <DockLink item={rightInner} active={pathname === rightInner.href} compact={compact} dimmed={coreOpen} />

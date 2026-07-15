@@ -1,81 +1,77 @@
 /**
- * Fase 11.8.1 (Parte 2): the single place that computes where every node/label/connector of the
- * Stella Core menu goes. Nothing else in the component tree does its own trigonometry - that's
- * what let the old inline calculation drift into overlapping the dock (Parte 1 diagnosis below).
- *
- * Root causes found in the Fase 11.8 implementation:
- * - radius was a hardcoded 108px regardless of viewport width, so on a 320-360px phone the arc's
- *   outer nodes landed outside the safe horizontal margin (clipped/touching the screen edge).
- * - the vertical extent of the arc was never checked against the dock's own height - a node near
- *   the horizontal ends of a wide spread (many actions) has a small |sin(angle)|, i.e. barely
- *   lifted above the star, which sits only ~32-36px above the dock already - net result, a node
- *   could render at/inside the dock's own bounding box.
- * - label width (`max-w-[76px]`) was fixed regardless of how close two adjacent nodes actually
- *   were, so a tight spread (5 actions in 150°) let labels touch or overlap.
- * - more than ~5 actions had no fallback - the arc just kept getting more crowded.
- * This module fixes all four by clamping radius/spread to the viewport and the reserved dock
- * zone, deriving label width from actual node spacing, and capping visible actions with a
- * "Mais" overflow past MAX_VISIBLE_ACTIONS.
+ * Fase 11.8.2 (Bloco A): the Stella Core menu is a compact micro-constellation, not a wide arc.
+ * The 11.8.1 arc geometry fixed overlap with the dock but still spread nodes far enough sideways
+ * to read as a big "V", and on tall pages its connectors could still reach cards well above the
+ * star. This module now lays out up to 4 node slots in a small fixed grid directly above the
+ * star - one row nearest the star (row 0), a second row above it only when there are 3-4 actions
+ * (row 1) - so the whole menu stays inside a short, constant-height zone regardless of what the
+ * page above it contains.
  */
 
-export const MAX_VISIBLE_ACTIONS = 5;
-const MARGIN_X = 20; // safe horizontal margin from the viewport edge
-const MIN_RADIUS = 76;
-const MAX_RADIUS = 128;
+export const MAX_GRID_SLOTS = 4;
+const SMALL_WIDTH_BREAKPOINT = 360;
+const MARGIN_X = 20;
 const NODE_DIAMETER = 48;
 
-export type StellaCoreNodeGeometry = {
-  x: number;
-  y: number;
-  labelMaxWidth: number;
+export type StellaCoreNodeGeometry = { x: number; y: number; labelMaxWidth: number };
+export type StellaCoreGeometry = { nodes: StellaCoreNodeGeometry[]; zoneWidth: number; zoneHeight: number };
+
+type Slot = { col: -1 | 0 | 1; row: 0 | 1 };
+
+// Row 0 = nearest the star. Row 1 = one tier further up, only used for 3-4 nodes. Matches the
+// spec's ASCII layouts exactly: 3 items -> apex + pair; 4 items -> two even pairs.
+const LAYOUTS: Record<number, Slot[]> = {
+  1: [{ col: 0, row: 0 }],
+  2: [
+    { col: -1, row: 0 },
+    { col: 1, row: 0 },
+  ],
+  3: [
+    { col: -1, row: 0 },
+    { col: 1, row: 0 },
+    { col: 0, row: 1 },
+  ],
+  4: [
+    { col: -1, row: 0 },
+    { col: 1, row: 0 },
+    { col: -1, row: 1 },
+    { col: 1, row: 1 },
+  ],
 };
 
-export type StellaCoreGeometry = {
-  radius: number;
-  nodes: StellaCoreNodeGeometry[];
-};
+/** Maximum real (non-"Mais") action nodes to show before collapsing the rest into an overflow
+ *  node - lower on narrow phones so the grid never has to widen past a comfortable thumb reach. */
+export function maxRealActions(viewportWidth: number): number {
+  return viewportWidth > 0 && viewportWidth < SMALL_WIDTH_BREAKPOINT ? 3 : MAX_GRID_SLOTS;
+}
 
-/**
- * [reserveBottom] is the dock's own measured height + a small gap - the arc's radius is capped
- * so no node's vertical extent (`radius * |sin(angle)|` from the star) needs to dip below that
- * line. [viewportWidth] clamps the radius again so the widest nodes stay `MARGIN_X` inside the
- * screen edge. The smaller of the two wins.
- */
-export function computeStellaCoreGeometry(
-  actionCount: number,
-  viewportWidth: number,
-  reserveBottom: number
-): StellaCoreGeometry {
-  const count = Math.min(actionCount, MAX_VISIBLE_ACTIONS);
-  if (count === 0) return { radius: 0, nodes: [] };
+/** [nodeCount] is the number of node slots to render, already capped at MAX_GRID_SLOTS by the
+ *  caller (real actions, or real actions minus one plus a trailing "Mais" node). */
+export function computeStellaCoreGeometry(nodeCount: number, viewportWidth: number): StellaCoreGeometry {
+  const count = Math.min(Math.max(nodeCount, 0), MAX_GRID_SLOTS);
+  if (count === 0) return { nodes: [], zoneWidth: 0, zoneHeight: 0 };
 
-  // Wider spread for more actions, but capped well short of a full semicircle so it always
-  // reads as an "arco", never a ring - Parte 4's per-breakpoint compaction falls naturally out
-  // of the same formula since it's driven by count, not a hardcoded breakpoint switch.
-  const spread = Math.min(140, 30 + count * 20);
-  const start = -90 - spread / 2;
-  const step = count > 1 ? spread / (count - 1) : 0;
-  const angles = Array.from({ length: count }, (_, i) => ((start + step * i) * Math.PI) / 180);
+  const narrow = viewportWidth > 0 && viewportWidth < SMALL_WIDTH_BREAKPOINT;
+  const rowGapNear = narrow ? 66 : 78;
+  const rowGapFar = rowGapNear + (narrow ? 52 : 60);
 
-  const maxSin = Math.max(...angles.map((a) => Math.abs(Math.sin(a))), 0.001);
-  const maxCos = Math.max(...angles.map((a) => Math.abs(Math.cos(a))), 0.001);
+  const maxHalfWidth = viewportWidth > 0 ? viewportWidth / 2 - MARGIN_X - NODE_DIAMETER / 2 : 120;
+  const colOffset = clamp(narrow ? 40 : 46, 32, Math.max(32, maxHalfWidth));
 
-  const radiusFromViewport = (viewportWidth / 2 - MARGIN_X - NODE_DIAMETER / 2) / maxCos;
-  const radiusFromDock = Math.max(0, reserveBottom) / maxSin;
-  const radius = clamp(Math.min(radiusFromViewport, radiusFromDock || MAX_RADIUS), MIN_RADIUS, MAX_RADIUS);
+  const labelMaxWidth = clamp(colOffset * 2 - 12, 64, 96);
 
-  // Label width derives from actual angular spacing between neighbors at this radius, so two
-  // adjacent labels can never physically overlap regardless of count.
-  const arcSpacing = count > 1 ? (radius * ((step * Math.PI) / 180)) : radius;
-  const labelMaxWidth = clamp(arcSpacing + 24, 56, 92);
-
-  const nodes = angles.map((angle) => ({
-    x: Math.cos(angle) * radius,
-    y: Math.sin(angle) * radius,
+  const layout = LAYOUTS[count];
+  const nodes = layout.map((slot) => ({
+    x: slot.col * colOffset,
+    y: -(slot.row === 0 ? rowGapNear : rowGapFar),
     labelMaxWidth,
   }));
 
-  return { radius, nodes };
+  return {
+    nodes,
+    zoneWidth: colOffset * 2 + NODE_DIAMETER + 24,
+    zoneHeight: rowGapFar + NODE_DIAMETER / 2 + 24,
+  };
 }
 
 function clamp(value: number, min: number, max: number): number {

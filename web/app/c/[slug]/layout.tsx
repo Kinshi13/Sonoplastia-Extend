@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getChurchBySlug } from "@/lib/church";
 import { ChurchStellaDock } from "@/components/ChurchStellaDock";
+import { RecentChurchRecorder } from "@/components/RecentChurchRecorder";
 
 export default async function ChurchLayout({
   children,
@@ -30,6 +31,7 @@ export default async function ChurchLayout({
   // links here anymore, that job belongs entirely to the Stella Dock at the bottom.
   return (
     <div className="flex flex-col gap-6 pb-28">
+      <RecentChurchRecorder churchId={church.id} slug={slug} churchName={church.name} />
       <h1 className="font-display text-lg text-primary">{church.name}</h1>
       {children}
       <ChurchStellaDock slug={slug} />

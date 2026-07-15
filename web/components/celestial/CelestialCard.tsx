@@ -29,6 +29,9 @@ type CelestialCardProps = {
   /** Corner ornament + glow only, no watermark - use for compact/list rows. */
   compact?: boolean;
   glow?: "none" | "hover" | "active";
+  /** Bloco B5: a small luminous dot near the corner mark, for a card whose content just changed
+   *  without needing to redesign the whole card to say so. */
+  updated?: boolean;
 };
 
 /**
@@ -43,15 +46,19 @@ type CelestialCardProps = {
  * background → day-constellation watermark → content → corner star ornament. Content sits in a
  * plain div on top, unaffected by any of the decoration below it - legibility first.
  */
-export function CelestialCard({ children, className = "", kind, solemn, compact, glow = "none" }: CelestialCardProps) {
+export function CelestialCard({ children, className = "", kind, solemn, compact, glow = "none", updated }: CelestialCardProps) {
   const accent = kind ? KIND_TO_ACCENT[kind] : "neutral";
   const color = ACCENT_COLOR[accent];
   const isCrownSolemn = solemn ?? kind === "CROWN";
 
   return (
     <div
-      className={`group relative overflow-hidden border transition-shadow duration-300 ${className}`}
+      className={`group relative overflow-hidden border transition-[box-shadow,transform] duration-300 focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-offset-background ${
+        glow === "hover" ? "hover:-translate-y-[3px]" : ""
+      } ${className}`}
       style={{
+        // @ts-expect-error -- CSS custom property, not a real color token
+        "--tw-ring-color": color,
         borderColor: "var(--border-soft)",
         borderRadius: "var(--radius-lg)",
         clipPath: isCrownSolemn
@@ -73,21 +80,30 @@ export function CelestialCard({ children, className = "", kind, solemn, compact,
         />
       )}
 
-      {/* Layer 3: inner decorative line */}
+      {/* Layer 3: inner decorative line - a second, brighter copy fades in on hover (Bloco B4:
+          "borda interna recebe brilho") instead of animating the border color directly. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-[5px] rounded-[calc(var(--radius-lg)-6px)] border"
         style={{ borderColor: `${color}2a` }}
       />
+      {glow === "hover" && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-[5px] rounded-[calc(var(--radius-lg)-6px)] border opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+          style={{ borderColor: `${color}70` }}
+        />
+      )}
 
-      {/* Layer 5: day-constellation watermark */}
+      {/* Layer 5: day-constellation watermark - Bloco B3: base opacity raised into the 12-24%
+          range (was 9%, read as too faint) and brightens further on hover/selection. */}
       {kind && !compact && (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -right-6 -bottom-6 opacity-[0.09] transition-opacity duration-300 group-hover:opacity-[0.15]"
+          className="pointer-events-none absolute -right-6 -bottom-6 opacity-[0.18] transition-opacity duration-300 group-hover:opacity-[0.3]"
           style={{ color }}
         >
-          <DayConstellationBackground kind={kind} className={isCrownSolemn ? "h-52 w-52" : "h-36 w-36"} />
+          <DayConstellationBackground kind={kind} className={isCrownSolemn ? "h-56 w-56" : "h-40 w-40"} />
         </div>
       )}
 
@@ -97,6 +113,13 @@ export function CelestialCard({ children, className = "", kind, solemn, compact,
           <path d="M6 0 L7 5 L12 6 L7 7 L6 12 L5 7 L0 6 L5 5 Z" />
         </svg>
       </div>
+      {updated && (
+        <span
+          aria-hidden="true"
+          className="absolute right-3 top-3 h-2 w-2 rounded-full animate-pulse"
+          style={{ background: "var(--accent-star)" }}
+        />
+      )}
 
       {/* Layer 6: content */}
       <div className="relative">{children}</div>
@@ -113,6 +136,43 @@ export function CelestialDayBadge({ kind, label }: { kind: ConstellationKind; la
     <span className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.1em]" style={{ color }}>
       <DayConstellationMark kind={kind} className="h-4 w-4" />
       {label}
+    </span>
+  );
+}
+
+/**
+ * Fase 11.8.2 (Bloco B1-B2): replaces the old "Constelação do Farol · Igreja" text badge. The
+ * constellation is a visual identifier - it doesn't need its invented name spelled out for a
+ * visitor to recognize it (the mark + watermark on the card already do that job). What a person
+ * actually needs to read is the organization and that this is the official schedule; `org` is
+ * only rendered once even when the card is reused elsewhere on the same page.
+ */
+export function CelestialOfficialHeader({
+  kind,
+  org,
+  showOrg = true,
+}: {
+  kind: ConstellationKind;
+  org: string;
+  showOrg?: boolean;
+}) {
+  const accent = KIND_TO_ACCENT[kind];
+  const color = ACCENT_COLOR[accent];
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.1em]"
+      style={{ color }}
+      title={`Escala oficial · ${org}`}
+    >
+      <DayConstellationMark kind={kind} className="h-4 w-4" />
+      {showOrg ? (
+        <>
+          <span className="text-foreground/90 normal-case tracking-normal font-semibold">{org}</span>
+          <span aria-hidden="true">·</span> Escala oficial
+        </>
+      ) : (
+        "Escala oficial"
+      )}
     </span>
   );
 }

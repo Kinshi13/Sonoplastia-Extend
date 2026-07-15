@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { Pin, FileText } from "lucide-react";
+import Link from "next/link";
+import { Pin, FileText, History } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getChurchBySlug } from "@/lib/church";
 import { Announcement, Bulletin } from "@/lib/types/database";
@@ -40,9 +41,19 @@ export default async function AnunciosPage({ params }: { params: Promise<{ slug:
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Anúncios</h2>
-        <p className="mt-1 text-sm text-text-secondary">Novidades e avisos da igreja.</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Anúncios</h2>
+          <p className="mt-1 text-sm text-text-secondary">Novidades e avisos da igreja.</p>
+        </div>
+        {/* Bloco F: an announcement with a past event date leaves this feed on purpose (see the
+            query above) - this link is the only way a visitor finds where it went. */}
+        <Link
+          href={`/c/${slug}/retrospectiva`}
+          className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+        >
+          <History size={15} /> Ver anúncios recentes
+        </Link>
       </div>
 
       {items.length === 0 ? (

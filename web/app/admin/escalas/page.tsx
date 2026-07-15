@@ -5,8 +5,8 @@ import { getAdminStatus } from "@/lib/supabase/auth";
 import { Scale } from "@/lib/types/database";
 import { formatDatePt, formatTimePt } from "@/lib/format";
 import { EmptyState } from "@/components/EmptyState";
-import { CelestialAdminCard, CelestialDayBadge } from "@/components/celestial/CelestialCard";
-import { constellationForDay, constellationLabel } from "@/components/celestial/DayConstellation";
+import { CelestialAdminCard, CelestialOfficialHeader } from "@/components/celestial/CelestialCard";
+import { constellationForDay } from "@/components/celestial/DayConstellation";
 import { DeleteButton } from "../DeleteButton";
 import { deleteScaleAction } from "../actions";
 import { ExportStudio } from "./ExportStudio";
@@ -47,7 +47,7 @@ export default async function AdminEscalasPage() {
             return (
               <CelestialAdminCard key={scale.id} kind={kind} className="p-5 flex flex-col gap-3">
                 <div>
-                  <CelestialDayBadge kind={kind} label={constellationLabel(kind)} />
+                  <CelestialOfficialHeader kind={kind} org="" showOrg={false} />
                   <p className="font-semibold leading-tight mt-1.5">{scale.title}</p>
                   <p className="mt-1 flex items-center gap-1.5 text-sm text-text-secondary capitalize">
                     <Calendar size={14} className="shrink-0" />

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { getAdminStatus } from "@/lib/supabase/auth";
 import { getEntitlements } from "@/lib/entitlements";
 import { AdminStellaCore } from "@/components/AdminStellaCore";
@@ -9,7 +10,15 @@ import { signOutAction } from "./actions";
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, isAdmin, churchId } = await getAdminStatus();
 
-  if (!user) redirect("/login");
+  if (!user) {
+    // Bloco E: distinguishes "never logged in" from "had a session that expired" using the real
+    // Supabase auth cookie, not a guess - only redirect with ?expired=1 when a (now-invalid)
+    // session cookie was actually present, so the login page's warning is never shown to someone
+    // who simply never signed in.
+    const cookieStore = await cookies();
+    const hadSessionCookie = cookieStore.getAll().some((cookie) => cookie.name.startsWith("sb-"));
+    redirect(hadSessionCookie ? "/login?expired=1" : "/login");
+  }
   if (!isAdmin) {
     return (
       <div className="mx-auto max-w-md text-center">

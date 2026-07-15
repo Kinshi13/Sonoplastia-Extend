@@ -5,58 +5,101 @@ import { getChurchBySlug } from "@/lib/church";
 import { Doxology } from "@/lib/types/database";
 import { formatDatePt, formatTimePt } from "@/lib/format";
 import { isDoxologyLiveNow } from "@/lib/currentSession";
+import { RETROSPECTIVE_WINDOW_DAYS } from "@/lib/expiredAnnouncements";
 import { Card } from "@/components/Card";
 import { EmptyState } from "@/components/EmptyState";
 
 export const revalidate = 0;
 
+/**
+ * Fase 11.8.2 (Bloco F): before this fix, the query only fetched `date >= today` with no fallback
+ * - a doxologia stayed visible right up until its own day, then vanished from the site forever
+ * with no equivalent to the announcements' Retrospectiva window. Live data confirmed this: a
+ * church whose only 2 doxologias had already happened showed a completely empty page. Recently
+ * concluded services (same RETROSPECTIVE_WINDOW_DAYS used for announcements) now stay visible in
+ * a separate "Recentes" section instead of disappearing the moment the date passes.
+ */
 export default async function DoxologiaPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const church = await getChurchBySlug(slug);
   if (!church || !church.is_active) notFound();
 
   const supabase = await createClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+  const windowStart = new Date(today);
+  windowStart.setDate(windowStart.getDate() - RETROSPECTIVE_WINDOW_DAYS);
+  const windowStartStr = windowStart.toISOString().slice(0, 10);
+
   const { data } = await supabase
     .from("doxologies")
     .select("*")
     .eq("church_id", church.id)
-    .gte("date", today)
+    .gte("date", windowStartStr)
     .order("date", { ascending: true })
     .order("start_time", { ascending: true })
-    .limit(10);
+    .limit(20);
 
   const items = (data as Doxology[]) ?? [];
+  const upcoming = items.filter((item) => item.date >= todayStr);
+  const recent = items
+    .filter((item) => item.date < todayStr)
+    .sort((a, b) => (a.date === b.date ? 0 : a.date < b.date ? 1 : -1));
   const now = new Date();
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Doxologia</h2>
         <p className="mt-1 text-sm text-text-secondary">Ordem do culto para os próximos cultos.</p>
       </div>
 
-      {items.length === 0 ? (
-        <EmptyState message="Nenhuma programação futura cadastrada." />
+      {upcoming.length === 0 && recent.length === 0 ? (
+        <EmptyState message="Nenhuma programação cadastrada." />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5">
-          {items.map((doxology) => (
-            <DoxologyCard key={doxology.id} doxology={doxology} isLive={isDoxologyLiveNow(doxology, now)} />
-          ))}
-        </div>
+        <>
+          {upcoming.length === 0 ? (
+            <EmptyState message="Nenhuma programação futura cadastrada." />
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5">
+              {upcoming.map((doxology) => (
+                <DoxologyCard key={doxology.id} doxology={doxology} isLive={isDoxologyLiveNow(doxology, now)} />
+              ))}
+            </div>
+          )}
+
+          {recent.length > 0 && (
+            <div className="flex flex-col gap-4">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-text-muted">Recentes</h3>
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5">
+                {recent.map((doxology) => (
+                  <DoxologyCard key={doxology.id} doxology={doxology} isLive={false} concluded />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
 }
 
-function DoxologyCard({ doxology, isLive }: { doxology: Doxology; isLive: boolean }) {
-  const steps = doxology.program_order.slice().sort((a, b) => a.order - b.order);
+function DoxologyCard({
+  doxology,
+  isLive,
+  concluded = false,
+}: {
+  doxology: Doxology;
+  isLive: boolean;
+  concluded?: boolean;
+}) {
+  const steps = (doxology.program_order ?? []).slice().sort((a, b) => a.order - b.order);
 
   return (
     <Card
       className={`p-6 flex flex-col gap-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 ${
         isLive ? "ring-2 ring-primary" : ""
-      }`}
+      } ${concluded ? "opacity-70" : ""}`}
     >
       <div>
         <div className="flex items-center justify-between gap-2">
@@ -64,6 +107,11 @@ function DoxologyCard({ doxology, isLive }: { doxology: Doxology; isLive: boolea
           {isLive && (
             <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-2.5 py-1 text-xs font-medium text-white">
               <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" /> Agora
+            </span>
+          )}
+          {concluded && (
+            <span className="flex shrink-0 items-center rounded-full bg-background-secondary px-2.5 py-1 text-xs font-medium text-text-secondary">
+              Concluída
             </span>
           )}
         </div>

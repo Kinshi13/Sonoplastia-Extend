@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { LucideIcon, Lock, MoreHorizontal } from "lucide-react";
-import { computeStellaCoreGeometry, MAX_VISIBLE_ACTIONS } from "./stellaCoreGeometry";
+import { computeStellaCoreGeometry, maxRealActions } from "./stellaCoreGeometry";
 import { useViewportWidth } from "./useViewportWidth";
 
 export type StellaCoreAction = {
@@ -30,22 +30,20 @@ function zVar(name: string): number {
  * lines connecting them, instead of a generic FAB "+" or a dropdown menu. Screens hand it their
  * own small action list; this component only knows how to lay them out and animate.
  *
- * Fase 11.8.1 stabilization: geometry now comes from computeStellaCoreGeometry (radius clamped to
- * both the viewport width and [reserveBottom], the dock's own measured height) instead of a
- * hardcoded radius - see stellaCoreGeometry.ts for the bug this fixes. More than
- * MAX_VISIBLE_ACTIONS actions collapse into a "Mais" node instead of crowding the arc further.
+ * Fase 11.8.2 (Bloco A) stabilization: geometry is a small fixed grid directly above the star
+ * (see stellaCoreGeometry.ts) instead of a wide arc, so the menu can never reach cards higher up
+ * the page and never reads as a big "V". More than maxRealActions(viewportWidth) actions collapse
+ * into a "Mais" node instead of widening the grid further.
  * Escape closes the menu and returns focus to the trigger; the first action receives focus on
  * open. [onOpenChange] lets the hosting StellaDock dim its own icons while the menu is open.
  */
 export function StellaCore({
   actions,
   embedded = false,
-  reserveBottom = 0,
   onOpenChange,
 }: {
   actions: StellaCoreAction[];
   embedded?: boolean;
-  reserveBottom?: number;
   onOpenChange?: (open: boolean) => void;
 }) {
   const [open, setOpenState] = useState(false);
@@ -76,31 +74,46 @@ export function StellaCore({
 
   if (actions.length === 0) return null;
 
-  const visibleActions = actions.slice(0, MAX_VISIBLE_ACTIONS - (actions.length > MAX_VISIBLE_ACTIONS ? 1 : 0));
-  const overflowActions = actions.length > MAX_VISIBLE_ACTIONS ? actions.slice(visibleActions.length) : [];
+  const cap = maxRealActions(viewportWidth || 360);
+  const needsOverflow = actions.length > cap;
+  const visibleActions = needsOverflow ? actions.slice(0, cap - 1) : actions.slice(0, cap);
+  const overflowActions = needsOverflow ? actions.slice(visibleActions.length) : [];
   const nodeCount = visibleActions.length + (overflowActions.length > 0 ? 1 : 0);
-  const geometry = computeStellaCoreGeometry(nodeCount, viewportWidth || 360, reserveBottom || 96);
+  const geometry = computeStellaCoreGeometry(nodeCount, viewportWidth || 360);
+  const svgWidth = geometry.zoneWidth || NODE_SIZE;
+  const svgHeight = geometry.zoneHeight + NODE_SIZE;
 
   return (
-    <div className={embedded ? "relative flex justify-center pointer-events-none" : "fixed inset-x-0 bottom-6 flex justify-center pointer-events-none"} style={{ zIndex: embedded ? undefined : zVar("var(--z-core-trigger)") }}>
-      {/* Parte 9: local, bounded menu layer anchored to the star - everything inside it (backdrop
-          excluded, which intentionally covers the full page) moves as one unit and never lays
-          out relative to the page. */}
-      <div className="relative pointer-events-auto" style={{ isolation: "isolate" }}>
+    <>
+      {/* Rendered outside the StellaCoreExpansionZone's isolated stacking context on purpose -
+          `backdrop-filter` only samples what's behind it within its OWN stacking context, so
+          nesting the backdrop inside `isolation: isolate` would have made it unable to see (and
+          therefore dim/blur) page content at all. As a top-level sibling it sits in the same
+          context as `main` and actually reduces the contrast of whatever is behind it (Bloco A7).
+          (The Stella Dock's own bar no longer applies backdrop-filter to itself - see StellaDock
+          - since that would otherwise trap this `position: fixed` element inside the bar's own
+          small box instead of the viewport.) */}
+      {open && (
+        <button
+          aria-label="Fechar menu de ações"
+          onClick={() => setOpen(false)}
+          className="fixed inset-0 bg-black/45 backdrop-blur-[3px] cursor-default"
+          style={{ zIndex: zVar("var(--z-dock-backdrop)") }}
+        />
+      )}
+
+      <div className={embedded ? "relative flex justify-center pointer-events-none" : "fixed inset-x-0 bottom-6 flex justify-center pointer-events-none"} style={{ zIndex: embedded ? undefined : zVar("var(--z-core-trigger)") }}>
+        {/* Parte 9 (11.8.1) / Bloco A2 (11.8.2): StellaCoreExpansionZone - a local, bounded menu
+          layer anchored to the star. Its size comes only from stellaCoreGeometry's compact grid,
+          never from the position of page content, so it can't be pulled up into cards above it. */}
+        <div className="relative pointer-events-auto" style={{ isolation: "isolate" }}>
         {open && (
           <>
-            <button
-              aria-label="Fechar menu de ações"
-              onClick={() => setOpen(false)}
-              className="fixed inset-0 bg-black/25 cursor-default"
-              style={{ zIndex: zVar("var(--z-dock-backdrop)") }}
-            />
-
             <svg
               className="absolute left-1/2 bottom-1/2 -translate-x-1/2 pointer-events-none"
-              width={geometry.radius * 2 + NODE_SIZE}
-              height={geometry.radius * 2 + NODE_SIZE}
-              viewBox={`${-(geometry.radius + NODE_SIZE / 2)} ${-(geometry.radius + NODE_SIZE / 2)} ${(geometry.radius + NODE_SIZE / 2) * 2} ${(geometry.radius + NODE_SIZE / 2) * 2}`}
+              width={svgWidth}
+              height={svgHeight}
+              viewBox={`${-svgWidth / 2} ${-(svgHeight - NODE_SIZE / 2)} ${svgWidth} ${svgHeight}`}
               style={{ overflow: "visible", zIndex: zVar("var(--z-core-connectors)") }}
               aria-hidden="true"
             >
@@ -108,9 +121,9 @@ export function StellaCore({
                 <line
                   key={i}
                   x1={0}
-                  y1={0}
+                  y1={-NODE_SIZE / 2}
                   x2={node.x}
-                  y2={node.y}
+                  y2={node.y + NODE_SIZE / 2}
                   stroke="var(--cc-polaris)"
                   strokeWidth={2}
                   opacity={0.4}
@@ -155,7 +168,15 @@ export function StellaCore({
                 >
                   <MoreHorizontal size={20} />
                 </button>
-                <span className="text-xs font-medium text-center leading-tight" style={{ color: "var(--foreground)", maxWidth: geometry.nodes[visibleActions.length].labelMaxWidth }}>
+                <span
+                  className="rounded-[var(--radius-sm)] border px-1.5 py-0.5 text-[11px] font-medium text-center leading-tight"
+                  style={{
+                    color: "var(--foreground)",
+                    background: "var(--cc-nebula)",
+                    borderColor: "var(--cc-horizon)",
+                    maxWidth: geometry.nodes[visibleActions.length].labelMaxWidth,
+                  }}
+                >
                   Mais
                 </span>
 
@@ -229,7 +250,8 @@ export function StellaCore({
           }
         }
       `}</style>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -284,8 +306,13 @@ function ActionNode({
         )}
       </button>
       <span
-        className="text-[11px] font-medium text-center leading-tight [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] overflow-hidden"
-        style={{ color: "var(--foreground)", maxWidth: node.labelMaxWidth }}
+        className="rounded-[var(--radius-sm)] border px-1.5 py-0.5 text-[11px] font-medium text-center leading-tight [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] overflow-hidden"
+        style={{
+          color: "var(--foreground)",
+          background: "var(--cc-nebula)",
+          borderColor: "var(--cc-horizon)",
+          maxWidth: node.labelMaxWidth,
+        }}
       >
         {action.shortLabel ?? action.label}
       </span>
