@@ -49,6 +49,11 @@ export type Doxology = {
   source_type: string;
   created_at: number;
   updated_at: number;
+  /** Fase 11.8.3 (Bloco N-S) - optional because migration 009 may not have run yet on an older
+   *  deployment; every read site falls back sensibly (false/null/0) when these are missing. */
+  is_favorite?: boolean;
+  reused_from_doxology_id?: string | null;
+  times_reused?: number;
 };
 
 export type MediaType = "NONE" | "IMAGE" | "VIDEO" | "DOCUMENT";

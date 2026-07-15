@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Calendar, Plus } from "lucide-react";
+import { Calendar, Plus, RotateCcw } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminStatus } from "@/lib/supabase/auth";
 import { Doxology } from "@/lib/types/database";
@@ -8,6 +8,7 @@ import { Card } from "@/components/Card";
 import { EmptyState } from "@/components/EmptyState";
 import { DeleteButton } from "../DeleteButton";
 import { deleteDoxologyAction } from "../actions";
+import { FavoriteButton } from "./FavoriteButton";
 
 export const revalidate = 0;
 
@@ -23,14 +24,22 @@ export default async function AdminDoxologiaPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-semibold">Doxologia</h1>
-        <Link
-          href="/admin/doxologia/nova"
-          className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-white"
-        >
-          <Plus size={16} /> Nova doxologia
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/doxologia/reutilizar"
+            className="flex items-center gap-1.5 rounded-full border border-border-soft px-4 py-2 text-sm font-medium text-primary hover:bg-primary-container/20 transition-colors"
+          >
+            <RotateCcw size={14} /> Reutilizar
+          </Link>
+          <Link
+            href="/admin/doxologia/nova"
+            className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-white"
+          >
+            <Plus size={16} /> Nova doxologia
+          </Link>
+        </div>
       </div>
 
       {items.length === 0 ? (
@@ -42,12 +51,15 @@ export default async function AdminDoxologiaPage() {
               key={item.id}
               className="p-5 flex flex-col gap-3 hover:shadow-md hover:-translate-y-0.5"
             >
-              <div>
-                <p className="font-semibold leading-tight">{item.title}</p>
-                <p className="mt-1 flex items-center gap-1.5 text-sm text-text-secondary capitalize">
-                  <Calendar size={14} className="shrink-0" />
-                  {formatDatePt(item.date)} às {formatTimePt(item.start_time)}
-                </p>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-semibold leading-tight truncate">{item.title}</p>
+                  <p className="mt-1 flex items-center gap-1.5 text-sm text-text-secondary capitalize">
+                    <Calendar size={14} className="shrink-0" />
+                    {formatDatePt(item.date)} às {formatTimePt(item.start_time)}
+                  </p>
+                </div>
+                <FavoriteButton id={item.id} initial={item.is_favorite ?? false} />
               </div>
               <div className="mt-auto flex items-center justify-between gap-3 border-t border-divider pt-3">
                 <Link href={`/admin/doxologia/${item.id}`} className="text-sm font-medium text-primary">

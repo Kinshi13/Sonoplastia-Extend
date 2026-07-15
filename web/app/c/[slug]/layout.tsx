@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getChurchBySlug } from "@/lib/church";
 import { ChurchStellaDock } from "@/components/ChurchStellaDock";
 import { RecentChurchRecorder } from "@/components/RecentChurchRecorder";
+import { DockPortal } from "@/components/DockPortal";
 
 export default async function ChurchLayout({
   children,
@@ -34,7 +35,9 @@ export default async function ChurchLayout({
       <RecentChurchRecorder churchId={church.id} slug={slug} churchName={church.name} />
       <h1 className="font-display text-lg text-primary">{church.name}</h1>
       {children}
-      <ChurchStellaDock slug={slug} />
+      <DockPortal>
+        <ChurchStellaDock slug={slug} />
+      </DockPortal>
     </div>
   );
 }

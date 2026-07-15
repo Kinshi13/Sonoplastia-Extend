@@ -29,12 +29,12 @@ export function ChurchStellaDock({ slug }: { slug: string }) {
   ];
 
   const actions: StellaCoreAction[] = [
-    { id: "retro", label: "Retrospectiva", icon: Images, onClick: () => router.push(`${base}/retrospectiva`) },
+    { id: "retro", label: "Histórico", subtitle: "Últimas atividades", icon: Images, onClick: () => router.push(`${base}/retrospectiva`) },
   ];
   if (pathname !== base) {
-    actions.push({ id: "escala", label: "Escala", icon: Calendar, onClick: () => router.push(base) });
+    actions.push({ id: "escala", label: "Escala", subtitle: "Ver e editar", icon: Calendar, onClick: () => router.push(base) });
   }
-  actions.push({ id: "admin", label: "Área administrativa", icon: ShieldCheck, onClick: () => router.push("/admin") });
+  actions.push({ id: "admin", label: "Admin", subtitle: "Gerenciar igreja", icon: ShieldCheck, onClick: () => router.push("/admin") });
 
   return <StellaDock items={items} stellaCoreActions={actions} />;
 }

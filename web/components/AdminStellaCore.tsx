@@ -12,22 +12,23 @@ import { StellaCore, StellaCoreAction } from "@/components/StellaCore";
 function actionsForPath(pathname: string, push: (href: string) => void, hasAdvancedMedia: boolean): StellaCoreAction[] {
   if (pathname === "/admin") {
     return [
-      { id: "new_scale", label: "Nova escala", icon: CalendarPlus, onClick: () => push("/admin/escalas/nova") },
-      { id: "new_announcement", label: "Novo anúncio", icon: Megaphone, onClick: () => push("/admin/anuncios/nova") },
+      { id: "new_scale", label: "Escala", subtitle: "Nova escala", icon: CalendarPlus, onClick: () => push("/admin/escalas/nova") },
+      { id: "new_announcement", label: "Anúncios", subtitle: "Novo anúncio", icon: Megaphone, onClick: () => push("/admin/anuncios/nova") },
     ];
   }
   if (pathname.startsWith("/admin/escalas")) {
-    return [{ id: "new_scale", label: "Nova escala", icon: CalendarPlus, onClick: () => push("/admin/escalas/nova") }];
+    return [{ id: "new_scale", label: "Escala", subtitle: "Nova escala", icon: CalendarPlus, onClick: () => push("/admin/escalas/nova") }];
   }
   if (pathname.startsWith("/admin/doxologia")) {
-    return [{ id: "new_doxology", label: "Nova doxologia", icon: Music, onClick: () => push("/admin/doxologia/nova") }];
+    return [{ id: "new_doxology", label: "Doxologia", subtitle: "Nova doxologia", icon: Music, onClick: () => push("/admin/doxologia/nova") }];
   }
   if (pathname.startsWith("/admin/anuncios")) {
     return [
-      { id: "new_announcement", label: "Novo anúncio", icon: Megaphone, onClick: () => push("/admin/anuncios/nova") },
+      { id: "new_announcement", label: "Anúncios", subtitle: "Novo anúncio", icon: Megaphone, onClick: () => push("/admin/anuncios/nova") },
       {
         id: "media",
-        label: "Gerenciar mídia",
+        label: "Mídia",
+        subtitle: "Gerenciar mídia",
         icon: FolderOpen,
         locked: !hasAdvancedMedia,
         // Locked churches land on Planos instead of Sonoplastia - the same "preview, not a dead
@@ -37,10 +38,10 @@ function actionsForPath(pathname: string, push: (href: string) => void, hasAdvan
     ];
   }
   if (pathname.startsWith("/admin/boletins")) {
-    return [{ id: "new_bulletin", label: "Novo boletim", icon: FileText, onClick: () => push("/admin/boletins/nova") }];
+    return [{ id: "new_bulletin", label: "Boletins", subtitle: "Novo boletim", icon: FileText, onClick: () => push("/admin/boletins/nova") }];
   }
   if (pathname.startsWith("/admin/retrospectiva")) {
-    return [{ id: "new_retro", label: "Novo item", icon: Images, onClick: () => push("/admin/retrospectiva/nova") }];
+    return [{ id: "new_retro", label: "Histórico", subtitle: "Novo item", icon: Images, onClick: () => push("/admin/retrospectiva/nova") }];
   }
   return [];
 }

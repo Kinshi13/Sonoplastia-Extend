@@ -5,6 +5,7 @@ import { getEntitlements } from "@/lib/entitlements";
 import { AdminStellaCore } from "@/components/AdminStellaCore";
 import { AdminStellaDock } from "@/components/AdminStellaDock";
 import { AdminNav } from "@/components/AdminNav";
+import { DockPortal } from "@/components/DockPortal";
 import { signOutAction } from "./actions";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -54,13 +55,17 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </div>
 
       {/* Fase 11.8 (Parte 3): floating núcleo on desktop (sidebar already carries the nav job
-          there), full dock replacing both the pill row and the lone star on mobile. */}
-      <div className="hidden lg:block">
-        <AdminStellaCore hasAdvancedMedia={hasAdvancedMedia} />
-      </div>
-      <div className="lg:hidden">
-        <AdminStellaDock hasAdvancedMedia={hasAdvancedMedia} />
-      </div>
+          there), full dock replacing both the pill row and the lone star on mobile. Portaled
+          (Fase 11.8.3 HOTFIX) so neither ever ends up a DOM descendant of PageBlurWrapper's
+          blurred content. */}
+      <DockPortal>
+        <div className="hidden lg:block">
+          <AdminStellaCore hasAdvancedMedia={hasAdvancedMedia} />
+        </div>
+        <div className="lg:hidden">
+          <AdminStellaDock hasAdvancedMedia={hasAdvancedMedia} />
+        </div>
+      </DockPortal>
     </div>
   );
 }

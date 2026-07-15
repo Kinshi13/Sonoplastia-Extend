@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminStatus } from "@/lib/supabase/auth";
+import { ProgramStep } from "@/lib/types/database";
 
 export type ActionResult = { error?: string };
 
@@ -128,6 +129,107 @@ export async function deleteDoxologyAction(id: string) {
   if (error) throw new Error(error.message);
   revalidatePath("/admin/doxologia");
   revalidatePath(`/c/${admin.churchSlug}/doxologia`);
+}
+
+export async function toggleDoxologyFavoriteAction(id: string, isFavorite: boolean): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  if (admin.error) return { error: admin.error };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("doxologies")
+    .update({ is_favorite: isFavorite })
+    .eq("id", id)
+    .eq("church_id", admin.churchId);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/doxologia");
+  revalidatePath("/admin/doxologia/reutilizar");
+  return {};
+}
+
+export type DoxologyCopyMode = "ALL" | "STRUCTURE" | "SELECTED";
+
+/**
+ * Fase 11.8.3 (Bloco N-R): clones an existing Doxologia into a brand-new row - the source is
+ * never modified except for its own `times_reused` counter. `selectedStepIndexes` only matters
+ * for copyMode "SELECTED"; for the other two modes every step is copied (structure-only mode
+ * still keeps every step, it just drops responsible_person/notes per Bloco Q).
+ */
+export async function cloneDoxologyAction(
+  sourceId: string,
+  formData: FormData
+): Promise<ActionResult & { newId?: string }> {
+  const admin = await requireAdmin();
+  if (admin.error) return { error: admin.error };
+  const supabase = await createClient();
+
+  const { data: source, error: sourceError } = await supabase
+    .from("doxologies")
+    .select("*")
+    .eq("id", sourceId)
+    .eq("church_id", admin.churchId)
+    .single();
+  if (sourceError || !source) return { error: "Programação original não encontrada." };
+
+  const copyMode = String(formData.get("copy_mode") ?? "ALL") as DoxologyCopyMode;
+  const newDate = String(formData.get("date") ?? "");
+  const newTitle = String(formData.get("title") ?? "").trim();
+  const newStartTime = String(formData.get("start_time") ?? "");
+  if (!newDate) return { error: "Escolha uma nova data para a programação reutilizada." };
+  if (!newTitle) return { error: "Informe um título." };
+  if (!newStartTime) return { error: "Informe o horário de início." };
+
+  const selectedIndexes: number[] | null =
+    copyMode === "SELECTED"
+      ? String(formData.get("selected_steps") ?? "")
+          .split(",")
+          .filter((v) => v.length > 0)
+          .map(Number)
+      : null;
+
+  const sourceSteps: ProgramStep[] = source.program_order ?? [];
+  const keptSteps = selectedIndexes ? sourceSteps.filter((_, i) => selectedIndexes.includes(i)) : sourceSteps;
+  if (keptSteps.length === 0) return { error: "Selecione pelo menos uma etapa para reutilizar." };
+
+  const newSteps: ProgramStep[] =
+    copyMode === "STRUCTURE"
+      ? keptSteps.map((step, i) => ({
+          order: i + 1,
+          title: step.title,
+          description: undefined,
+          responsible_person: undefined,
+          estimated_duration_minutes: step.estimated_duration_minutes ?? null,
+        }))
+      : keptSteps.map((step, i) => ({ ...step, order: i + 1 }));
+
+  const now = Date.now();
+  const { data: inserted, error: insertError } = await supabase
+    .from("doxologies")
+    .insert({
+      church_id: admin.churchId,
+      date: newDate,
+      start_time: newStartTime,
+      end_time: formData.get("end_time") ? String(formData.get("end_time")) : null,
+      title: newTitle,
+      notes: copyMode === "ALL" ? source.notes : "",
+      program_order: newSteps,
+      source_type: "OFFICIAL",
+      reused_from_doxology_id: sourceId,
+      created_at: now,
+      updated_at: now,
+    })
+    .select("id")
+    .single();
+  if (insertError) return { error: insertError.message };
+
+  // Best-effort counter on the source - never blocks the clone from succeeding if it fails.
+  await supabase
+    .from("doxologies")
+    .update({ times_reused: (source.times_reused ?? 0) + 1 })
+    .eq("id", sourceId);
+
+  revalidatePath("/admin/doxologia");
+  revalidatePath(`/c/${admin.churchSlug}/doxologia`);
+  return { newId: inserted?.id };
 }
 
 // Announcements ------------------------------------------------------------

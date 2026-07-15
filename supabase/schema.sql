@@ -102,7 +102,11 @@ create table doxologies (
   program_order jsonb not null default '[]',
   source_type text not null default 'OFFICIAL',
   created_at bigint not null,
-  updated_at bigint not null
+  updated_at bigint not null,
+  -- Fase 11.8.3 (Bloco N-S): reuse/favorite support for "Reutilizar programação recente".
+  is_favorite boolean not null default false,
+  reused_from_doxology_id uuid references doxologies(id) on delete set null,
+  times_reused integer not null default 0
 );
 
 alter table doxologies enable row level security;

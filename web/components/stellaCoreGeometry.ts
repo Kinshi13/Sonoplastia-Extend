@@ -1,79 +1,100 @@
 /**
- * Fase 11.8.2 (Bloco A): the Stella Core menu is a compact micro-constellation, not a wide arc.
- * The 11.8.1 arc geometry fixed overlap with the dock but still spread nodes far enough sideways
- * to read as a big "V", and on tall pages its connectors could still reach cards well above the
- * star. This module now lays out up to 4 node slots in a small fixed grid directly above the
- * star - one row nearest the star (row 0), a second row above it only when there are 3-4 actions
- * (row 1) - so the whole menu stays inside a short, constant-height zone regardless of what the
- * page above it contains.
+ * Fase 11.8.3 (Bloco A-H): the Stella Core is now a two-branch "constellation action map" instead
+ * of a single fan of small circular nodes. Each action gets its own star-node (a small glowing
+ * point where the connector ends) plus a full mini card (StellaConstellationCard) - not a bare
+ * label floating in space. This module only computes positions; it knows nothing about rendering.
  */
 
-export const MAX_GRID_SLOTS = 4;
-const SMALL_WIDTH_BREAKPOINT = 360;
-const MARGIN_X = 20;
-const NODE_DIAMETER = 48;
+export type Branch = "L" | "R";
 
-export type StellaCoreNodeGeometry = { x: number; y: number; labelMaxWidth: number };
-export type StellaCoreGeometry = { nodes: StellaCoreNodeGeometry[]; zoneWidth: number; zoneHeight: number };
-
-type Slot = { col: -1 | 0 | 1; row: 0 | 1 };
-
-// Row 0 = nearest the star. Row 1 = one tier further up, only used for 3-4 nodes. Matches the
-// spec's ASCII layouts exactly: 3 items -> apex + pair; 4 items -> two even pairs.
-const LAYOUTS: Record<number, Slot[]> = {
-  1: [{ col: 0, row: 0 }],
-  2: [
-    { col: -1, row: 0 },
-    { col: 1, row: 0 },
-  ],
-  3: [
-    { col: -1, row: 0 },
-    { col: 1, row: 0 },
-    { col: 0, row: 1 },
-  ],
-  4: [
-    { col: -1, row: 0 },
-    { col: 1, row: 0 },
-    { col: -1, row: 1 },
-    { col: 1, row: 1 },
-  ],
+export type StellaConstellationNode = {
+  x: number;
+  y: number;
+  branch: Branch;
+  /** Position of the small star-node along the connector, short of the card itself. */
+  starX: number;
+  starY: number;
+  cardWidth: number;
+  cardHeight: number;
+  showSubtitle: boolean;
 };
 
-/** Maximum real (non-"Mais") action nodes to show before collapsing the rest into an overflow
- *  node - lower on narrow phones so the grid never has to widen past a comfortable thumb reach. */
+export type StellaConstellationGeometry = {
+  nodes: StellaConstellationNode[];
+  zoneWidth: number;
+  zoneHeight: number;
+};
+
+export const MAX_REAL_ACTIONS = 6;
+const SMALL_WIDTH_BREAKPOINT = 380;
+const MARGIN_X = 16;
+
+// Bloco B: how many actions go to the right branch vs the left branch, for each total count.
+// The heavier branch is filled first (right, arbitrarily but consistently).
+const BRANCH_SPLIT: Record<number, [right: number, left: number]> = {
+  1: [1, 0],
+  2: [1, 1],
+  3: [2, 1],
+  4: [2, 2],
+  5: [3, 2],
+  6: [3, 3],
+};
+
+/** Real (non-"Mais") action cap for the current viewport - narrower phones fit fewer per branch
+ *  before the composition would crowd the screen edges. */
 export function maxRealActions(viewportWidth: number): number {
-  return viewportWidth > 0 && viewportWidth < SMALL_WIDTH_BREAKPOINT ? 3 : MAX_GRID_SLOTS;
+  return viewportWidth > 0 && viewportWidth < SMALL_WIDTH_BREAKPOINT ? 4 : MAX_REAL_ACTIONS;
 }
 
-/** [nodeCount] is the number of node slots to render, already capped at MAX_GRID_SLOTS by the
- *  caller (real actions, or real actions minus one plus a trailing "Mais" node). */
-export function computeStellaCoreGeometry(nodeCount: number, viewportWidth: number): StellaCoreGeometry {
-  const count = Math.min(Math.max(nodeCount, 0), MAX_GRID_SLOTS);
+export function computeConstellationGeometry(nodeCount: number, viewportWidth: number): StellaConstellationGeometry {
+  const count = Math.min(Math.max(nodeCount, 0), MAX_REAL_ACTIONS);
   if (count === 0) return { nodes: [], zoneWidth: 0, zoneHeight: 0 };
 
   const narrow = viewportWidth > 0 && viewportWidth < SMALL_WIDTH_BREAKPOINT;
-  const rowGapNear = narrow ? 66 : 78;
-  const rowGapFar = rowGapNear + (narrow ? 52 : 60);
+  const [rightCount, leftCount] = BRANCH_SPLIT[count];
 
-  const maxHalfWidth = viewportWidth > 0 ? viewportWidth / 2 - MARGIN_X - NODE_DIAMETER / 2 : 120;
-  const colOffset = clamp(narrow ? 40 : 46, 32, Math.max(32, maxHalfWidth));
+  const xBase = narrow ? 58 : 76;
+  const xStep = narrow ? 8 : 14;
+  const yBase = narrow ? 70 : 86;
+  const yStep = narrow ? 62 : 74;
+  const cardWidth = narrow ? 108 : 148;
+  const cardHeight = narrow ? 48 : 58;
+  const showSubtitle = !narrow;
 
-  const labelMaxWidth = clamp(colOffset * 2 - 12, 64, 96);
+  const maxHalfWidth = viewportWidth > 0 ? viewportWidth / 2 - MARGIN_X : 400;
 
-  const layout = LAYOUTS[count];
-  const nodes = layout.map((slot) => ({
-    x: slot.col * colOffset,
-    y: -(slot.row === 0 ? rowGapNear : rowGapFar),
-    labelMaxWidth,
-  }));
+  function branchNodes(branch: Branch, k: number): StellaConstellationNode[] {
+    const dir = branch === "R" ? 1 : -1;
+    return Array.from({ length: k }, (_, i) => {
+      const starX = dir * (xBase + i * xStep);
+      const starY = -(yBase + i * yStep);
+      // The card sits further out from the star-node in the branch direction, its near edge
+      // just past the star so the connector never has to cross the card itself (Bloco F).
+      const cardCenterX = clamp(starX + dir * (cardWidth / 2 + 10), -maxHalfWidth + cardWidth / 2, maxHalfWidth - cardWidth / 2);
+      return {
+        x: cardCenterX,
+        y: starY,
+        branch,
+        starX,
+        starY,
+        cardWidth,
+        cardHeight,
+        showSubtitle,
+      };
+    });
+  }
 
-  return {
-    nodes,
-    zoneWidth: colOffset * 2 + NODE_DIAMETER + 24,
-    zoneHeight: rowGapFar + NODE_DIAMETER / 2 + 24,
-  };
+  // Interleave so DOM/focus order is bottom-to-top on one branch then the other (Bloco L).
+  const nodes = [...branchNodes("R", rightCount), ...branchNodes("L", leftCount)];
+
+  const maxK = Math.max(rightCount, leftCount);
+  const farStarX = xBase + (maxK - 1) * xStep;
+  const zoneWidth = 2 * (farStarX + cardWidth + 20);
+  const zoneHeight = yBase + (maxK - 1) * yStep + cardHeight / 2 + 24;
+
+  return { nodes, zoneWidth, zoneHeight };
 }
 
 function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
+  return Math.min(Math.max(value, min), max);
 }
