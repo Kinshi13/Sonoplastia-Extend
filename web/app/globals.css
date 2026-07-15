@@ -68,6 +68,50 @@
   --error: var(--cc-nova);
 }
 
+/*
+ * Fase 11.5 (Etapa 2): named roles the spec asks for, layered on top of the Constellation Calm
+ * primitives above instead of duplicating hex values - backgroundSecondary/surfaceElevated/
+ * surfaceGlass/accentStar/... all resolve to a --cc-* token so there is still exactly one place
+ * (the block above) that defines what a color actually is per theme.
+ */
+:root {
+  --background-secondary: var(--cc-nebula-elevated);
+  --surface-elevated: var(--cc-nebula-elevated);
+  --surface-glass: color-mix(in srgb, var(--cc-nebula) 72%, transparent);
+  --primary-soft: var(--cc-polaris-soft);
+  --secondary: var(--cc-aurora);
+  --accent-star: var(--cc-comet);
+  --accent-constellation: var(--cc-polaris);
+  --text-muted: color-mix(in srgb, var(--cc-stardust) 70%, transparent);
+  --border-soft: color-mix(in srgb, var(--cc-horizon) 60%, transparent);
+  --border-focus: var(--cc-polaris);
+  --success: #2f9e6e;
+  --warning: #c98a2c;
+
+  /* Elevation: soft, diffuse shadows tinted with the accent (starlight glow) instead of flat
+     black, consistent with ConstellationElevation on Android. */
+  --shadow-color: 74, 95, 224;
+  --elevation-flat: none;
+  --elevation-raised: 0 1px 2px rgba(var(--shadow-color), 0.06), 0 1px 1px rgba(15, 15, 30, 0.04);
+  --elevation-elevated: 0 8px 24px -12px rgba(var(--shadow-color), 0.22), 0 2px 8px -2px rgba(15, 15, 30, 0.06);
+  --elevation-floating: 0 20px 48px -16px rgba(var(--shadow-color), 0.28), 0 4px 14px -4px rgba(15, 15, 30, 0.1);
+  --elevation-overlay: 0 24px 64px -20px rgba(8, 8, 20, 0.4);
+
+  /* Radii */
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-hero: 32px;
+  --radius-pill: 999px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --shadow-color: 124, 156, 255;
+    --success: #4bbf90;
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -78,6 +122,18 @@
   --color-text-secondary: var(--text-secondary);
   --color-divider: var(--divider);
   --color-error: var(--error);
+  --color-background-secondary: var(--background-secondary);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-glass: var(--surface-glass);
+  --color-primary-soft: var(--primary-soft);
+  --color-secondary: var(--secondary);
+  --color-accent-star: var(--accent-star);
+  --color-accent-constellation: var(--accent-constellation);
+  --color-text-muted: var(--text-muted);
+  --color-border-soft: var(--border-soft);
+  --color-border-focus: var(--border-focus);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -86,4 +142,13 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

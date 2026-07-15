@@ -30,51 +30,56 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="mx-auto max-w-sm">
-      <h1 className="text-2xl font-semibold mb-1">Modo administrador</h1>
-      <p className="text-sm text-text-secondary mb-6">
-        Entre com a conta de administrador criada no Supabase para editar escalas, doxologia e
-        anúncios.
-      </p>
-
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div>
-          <label className="text-sm font-medium block mb-1" htmlFor="email">
-            E-mail
-          </label>
-          <input
-            id="email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border border-divider bg-surface px-3 py-2 text-sm outline-none focus:border-primary"
-          />
+    <div className="mx-auto max-w-sm py-8 sm:py-16">
+      <div className="rounded-[var(--radius-hero)] border border-border-soft bg-surface/80 backdrop-blur-sm p-8 [box-shadow:var(--elevation-floating)]">
+        <div className="mb-6 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-accent-constellation">
+          <span aria-hidden="true">✦</span> Escala Church
         </div>
-        <div>
-          <label className="text-sm font-medium block mb-1" htmlFor="password">
-            Senha
-          </label>
-          <input
-            id="password"
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border border-divider bg-surface px-3 py-2 text-sm outline-none focus:border-primary"
-          />
-        </div>
+        <h1 className="text-2xl font-semibold mb-1">Modo administrador</h1>
+        <p className="text-sm text-text-secondary mb-6">
+          Entre com a conta de administrador criada no Supabase para editar escalas, doxologia e
+          anúncios.
+        </p>
 
-        {error && <p className="text-sm text-error">{error}</p>}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div>
+            <label className="text-sm font-medium block mb-1" htmlFor="email">
+              E-mail
+            </label>
+            <input
+              id="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-[var(--radius-sm)] border border-border-soft bg-background px-3 py-2 text-sm outline-none focus:border-border-focus transition-colors"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium block mb-1" htmlFor="password">
+              Senha
+            </label>
+            <input
+              id="password"
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full rounded-[var(--radius-sm)] border border-border-soft bg-background px-3 py-2 text-sm outline-none focus:border-border-focus transition-colors"
+            />
+          </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-        >
-          {loading ? "Entrando..." : "Entrar"}
-        </button>
-      </form>
+          {error && <p className="text-sm text-error">{error}</p>}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-white [box-shadow:var(--elevation-raised)] hover:opacity-90 transition-opacity disabled:opacity-60"
+          >
+            {loading ? "Entrando..." : "Entrar"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

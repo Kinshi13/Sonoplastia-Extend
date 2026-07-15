@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { Calendar, Mic2, Music2, BookOpen, Users, Sparkles } from "lucide-react";
+import { Calendar, Mic2, Music2, BookOpen, Users, Sparkles, CalendarClock, Radio } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getChurchBySlug } from "@/lib/church";
 import { Scale } from "@/lib/types/database";
@@ -34,25 +34,116 @@ export default async function ChurchHomePage({ params }: { params: Promise<{ slu
     .limit(20);
 
   const items = (scales as Scale[]) ?? [];
+  const [next, ...rest] = items;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Próximas Escalas</h2>
-        <p className="mt-1 text-sm text-text-secondary">
-          Quem está escalado nos próximos cultos e eventos.
-        </p>
-      </div>
+    <div className="flex flex-col gap-10">
+      {next ? (
+        <Hero church={church.name} next={next} upcomingCount={items.length} />
+      ) : (
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Próximas Escalas</h2>
+          <p className="mt-1 text-sm text-text-secondary">Quem está escalado nos próximos cultos e eventos.</p>
+        </div>
+      )}
 
       {items.length === 0 ? (
         <EmptyState message="Nenhuma escala futura cadastrada." />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
-          {items.map((scale) => (
-            <ScaleCard key={scale.id} scale={scale} />
-          ))}
+      ) : rest.length > 0 ? (
+        <div className="flex flex-col gap-4">
+          <h3 className="text-lg font-semibold text-foreground/90">Depois dessa</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
+            {rest.map((scale) => (
+              <ScaleCard key={scale.id} scale={scale} />
+            ))}
+          </div>
         </div>
-      )}
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Fase 11.5 (Etapa 5): the site's Home used to open directly on a grid of same-weight cards - a
+ * functional list, not a product's front door. The very next scale now gets its own hero: a
+ * two-column composition on desktop (the scale itself + a small "at a glance" panel), collapsing
+ * to one column on mobile without losing the highlight treatment.
+ */
+function Hero({ church, next, upcomingCount }: { church: string; next: Scale; upcomingCount: number }) {
+  const roles = ROLE_FIELDS.filter(({ key }) => {
+    const value = next[key];
+    return typeof value === "string" && value.trim().length > 0;
+  });
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-5">
+      <Card className="relative overflow-hidden p-7 sm:p-9 [box-shadow:var(--elevation-floating)]">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full opacity-40 blur-2xl"
+          style={{ background: "radial-gradient(circle, var(--accent-constellation), transparent 70%)" }}
+        />
+        <div className="relative flex flex-col gap-5">
+          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-accent-constellation">
+            <span aria-hidden="true">✦</span> Próxima escala em {church}
+          </div>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-balance">{next.title}</h1>
+            {next.is_special_event && (
+              <span className="flex items-center gap-1 shrink-0 rounded-full bg-primary-container px-3 py-1 text-xs font-medium text-on-primary-container">
+                <Sparkles size={12} /> Especial
+              </span>
+            )}
+          </div>
+          <p className="flex items-center gap-1.5 text-sm text-text-secondary capitalize">
+            <Calendar size={14} className="shrink-0" />
+            {formatDatePt(next.date)} às {formatTimePt(next.start_time)}
+            {next.end_time ? ` - ${formatTimePt(next.end_time)}` : ""}
+          </p>
+
+          {roles.length > 0 && (
+            <div className="flex flex-wrap gap-2 pt-1">
+              {roles.map(({ key, label, icon: Icon }) => (
+                <div
+                  key={key}
+                  className="flex items-center gap-2 rounded-[var(--radius-md)] bg-background px-3 py-2 text-sm border border-border-soft"
+                >
+                  <Icon size={15} className="text-primary shrink-0" />
+                  <div className="leading-tight">
+                    <p className="text-[11px] text-text-secondary">{label}</p>
+                    <p className="font-medium">{next[key] as string}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {next.notes && (
+            <p className="text-sm text-text-secondary italic border-t border-border-soft pt-4">{next.notes}</p>
+          )}
+        </div>
+      </Card>
+
+      <div className="flex flex-col gap-5">
+        <Card className="p-6 flex items-center gap-4">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-primary-container text-on-primary-container">
+            <CalendarClock size={20} />
+          </span>
+          <div>
+            <p className="text-sm text-text-secondary">Escalas futuras cadastradas</p>
+            <p className="text-2xl font-semibold mt-0.5">{upcomingCount}</p>
+          </div>
+        </Card>
+        <Card className="p-6 flex items-center gap-4">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-primary-container text-on-primary-container">
+            <Radio size={20} />
+          </span>
+          <div>
+            <p className="text-sm text-text-secondary">Sincronizado com o app</p>
+            <p className="text-sm font-medium mt-0.5 text-foreground">Em tempo real</p>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }
@@ -64,7 +155,7 @@ function ScaleCard({ scale }: { scale: Scale }) {
   });
 
   return (
-    <Card className="p-6 flex flex-col gap-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+    <Card className="p-6 flex flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-lg font-semibold leading-tight">{scale.title}</h3>
@@ -86,7 +177,7 @@ function ScaleCard({ scale }: { scale: Scale }) {
           {roles.map(({ key, label, icon: Icon }) => (
             <div
               key={key}
-              className="flex items-center gap-2 rounded-xl bg-background px-3 py-2 text-sm border border-divider"
+              className="flex items-center gap-2 rounded-[var(--radius-md)] bg-background px-3 py-2 text-sm border border-border-soft"
             >
               <Icon size={15} className="text-primary shrink-0" />
               <div className="leading-tight">
@@ -99,7 +190,7 @@ function ScaleCard({ scale }: { scale: Scale }) {
       )}
 
       {scale.notes && (
-        <p className="text-sm text-text-secondary italic border-t border-divider pt-3">
+        <p className="text-sm text-text-secondary italic border-t border-border-soft pt-3">
           {scale.notes}
         </p>
       )}

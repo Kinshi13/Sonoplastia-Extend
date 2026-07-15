@@ -2,9 +2,9 @@ import { ReactNode } from "react";
 import Link from "next/link";
 
 const baseCardClass =
-  "rounded-2xl bg-surface border border-divider shadow-sm transition-all duration-200";
+  "rounded-[var(--radius-lg)] bg-surface border border-border-soft transition-all duration-200 [box-shadow:var(--elevation-raised)]";
 const interactiveCardClass =
-  "hover:shadow-lg hover:-translate-y-0.5 hover:border-primary/40 cursor-pointer";
+  "hover:[box-shadow:var(--elevation-elevated)] hover:-translate-y-0.5 hover:border-primary/40 cursor-pointer";
 
 /** Static card - use for content that isn't itself a link/action. */
 export function Card({ className = "", children }: { className?: string; children: ReactNode }) {

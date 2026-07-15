@@ -1,20 +1,9 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { getAdminStatus } from "@/lib/supabase/auth";
 import { getEntitlements } from "@/lib/entitlements";
 import { AdminStellaCore } from "@/components/AdminStellaCore";
+import { AdminNav } from "@/components/AdminNav";
 import { signOutAction } from "./actions";
-
-const adminLinks = [
-  { href: "/admin", label: "Painel" },
-  { href: "/admin/escalas", label: "Escalas" },
-  { href: "/admin/doxologia", label: "Doxologia" },
-  { href: "/admin/anuncios", label: "Anúncios" },
-  { href: "/admin/boletins", label: "Boletins" },
-  { href: "/admin/retrospectiva", label: "Retrospectiva" },
-  { href: "/admin/sonoplastia", label: "Sonoplastia" },
-  { href: "/admin/planos", label: "Planos" },
-];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, isAdmin, churchId } = await getAdminStatus();
@@ -36,25 +25,23 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const hasAdvancedMedia = entitlements?.features.has("ADVANCED_MEDIA") ?? false;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-divider pb-4">
-        <nav className="flex flex-wrap gap-4 text-sm">
-          {adminLinks.map((link) => (
-            <Link key={link.href} href={link.href} className="text-foreground/80 hover:text-primary">
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-        <form action={signOutAction}>
-          <button
-            type="submit"
-            className="rounded-full border border-divider px-3 py-1 text-xs text-text-secondary hover:text-foreground"
-          >
-            Sair
-          </button>
-        </form>
+    <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
+      <AdminNav planName={entitlements?.planName} />
+
+      <div className="flex min-w-0 flex-1 flex-col gap-6">
+        <div className="flex items-center justify-between gap-3 border-b border-border-soft pb-4">
+          <p className="text-sm font-medium text-text-secondary lg:hidden">Escala Church · Admin</p>
+          <form action={signOutAction} className="ml-auto">
+            <button
+              type="submit"
+              className="rounded-full border border-border-soft px-3 py-1 text-xs text-text-secondary hover:text-foreground transition-colors"
+            >
+              Sair
+            </button>
+          </form>
+        </div>
+        {children}
       </div>
-      {children}
       <AdminStellaCore hasAdvancedMedia={hasAdvancedMedia} />
     </div>
   );
