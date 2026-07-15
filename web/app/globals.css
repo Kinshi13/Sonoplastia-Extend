@@ -103,6 +103,16 @@
   --radius-lg: 22px;
   --radius-hero: 32px;
   --radius-pill: 999px;
+
+  /* Fase 11.8.1 (Parte 10): one ordered stacking scale for the Stella Dock/Core instead of
+     scattered numbers - each layer strictly higher than the one it must sit above. */
+  --z-page-content: 0;
+  --z-dock: 30;
+  --z-dock-backdrop: 35;
+  --z-core-connectors: 36;
+  --z-core-actions: 37;
+  --z-core-trigger: 38;
+  --z-modal: 50;
 }
 
 @media (prefers-color-scheme: dark) {
