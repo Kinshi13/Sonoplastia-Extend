@@ -51,6 +51,7 @@ export function StellaCore({
 }) {
   const [open, setOpenState] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const firstActionRef = useRef<HTMLButtonElement>(null);
   const viewportWidth = useViewportWidth();
@@ -111,10 +112,16 @@ export function StellaCore({
         />
       )}
 
-      <div className={embedded ? "relative flex justify-center pointer-events-none" : "fixed inset-x-0 bottom-6 flex justify-center pointer-events-none"} style={{ zIndex: embedded ? undefined : zVar("var(--z-core-trigger)") }}>
+      <div className={embedded ? "relative flex justify-center pointer-events-none" : "fixed inset-x-0 bottom-6 flex justify-center pointer-events-none"} style={{ zIndex: zVar("var(--z-core-trigger)") }}>
         {/* StellaConstellationViewport (Bloco H): a local, bounded layer anchored to the star.
-            Its size comes only from the geometry's own branch math, never from page content. */}
-        <div className="relative pointer-events-auto" style={{ isolation: "isolate" }}>
+            Its size comes only from the geometry's own branch math, never from page content.
+            HOTFIX: `isolation: isolate` creates its own internal stacking context, but this div
+            still had no explicit z-index of its OWN relative to its siblings (the backdrop) -
+            so it stacked at the implicit "auto" (0) level while the backdrop sat at 35, painting
+            the backdrop's scrim on top of the star/cards and swallowing every click on them.
+            Explicit z-index here (always, not just for the non-embedded case) guarantees the
+            whole constellation layer paints - and receives clicks - above the backdrop. */}
+        <div className="relative pointer-events-auto" style={{ isolation: "isolate", zIndex: zVar("var(--z-core-trigger)") }}>
           {open && (
             <>
               <svg
@@ -130,10 +137,12 @@ export function StellaCore({
                     key={i}
                     d={`M 0 ${-NODE_SIZE / 2} L ${node.starX} ${node.starY}`}
                     stroke="var(--cc-polaris)"
-                    strokeWidth={1.5}
+                    strokeWidth={activeIndex === i ? 2.5 : 1.5}
                     strokeLinecap="round"
-                    opacity={0.55}
-                    className="stella-line"
+                    // Bloco 11: only the hovered/focused node's own connector lights up - the
+                    // rest stay discreet so the constellation still reads as one system.
+                    opacity={activeIndex === null ? 0.55 : activeIndex === i ? 0.9 : 0.25}
+                    className="stella-line transition-[opacity,stroke-width] duration-150"
                     pathLength={1}
                     style={{ animationDelay: `${i * 45}ms` }}
                   />
@@ -158,6 +167,7 @@ export function StellaCore({
                     setOpen(false);
                     action.onClick();
                   }}
+                  onActive={(active) => setActiveIndex(active ? i : null)}
                 />
               ))}
 
@@ -167,6 +177,7 @@ export function StellaCore({
                   node={moreNode}
                   index={visibleActions.length}
                   onSelect={() => setMoreOpen((v) => !v)}
+                  onActive={(active) => setActiveIndex(active ? visibleActions.length : null)}
                 />
               )}
 
