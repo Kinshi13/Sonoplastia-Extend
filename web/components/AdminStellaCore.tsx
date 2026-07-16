@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { CalendarPlus, Music, Megaphone, FileText, Images, FolderOpen } from "lucide-react";
+import { CalendarPlus, Music, Megaphone, FileText, Images, FolderOpen, Users } from "lucide-react";
 import { StellaCore, StellaCoreAction } from "@/components/StellaCore";
 
 /**
@@ -14,9 +14,16 @@ function actionsForPath(pathname: string, push: (href: string) => void, hasAdvan
     return [
       { id: "new_scale", label: "Escala", subtitle: "Nova escala", icon: CalendarPlus, onClick: () => push("/admin/escalas/nova") },
       { id: "new_announcement", label: "Anúncios", subtitle: "Novo anúncio", icon: Megaphone, onClick: () => push("/admin/anuncios/nova") },
+      { id: "people", label: "Pessoas", subtitle: "Pessoas e equipes", icon: Users, onClick: () => push("/admin/pessoas") },
     ];
   }
   if (pathname.startsWith("/admin/escalas")) {
+    return [
+      { id: "new_scale", label: "Escala", subtitle: "Nova escala", icon: CalendarPlus, onClick: () => push("/admin/escalas/nova") },
+      { id: "people", label: "Pessoas", subtitle: "Pessoas e equipes", icon: Users, onClick: () => push("/admin/pessoas") },
+    ];
+  }
+  if (pathname.startsWith("/admin/pessoas")) {
     return [{ id: "new_scale", label: "Escala", subtitle: "Nova escala", icon: CalendarPlus, onClick: () => push("/admin/escalas/nova") }];
   }
   if (pathname.startsWith("/admin/doxologia")) {

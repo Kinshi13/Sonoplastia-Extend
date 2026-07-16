@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Calendar, Plus } from "lucide-react";
+import { Calendar, Plus, RotateCcw } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminStatus } from "@/lib/supabase/auth";
 import { Scale } from "@/lib/types/database";
@@ -29,6 +29,12 @@ export default async function AdminEscalasPage() {
         <h1 className="font-display text-2xl">Escalas</h1>
         <div className="flex items-center gap-2">
           <ExportStudio />
+          <Link
+            href="/admin/escalas/reutilizar"
+            className="flex items-center gap-1.5 rounded-full border border-border-soft px-4 py-2 text-sm font-medium text-primary hover:bg-primary-container/20 transition-colors"
+          >
+            <RotateCcw size={14} /> Reutilizar
+          </Link>
           <Link
             href="/admin/escalas/nova"
             className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-white"

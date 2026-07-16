@@ -16,8 +16,9 @@ export async function signOutAction() {
 
 /** Resolves the current admin's church (id + slug) or an error string - RLS is the real
  *  enforcement, this just avoids a raw Postgres error reaching the form and gives us the slug
- *  to revalidate the right public path after a write. */
-async function requireAdmin(): Promise<{ error: string; churchId?: never; churchSlug?: never } | { error?: never; churchId: string; churchSlug: string }> {
+ *  to revalidate the right public path after a write. Exported so app/admin/pessoas/actions.ts
+ *  can reuse the same check instead of duplicating it. */
+export async function requireAdmin(): Promise<{ error: string; churchId?: never; churchSlug?: never } | { error?: never; churchId: string; churchSlug: string }> {
   const { isAdmin, churchId } = await getAdminStatus();
   if (!isAdmin || !churchId) return { error: "Apenas administradores podem fazer essa alteração." };
 
@@ -30,35 +31,109 @@ async function requireAdmin(): Promise<{ error: string; churchId?: never; church
 
 // Scales ---------------------------------------------------------------
 
+export type ScaleAssignmentInput = {
+  roleId: string;
+  personId: string | null;
+  customPersonName: string | null;
+  position: number;
+  notes: string;
+};
+
+/**
+ * Fase 11.8.4 (Parte 3, 10): the five text inputs are gone from the form - `assignments` (JSON in
+ * the `assignments` field) now drives who's on the schedule, resolved against whatever roles
+ * exist for this church. The five legacy `scales` columns are still written on every save (best
+ * effort, only for roles that carry a `legacy_field_key`) purely so nothing that reads them today
+ * - Android, the public site, exports - has to change to keep working.
+ */
 export async function saveScaleAction(id: string | null, formData: FormData): Promise<ActionResult> {
   const admin = await requireAdmin();
   if (admin.error) return { error: admin.error };
   const supabase = await createClient();
+
+  let assignments: ScaleAssignmentInput[];
+  try {
+    assignments = JSON.parse(String(formData.get("assignments") ?? "[]"));
+  } catch {
+    return { error: "Funções e pessoas inválidas." };
+  }
+
+  const roleIds = [...new Set(assignments.map((a) => a.roleId))];
+  const personIds = [...new Set(assignments.map((a) => a.personId).filter((v): v is string => !!v))];
+
+  const [{ data: roles }, { data: people }] = await Promise.all([
+    roleIds.length
+      ? supabase.from("organization_roles").select("id, name, legacy_field_key, allows_multiple_people").eq("church_id", admin.churchId).in("id", roleIds)
+      : Promise.resolve({ data: [] as { id: string; name: string; legacy_field_key: string | null; allows_multiple_people: boolean }[] }),
+    personIds.length
+      ? supabase.from("organization_people").select("id, full_name, display_name").eq("church_id", admin.churchId).in("id", personIds)
+      : Promise.resolve({ data: [] as { id: string; full_name: string; display_name: string | null }[] }),
+  ]);
+  const roleById = new Map((roles ?? []).map((r) => [r.id, r]));
+  const personById = new Map((people ?? []).map((p) => [p.id, p]));
+
+  const legacyByField: Record<string, string[]> = {};
+  const resolvedAssignments = assignments.map((a) => {
+    const role = roleById.get(a.roleId);
+    const personName = a.personId ? personById.get(a.personId)?.display_name || personById.get(a.personId)?.full_name || "" : a.customPersonName || "";
+    if (role?.legacy_field_key && personName) {
+      (legacyByField[role.legacy_field_key] ??= []).push(personName);
+    }
+    return { ...a, roleName: role?.name ?? "Função", personName };
+  });
+
+  const legacyPayload = {
+    reception_person: (legacyByField["reception_person"] ?? []).join(" e "),
+    sound_person: (legacyByField["sound_person"] ?? []).join(" e "),
+    preaching_person: (legacyByField["preaching_person"] ?? []).join(" e "),
+    conducting_person: (legacyByField["conducting_person"] ?? []).join(" e "),
+    musical_message_person: (legacyByField["musical_message_person"] ?? []).join(" e "),
+  };
 
   const payload = {
     date: String(formData.get("date")),
     start_time: String(formData.get("start_time")),
     end_time: formData.get("end_time") ? String(formData.get("end_time")) : null,
     title: String(formData.get("title")),
-    reception_person: String(formData.get("reception_person") ?? ""),
-    sound_person: String(formData.get("sound_person") ?? ""),
-    preaching_person: String(formData.get("preaching_person") ?? ""),
-    conducting_person: String(formData.get("conducting_person") ?? ""),
-    musical_message_person: String(formData.get("musical_message_person") ?? ""),
+    ...legacyPayload,
     notes: String(formData.get("notes") ?? ""),
     is_special_event: formData.get("is_special_event") === "on",
     source_type: "OFFICIAL",
     updated_at: Date.now(),
   };
 
+  let scaleId = id;
   if (id) {
     const { error } = await supabase.from("scales").update(payload).eq("id", id).eq("church_id", admin.churchId);
     if (error) return { error: error.message };
+    await supabase.from("scale_assignments").delete().eq("scale_id", id);
   } else {
-    const { error } = await supabase
+    const { data: inserted, error } = await supabase
       .from("scales")
-      .insert({ ...payload, church_id: admin.churchId, created_at: Date.now() });
+      .insert({ ...payload, church_id: admin.churchId, created_at: Date.now() })
+      .select("id")
+      .single();
     if (error) return { error: error.message };
+    scaleId = inserted.id;
+  }
+
+  if (scaleId && resolvedAssignments.length > 0) {
+    const now = Date.now();
+    const { error: assignError } = await supabase.from("scale_assignments").insert(
+      resolvedAssignments.map((a) => ({
+        scale_id: scaleId,
+        role_id: a.roleId,
+        person_id: a.personId,
+        custom_person_name: a.personId ? null : a.customPersonName,
+        role_name_snapshot: a.roleName,
+        person_name_snapshot: a.personName,
+        position: a.position,
+        notes: a.notes,
+        created_at: now,
+        updated_at: now,
+      }))
+    );
+    if (assignError) return { error: assignError.message };
   }
 
   revalidatePath("/admin/escalas");
@@ -74,6 +149,85 @@ export async function deleteScaleAction(id: string) {
   if (error) throw new Error(error.message);
   revalidatePath("/admin/escalas");
   revalidatePath(`/c/${admin.churchSlug}`);
+}
+
+/**
+ * Fase 11.8.4 (Parte 11): "Reutilizar estrutura" - the main mode requested. Copies title, type,
+ * role list and order, and structural notes into a brand-new scale at a new date; people are
+ * never copied (every assignment lands with `person_id`/`custom_person_name` both null, ready to
+ * fill in). The source scale and its own assignments are never touched.
+ */
+export async function cloneScaleStructureAction(sourceId: string, formData: FormData): Promise<ActionResult & { newId?: string }> {
+  const admin = await requireAdmin();
+  if (admin.error) return { error: admin.error };
+  const supabase = await createClient();
+
+  const { data: source, error: sourceError } = await supabase
+    .from("scales")
+    .select("*")
+    .eq("id", sourceId)
+    .eq("church_id", admin.churchId)
+    .single();
+  if (sourceError || !source) return { error: "Escala original não encontrada." };
+
+  const { data: sourceAssignments } = await supabase
+    .from("scale_assignments")
+    .select("role_id, role_name_snapshot, position")
+    .eq("scale_id", sourceId)
+    .order("position", { ascending: true });
+
+  const newDate = String(formData.get("date") ?? "");
+  const newTitle = String(formData.get("title") ?? "").trim() || source.title;
+  const newStartTime = String(formData.get("start_time") ?? source.start_time?.slice(0, 5) ?? "");
+  if (!newDate) return { error: "Escolha uma nova data para a escala reutilizada." };
+  if (!newStartTime) return { error: "Informe o horário de início." };
+
+  const now = Date.now();
+  const { data: inserted, error: insertError } = await supabase
+    .from("scales")
+    .insert({
+      church_id: admin.churchId,
+      date: newDate,
+      start_time: newStartTime,
+      end_time: formData.get("end_time") ? String(formData.get("end_time")) : null,
+      type: source.type,
+      title: newTitle,
+      reception_person: "",
+      sound_person: "",
+      preaching_person: "",
+      conducting_person: "",
+      musical_message_person: "",
+      notes: source.notes,
+      is_special_event: source.is_special_event,
+      source_type: "OFFICIAL",
+      created_at: now,
+      updated_at: now,
+    })
+    .select("id")
+    .single();
+  if (insertError) return { error: insertError.message };
+
+  if (sourceAssignments && sourceAssignments.length > 0) {
+    const { error: assignError } = await supabase.from("scale_assignments").insert(
+      sourceAssignments.map((a) => ({
+        scale_id: inserted.id,
+        role_id: a.role_id,
+        person_id: null,
+        custom_person_name: null,
+        role_name_snapshot: a.role_name_snapshot,
+        person_name_snapshot: "",
+        position: a.position,
+        notes: "",
+        created_at: now,
+        updated_at: now,
+      }))
+    );
+    if (assignError) return { error: assignError.message };
+  }
+
+  revalidatePath("/admin/escalas");
+  revalidatePath(`/c/${admin.churchSlug}`);
+  return { newId: inserted.id };
 }
 
 // Doxologies -------------------------------------------------------------

@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Calendar, Megaphone, Sparkles, CalendarPlus, Music, FileText, Images, FolderOpen } from "lucide-react";
+import { LayoutDashboard, Calendar, Megaphone, Sparkles, CalendarPlus, Music, FileText, Images, FolderOpen, Users } from "lucide-react";
 import { StellaDock } from "./StellaDock";
 import { StellaCoreAction } from "./StellaCore";
 
@@ -54,6 +54,7 @@ function actionsForPath(pathname: string, push: (href: string) => void, hasAdvan
   return [
     { id: "doxologia", label: "Doxologia", icon: Music, onClick: () => push("/admin/doxologia") },
     { id: "boletins", label: "Boletins", icon: FileText, onClick: () => push("/admin/boletins") },
+    { id: "people", label: "Pessoas e equipes", icon: Users, onClick: () => push("/admin/pessoas") },
   ];
 }
 

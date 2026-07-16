@@ -2,17 +2,87 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Scale } from "@/lib/types/database";
+import { Plus, X, ChevronUp, ChevronDown } from "lucide-react";
+import { Scale, OrganizationRole, OrganizationPerson, PersonTeamMembership, ScaleAssignment } from "@/lib/types/database";
+import { PersonSelector, PersonSelection } from "@/components/PersonSelector";
 import { saveScaleAction } from "../actions";
+import { savePersonAction } from "../pessoas/actions";
 
-export function ScaleForm({ existing }: { existing: Scale | null }) {
+type Row = { roleId: string; selections: PersonSelection[] };
+
+const inputClass = "w-full rounded-lg border border-divider bg-surface px-3 py-2 text-sm outline-none focus:border-primary";
+
+/**
+ * Fase 11.8.4 (Parte 2, 7, 10): the five fixed text inputs are gone - the form now lists whatever
+ * `OrganizationRole`s exist for this church (Parte 3's migration seeds the original five so
+ * nothing regresses on day one), each with a real PersonSelector instead of free text. Roles can
+ * be added/removed/reordered per scale (Parte 10) without touching the organization's role list.
+ */
+export function ScaleForm({
+  existing,
+  roles,
+  initialPeople,
+  memberships,
+  existingAssignments,
+  recentPersonIds,
+}: {
+  existing: Scale | null;
+  roles: OrganizationRole[];
+  initialPeople: OrganizationPerson[];
+  memberships: PersonTeamMembership[];
+  existingAssignments: ScaleAssignment[];
+  recentPersonIds: string[];
+}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [people, setPeople] = useState(initialPeople);
+  const [quickAddRoleIndex, setQuickAddRoleIndex] = useState<number | null>(null);
+
+  const [rows, setRows] = useState<Row[]>(() => {
+    if (existingAssignments.length > 0) {
+      const byRole = new Map<string, PersonSelection[]>();
+      for (const a of [...existingAssignments].sort((x, y) => x.position - y.position)) {
+        const list = byRole.get(a.role_id) ?? [];
+        list.push({ personId: a.person_id, customPersonName: a.custom_person_name });
+        byRole.set(a.role_id, list);
+      }
+      return Array.from(byRole.entries()).map(([roleId, selections]) => ({ roleId, selections }));
+    }
+    // New scale: pre-populate every required role (Parte 3's migrated legacy five, plus any
+    // other role marked required) so nothing that used to always show up on the form vanishes.
+    return roles.filter((r) => r.is_required && r.is_active).map((r) => ({ roleId: r.id, selections: [] }));
+  });
+
+  const usedRoleIds = new Set(rows.map((r) => r.roleId));
+  const availableRoles = roles.filter((r) => r.is_active && !usedRoleIds.has(r.id));
+
+  function addRole(roleId: string) {
+    setRows((prev) => [...prev, { roleId, selections: [] }]);
+  }
+  function removeRow(index: number) {
+    setRows((prev) => prev.filter((_, i) => i !== index));
+  }
+  function moveRow(index: number, dir: -1 | 1) {
+    setRows((prev) => {
+      const next = [...prev];
+      const target = index + dir;
+      if (target < 0 || target >= next.length) return prev;
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+  function setSelections(index: number, selections: PersonSelection[]) {
+    setRows((prev) => prev.map((r, i) => (i === index ? { ...r, selections } : r)));
+  }
 
   async function handleSubmit(formData: FormData) {
     setPending(true);
     setError(null);
+    const assignments = rows.flatMap((row, rowIndex) =>
+      row.selections.map((s, i) => ({ roleId: row.roleId, personId: s.personId, customPersonName: s.customPersonName, position: rowIndex * 100 + i, notes: "" }))
+    );
+    formData.set("assignments", JSON.stringify(assignments));
     const result = await saveScaleAction(existing?.id ?? null, formData);
     if (result.error) {
       setError(result.error);
@@ -25,55 +95,94 @@ export function ScaleForm({ existing }: { existing: Scale | null }) {
 
   return (
     <form action={handleSubmit} className="flex flex-col gap-4 max-w-xl">
-      <Field label="Título">
+      <label className="flex flex-col gap-1">
+        <span className="text-sm font-medium">Título</span>
         <input name="title" required defaultValue={existing?.title} className={inputClass} />
-      </Field>
+      </label>
 
       <div className="grid grid-cols-3 gap-3">
-        <Field label="Data">
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-medium">Data</span>
           <input type="date" name="date" required defaultValue={existing?.date} className={inputClass} />
-        </Field>
-        <Field label="Início">
-          <input
-            type="time"
-            name="start_time"
-            required
-            defaultValue={existing?.start_time?.slice(0, 5)}
-            className={inputClass}
-          />
-        </Field>
-        <Field label="Fim (opcional)">
-          <input
-            type="time"
-            name="end_time"
-            defaultValue={existing?.end_time?.slice(0, 5) ?? ""}
-            className={inputClass}
-          />
-        </Field>
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-medium">Início</span>
+          <input type="time" name="start_time" required defaultValue={existing?.start_time?.slice(0, 5)} className={inputClass} />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-medium">Fim (opcional)</span>
+          <input type="time" name="end_time" defaultValue={existing?.end_time?.slice(0, 5) ?? ""} className={inputClass} />
+        </label>
       </div>
 
-      <Field label="Sonoplastia">
-        <input name="sound_person" defaultValue={existing?.sound_person} className={inputClass} />
-      </Field>
-      <Field label="Regência">
-        <input name="conducting_person" defaultValue={existing?.conducting_person} className={inputClass} />
-      </Field>
-      <Field label="Mensagem musical">
-        <input
-          name="musical_message_person"
-          defaultValue={existing?.musical_message_person}
-          className={inputClass}
-        />
-      </Field>
-      <Field label="Pregação">
-        <input name="preaching_person" defaultValue={existing?.preaching_person} className={inputClass} />
-      </Field>
-      <Field label="Recepção">
-        <input name="reception_person" defaultValue={existing?.reception_person} className={inputClass} />
-      </Field>
-      <Field label="Observações">
+      <div className="flex flex-col gap-3">
+        <p className="text-sm font-medium">Funções e pessoas</p>
+        {rows.map((row, index) => {
+          const role = roles.find((r) => r.id === row.roleId);
+          if (!role) return null;
+          const teamPersonIds = new Set(role.team_id ? memberships.filter((m) => m.team_id === role.team_id).map((m) => m.person_id) : []);
+          return (
+            <div key={row.roleId} className="rounded-lg border border-divider p-3 flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium">{role.name}</span>
+                <div className="flex items-center gap-1">
+                  <button type="button" onClick={() => moveRow(index, -1)} disabled={index === 0} aria-label="Mover para cima" className="text-text-muted hover:text-foreground disabled:opacity-30">
+                    <ChevronUp size={14} />
+                  </button>
+                  <button type="button" onClick={() => moveRow(index, 1)} disabled={index === rows.length - 1} aria-label="Mover para baixo" className="text-text-muted hover:text-foreground disabled:opacity-30">
+                    <ChevronDown size={14} />
+                  </button>
+                  <button type="button" onClick={() => removeRow(index)} aria-label={`Remover função ${role.name} desta escala`} className="text-text-muted hover:text-error">
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+              <PersonSelector
+                people={people}
+                teamPersonIds={teamPersonIds}
+                recentPersonIds={recentPersonIds}
+                selected={row.selections}
+                allowMultiple={role.allows_multiple_people}
+                onChange={(next) => setSelections(index, next)}
+                onQuickAdd={() => setQuickAddRoleIndex(index)}
+              />
+              {quickAddRoleIndex === index && (
+                <QuickAddPerson
+                  onDone={(person) => {
+                    setPeople((prev) => [...prev, person]);
+                    setSelections(index, role.allows_multiple_people ? [...row.selections, { personId: person.id, customPersonName: null }] : [{ personId: person.id, customPersonName: null }]);
+                    setQuickAddRoleIndex(null);
+                  }}
+                  onCancel={() => setQuickAddRoleIndex(null)}
+                />
+              )}
+            </div>
+          );
+        })}
+
+        {availableRoles.length > 0 && (
+          <label className="flex items-center gap-2 text-sm">
+            <Plus size={14} className="text-primary" />
+            <select
+              value=""
+              onChange={(e) => {
+                if (e.target.value) addRole(e.target.value);
+              }}
+              className="rounded-lg border border-divider bg-surface px-2 py-1.5 text-sm"
+            >
+              <option value="">Adicionar função...</option>
+              {availableRoles.map((r) => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+
+      <label className="flex flex-col gap-1">
+        <span className="text-sm font-medium">Observações</span>
         <textarea name="notes" defaultValue={existing?.notes} rows={3} className={inputClass} />
-      </Field>
+      </label>
 
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" name="is_special_event" defaultChecked={existing?.is_special_event} />
@@ -82,25 +191,53 @@ export function ScaleForm({ existing }: { existing: Scale | null }) {
 
       {error && <p className="text-sm text-error">{error}</p>}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="self-start rounded-full bg-primary px-5 py-2 text-sm font-medium text-white disabled:opacity-60"
-      >
+      <button type="submit" disabled={pending} className="self-start rounded-full bg-primary px-5 py-2 text-sm font-medium text-white disabled:opacity-60">
         {pending ? "Salvando..." : "Salvar"}
       </button>
     </form>
   );
 }
 
-const inputClass =
-  "w-full rounded-lg border border-divider bg-surface px-3 py-2 text-sm outline-none focus:border-primary";
+function QuickAddPerson({ onDone, onCancel }: { onDone: (person: OrganizationPerson) => void; onCancel: () => void }) {
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  async function handleSubmit(formData: FormData) {
+    setPending(true);
+    setError(null);
+    const result = await savePersonAction(null, formData);
+    setPending(false);
+    if (result.error || !result.id) {
+      setError(result.error ?? "Não foi possível cadastrar a pessoa.");
+      return;
+    }
+    const fullName = String(formData.get("full_name"));
+    onDone({
+      id: result.id,
+      church_id: "",
+      full_name: fullName,
+      display_name: null,
+      email: null,
+      phone: null,
+      photo_url: null,
+      notes: "",
+      is_favorite: false,
+      is_active: true,
+      created_at: Date.now(),
+      updated_at: Date.now(),
+      created_by: null,
+      linked_user_id: null,
+    });
+  }
+
   return (
-    <label className="flex flex-col gap-1">
-      <span className="text-sm font-medium">{label}</span>
-      {children}
-    </label>
+    <form action={handleSubmit} className="flex items-center gap-2 rounded-md border border-dashed border-divider p-2">
+      <input name="full_name" required autoFocus placeholder="Nome da nova pessoa" className={`${inputClass} py-1.5`} />
+      <button type="submit" disabled={pending} className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60">
+        {pending ? "..." : "Adicionar"}
+      </button>
+      <button type="button" onClick={onCancel} className="shrink-0 text-xs text-text-secondary">Cancelar</button>
+      {error && <p className="text-xs text-error">{error}</p>}
+    </form>
   );
 }

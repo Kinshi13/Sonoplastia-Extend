@@ -37,6 +37,102 @@ export type Scale = {
   updated_at: number;
 };
 
+// Fase 11.8.4 (Parte 2-13): configurable roles / people bank / dynamic scale assignments.
+export type LegacyScaleFieldKey =
+  | "reception_person"
+  | "sound_person"
+  | "preaching_person"
+  | "conducting_person"
+  | "musical_message_person";
+
+export type OrganizationRole = {
+  id: string;
+  church_id: string;
+  name: string;
+  short_name: string | null;
+  description: string;
+  icon_key: string;
+  color_token: string | null;
+  sort_order: number;
+  is_active: boolean;
+  is_required: boolean;
+  allows_multiple_people: boolean;
+  team_id: string | null;
+  legacy_field_key: LegacyScaleFieldKey | null;
+  created_at: number;
+  updated_at: number;
+  created_by: string | null;
+};
+
+export type OrganizationTeam = {
+  id: string;
+  church_id: string;
+  name: string;
+  description: string;
+  icon_key: string;
+  color_token: string | null;
+  is_active: boolean;
+  sort_order: number;
+  created_at: number;
+  updated_at: number;
+};
+
+export type OrganizationPerson = {
+  id: string;
+  church_id: string;
+  full_name: string;
+  display_name: string | null;
+  email: string | null;
+  phone: string | null;
+  photo_url: string | null;
+  notes: string;
+  is_favorite: boolean;
+  is_active: boolean;
+  created_at: number;
+  updated_at: number;
+  created_by: string | null;
+  linked_user_id: string | null;
+};
+
+export type PersonTeamMembership = {
+  person_id: string;
+  team_id: string;
+  is_primary: boolean;
+  created_at: number;
+};
+
+export type ScaleAssignment = {
+  id: string;
+  scale_id: string;
+  role_id: string;
+  person_id: string | null;
+  custom_person_name: string | null;
+  role_name_snapshot: string;
+  person_name_snapshot: string;
+  position: number;
+  notes: string;
+  created_at: number;
+  updated_at: number;
+};
+
+export type ScaleTemplateRole = { roleId: string; position: number };
+
+export type ScaleTemplate = {
+  id: string;
+  church_id: string;
+  name: string;
+  description: string;
+  roles: ScaleTemplateRole[];
+  default_start_time: string | null;
+  default_end_time: string | null;
+  default_notes: string;
+  is_favorite: boolean;
+  is_active: boolean;
+  created_at: number;
+  updated_at: number;
+  created_by: string | null;
+};
+
 export type Doxology = {
   id: string;
   church_id: string;

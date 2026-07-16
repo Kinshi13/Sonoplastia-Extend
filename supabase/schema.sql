@@ -386,6 +386,28 @@ create policy "church-files: admin delete" on storage.objects for delete
   using (bucket_id = 'church-files' and exists (select 1 from profiles where id = auth.uid() and is_admin));
 
 -- -------------------------------------------------------------------------
+-- Fase 11.8.4: configurable roles, a people/teams bank, and dynamic scale assignments.
+-- See supabase/migrations/010_organization_roles_people.sql for the full, authoritative
+-- statements (table defs, indexes, RLS policies, grants, and the legacy-role seed) - mirrored
+-- here only as a summary so this file still reads as "what production looks like".
+--
+-- organization_roles(id, church_id, name, short_name, description, icon_key, color_token,
+--   sort_order, is_active, is_required, allows_multiple_people, team_id, legacy_field_key,
+--   created_at, updated_at, created_by)
+-- organization_teams(id, church_id, name, description, icon_key, color_token, is_active,
+--   sort_order, created_at, updated_at)
+-- organization_people(id, church_id, full_name, display_name, email, phone, photo_url, notes,
+--   is_favorite, is_active, created_at, updated_at, created_by, linked_user_id)
+-- person_team_memberships(person_id, team_id, is_primary, created_at)
+-- scale_assignments(id, scale_id, role_id, person_id, custom_person_name, role_name_snapshot,
+--   person_name_snapshot, position, notes, created_at, updated_at)
+-- scale_templates(id, church_id, name, description, roles jsonb, default_start_time,
+--   default_end_time, default_notes, is_favorite, is_active, created_at, updated_at, created_by)
+--
+-- All public-read (using true) except scale_templates (admin-only, per-church), same precedent
+-- as scales/doxologies. `scales`' five legacy person columns are untouched.
+
+-- -------------------------------------------------------------------------
 -- Churches are normally activated by the Stripe webhook (see app/api/stripe/webhook), which
 -- also sets the paying user's profile church_id + is_admin. To do it manually while testing:
 --
