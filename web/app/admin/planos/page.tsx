@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Subscription } from "@/lib/types/database";
 import { CelestialPlanCard } from "@/components/celestial/CelestialCard";
 import { PlanActionButtons } from "./PlanActionButtons";
+import { RefreshEntitlementsButton } from "./RefreshEntitlementsButton";
 
 export const revalidate = 0;
 
@@ -87,19 +88,22 @@ export default async function PlanosPage({
         </div>
       )}
 
-      <div>
-        <h1 className="font-display text-2xl">Planos e recursos</h1>
-        {current && (
-          <p className="mt-1 text-sm text-text-secondary">
-            Plano atual da igreja: <span className="font-medium text-foreground">{current.planName}</span>
-            {subscription && (
-              <>
-                {" · "}
-                <span className="font-medium text-foreground">{STATUS_LABELS[subscription.status] ?? subscription.status}</span>
-              </>
-            )}
-          </p>
-        )}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl">Planos e recursos</h1>
+          {current && (
+            <p className="mt-1 text-sm text-text-secondary">
+              Plano atual da igreja: <span className="font-medium text-foreground">{current.planName}</span>
+              {subscription && (
+                <>
+                  {" · "}
+                  <span className="font-medium text-foreground">{STATUS_LABELS[subscription.status] ?? subscription.status}</span>
+                </>
+              )}
+            </p>
+          )}
+        </div>
+        <RefreshEntitlementsButton />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

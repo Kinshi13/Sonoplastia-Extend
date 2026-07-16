@@ -5,6 +5,9 @@ import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 import { IosInstallHint } from "@/components/IosInstallHint";
 import { ConstellationScene } from "@/components/ConstellationScene";
 import { PageBlurWrapper } from "@/components/PageBlurWrapper";
+import { AdminViewSwitcher } from "@/components/AdminViewSwitcher";
+import { getAdminStatus } from "@/lib/supabase/auth";
+import { createClient } from "@/lib/supabase/server";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -64,11 +67,21 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Hotfix (Parte 11): resolved once here, server-side, so AdminViewSwitcher never has to guess -
+  // it only renders for a session getAdminStatus() has already confirmed is an admin.
+  const { isAdmin, churchId } = await getAdminStatus();
+  let churchSlug: string | null = null;
+  if (isAdmin && churchId) {
+    const supabase = await createClient();
+    const { data: church } = await supabase.from("churches").select("slug").eq("id", churchId).single();
+    churchSlug = church?.slug ?? null;
+  }
+
   return (
     <html
       lang="pt-BR"
@@ -88,12 +101,16 @@ export default function RootLayout({
                 Escala Church
               </Link>
               <nav className="flex items-center gap-5 text-sm">
-                <Link
-                  href="/admin"
-                  className="rounded-full bg-primary px-4 py-1.5 text-white shadow-[var(--elevation-raised)] hover:opacity-90 transition-opacity"
-                >
-                  Admin
-                </Link>
+                {isAdmin ? (
+                  <AdminViewSwitcher churchSlug={churchSlug} />
+                ) : (
+                  <Link
+                    href="/admin"
+                    className="rounded-full bg-primary px-4 py-1.5 text-white shadow-[var(--elevation-raised)] hover:opacity-90 transition-opacity"
+                  >
+                    Admin
+                  </Link>
+                )}
               </nav>
             </div>
           </header>
