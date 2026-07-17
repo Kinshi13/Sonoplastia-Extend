@@ -5,9 +5,11 @@ import { getAdminStatus } from "@/lib/supabase/auth";
 import { OrganizationRole, OrganizationPerson, PersonTeamMembership, ScaleAssignment } from "@/lib/types/database";
 import { ScaleForm } from "../ScaleForm";
 import { recentPersonIdsForChurch } from "../recentPeople";
+import { ensureDefaultRolesAction } from "../../pessoas/actions";
 
 export default async function NovaEscalaPage() {
   const { churchId } = await getAdminStatus();
+  await ensureDefaultRolesAction(churchId!);
   const supabase = await createClient();
   const [{ data: roles }, { data: people }, { data: memberships }, recentPersonIds] = await Promise.all([
     supabase.from("organization_roles").select("*").eq("church_id", churchId).eq("is_active", true).order("sort_order", { ascending: true }),
@@ -29,6 +31,7 @@ export default async function NovaEscalaPage() {
       </div>
       <ScaleForm
         existing={null}
+        churchId={churchId!}
         roles={(roles as OrganizationRole[]) ?? []}
         initialPeople={(people as OrganizationPerson[]) ?? []}
         memberships={(memberships as PersonTeamMembership[]) ?? []}

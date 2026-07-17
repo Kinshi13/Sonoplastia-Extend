@@ -406,6 +406,10 @@ create policy "church-files: admin delete" on storage.objects for delete
 --
 -- All public-read (using true) except scale_templates (admin-only, per-church), same precedent
 -- as scales/doxologies. `scales`' five legacy person columns are untouched.
+--
+-- Hotfix: 011_backfill_legacy_scale_assignments.sql converts each old scale's five legacy person
+-- columns into real scale_assignments rows (idempotent, additive, never overwrites an assignment
+-- that already exists) - run once, after 006-010, whenever this environment applies them.
 
 -- -------------------------------------------------------------------------
 -- Churches are normally activated by the Stripe webhook (see app/api/stripe/webhook), which

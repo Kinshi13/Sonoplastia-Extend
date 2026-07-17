@@ -5,6 +5,14 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminStatus } from "@/lib/supabase/auth";
 import { ProgramStep } from "@/lib/types/database";
+import { isSyntheticRoleId, LEGACY_ROLE_DEFS } from "@/lib/legacyRoles";
+
+/** Postgres/PostgREST "relation/column/table does not exist" codes - used to tell "migrations
+ *  006-010 haven't been applied yet" apart from a real failure, so a save can still succeed via
+ *  the legacy `scales` columns instead of hard-failing on a table that simply isn't there yet. */
+function isMissingSchemaError(error: { code?: string } | null): boolean {
+  return error?.code === "PGRST205" || error?.code === "42P01" || error?.code === "42703";
+}
 
 export type ActionResult = { error?: string };
 
@@ -58,28 +66,41 @@ export async function saveScaleAction(id: string | null, formData: FormData): Pr
     return { error: "Funções e pessoas inválidas." };
   }
 
-  const roleIds = [...new Set(assignments.map((a) => a.roleId))];
+  // Hotfix: `roleId` may be a synthetic client-only id (`legacy:reception_person`, from
+  // lib/legacyRoles.ts) for a church whose `organization_roles` doesn't have that role yet -
+  // either migrations 006-010 aren't applied at all, or this particular legacy field just isn't
+  // migrated for this church. Real DB ids and synthetic ids are resolved separately; a query for
+  // a synthetic id would just come back empty (harmless, but wasteful), so they're filtered out.
+  const realRoleIds = [...new Set(assignments.map((a) => a.roleId).filter((id) => !isSyntheticRoleId(id)))];
   const personIds = [...new Set(assignments.map((a) => a.personId).filter((v): v is string => !!v))];
 
-  const [{ data: roles }, { data: people }] = await Promise.all([
-    roleIds.length
-      ? supabase.from("organization_roles").select("id, name, legacy_field_key, allows_multiple_people").eq("church_id", admin.churchId).in("id", roleIds)
-      : Promise.resolve({ data: [] as { id: string; name: string; legacy_field_key: string | null; allows_multiple_people: boolean }[] }),
+  const [{ data: roles, error: rolesError }, { data: people }] = await Promise.all([
+    realRoleIds.length
+      ? supabase.from("organization_roles").select("id, name, legacy_field_key, allows_multiple_people").eq("church_id", admin.churchId).in("id", realRoleIds)
+      : Promise.resolve({ data: [] as { id: string; name: string; legacy_field_key: string | null; allows_multiple_people: boolean }[], error: null }),
     personIds.length
       ? supabase.from("organization_people").select("id, full_name, display_name").eq("church_id", admin.churchId).in("id", personIds)
       : Promise.resolve({ data: [] as { id: string; full_name: string; display_name: string | null }[] }),
   ]);
+  // organization_roles missing entirely (migrations not applied) - every roleId in this save is
+  // necessarily synthetic in that case, so this just means "resolve everything from the legacy
+  // defs below," not a failure.
+  const roleTableMissing = isMissingSchemaError(rolesError as { code?: string } | null);
   const roleById = new Map((roles ?? []).map((r) => [r.id, r]));
   const personById = new Map((people ?? []).map((p) => [p.id, p]));
 
   const legacyByField: Record<string, string[]> = {};
   const resolvedAssignments = assignments.map((a) => {
-    const role = roleById.get(a.roleId);
+    const dbRole = roleById.get(a.roleId);
+    const legacyField = isSyntheticRoleId(a.roleId);
+    const legacyDef = legacyField ? LEGACY_ROLE_DEFS.find((d) => d.field === legacyField) : null;
+    const roleName = dbRole?.name ?? legacyDef?.name ?? "Função";
+    const legacyFieldKey = dbRole?.legacy_field_key ?? legacyField;
     const personName = a.personId ? personById.get(a.personId)?.display_name || personById.get(a.personId)?.full_name || "" : a.customPersonName || "";
-    if (role?.legacy_field_key && personName) {
-      (legacyByField[role.legacy_field_key] ??= []).push(personName);
+    if (legacyFieldKey && personName) {
+      (legacyByField[legacyFieldKey] ??= []).push(personName);
     }
-    return { ...a, roleName: role?.name ?? "Função", personName };
+    return { ...a, roleName, personName };
   });
 
   const legacyPayload = {
@@ -102,11 +123,13 @@ export async function saveScaleAction(id: string | null, formData: FormData): Pr
     updated_at: Date.now(),
   };
 
+  // Bloco 9 (hotfix): the scale itself - including the legacy columns every reader still uses -
+  // always saves regardless of whether scale_assignments/organization_roles exist. What's below
+  // this point is a best-effort upgrade to the new model, never a reason to lose the user's data.
   let scaleId = id;
   if (id) {
     const { error } = await supabase.from("scales").update(payload).eq("id", id).eq("church_id", admin.churchId);
     if (error) return { error: error.message };
-    await supabase.from("scale_assignments").delete().eq("scale_id", id);
   } else {
     const { data: inserted, error } = await supabase
       .from("scales")
@@ -117,23 +140,37 @@ export async function saveScaleAction(id: string | null, formData: FormData): Pr
     scaleId = inserted.id;
   }
 
-  if (scaleId && resolvedAssignments.length > 0) {
-    const now = Date.now();
-    const { error: assignError } = await supabase.from("scale_assignments").insert(
-      resolvedAssignments.map((a) => ({
-        scale_id: scaleId,
-        role_id: a.roleId,
-        person_id: a.personId,
-        custom_person_name: a.personId ? null : a.customPersonName,
-        role_name_snapshot: a.roleName,
-        person_name_snapshot: a.personName,
-        position: a.position,
-        notes: a.notes,
-        created_at: now,
-        updated_at: now,
-      }))
-    );
-    if (assignError) return { error: assignError.message };
+  // Only assignments that resolved to a *real* organization_roles row can be written here -
+  // scale_assignments.role_id is a foreign key, and a synthetic id (e.g. "legacy:sound_person")
+  // both isn't a valid uuid and doesn't reference an actual row. Those already did their job via
+  // legacyPayload above; once migrations 006-010 run and the church's roles get seeded/matched,
+  // a subsequent save naturally starts writing real assignments for them too.
+  const dbBackedAssignments = roleTableMissing ? [] : resolvedAssignments.filter((a) => roleById.has(a.roleId));
+
+  if (scaleId && !roleTableMissing) {
+    const { error: deleteError } = await supabase.from("scale_assignments").delete().eq("scale_id", scaleId);
+    if (deleteError && !isMissingSchemaError(deleteError)) return { error: deleteError.message };
+
+    if (dbBackedAssignments.length > 0) {
+      const now = Date.now();
+      const { error: assignError } = await supabase.from("scale_assignments").insert(
+        dbBackedAssignments.map((a) => ({
+          scale_id: scaleId,
+          role_id: a.roleId,
+          person_id: a.personId,
+          custom_person_name: a.personId ? null : a.customPersonName,
+          role_name_snapshot: a.roleName,
+          person_name_snapshot: a.personName,
+          position: a.position,
+          notes: a.notes,
+          created_at: now,
+          updated_at: now,
+        }))
+      );
+      // A missing table here (deleteError already ruled that out above, but insert can still hit
+      // it independently) degrades to "legacy columns only" instead of failing the whole save.
+      if (assignError && !isMissingSchemaError(assignError)) return { error: assignError.message };
+    }
   }
 
   revalidatePath("/admin/escalas");

@@ -4,10 +4,12 @@ import { getAdminStatus } from "@/lib/supabase/auth";
 import { Scale, OrganizationRole, OrganizationPerson, PersonTeamMembership, ScaleAssignment } from "@/lib/types/database";
 import { ScaleForm } from "../ScaleForm";
 import { recentPersonIdsForChurch } from "../recentPeople";
+import { ensureDefaultRolesAction } from "../../pessoas/actions";
 
 export default async function EditarEscalaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { churchId } = await getAdminStatus();
+  await ensureDefaultRolesAction(churchId!);
   const supabase = await createClient();
   const [{ data }, { data: roles }, { data: people }, { data: memberships }, { data: assignments }, recentPersonIds] = await Promise.all([
     supabase.from("scales").select("*").eq("id", id).eq("church_id", churchId).single(),
@@ -25,6 +27,7 @@ export default async function EditarEscalaPage({ params }: { params: Promise<{ i
       <h1 className="text-2xl font-semibold mb-6">Editar escala</h1>
       <ScaleForm
         existing={data as Scale}
+        churchId={churchId!}
         roles={(roles as OrganizationRole[]) ?? []}
         initialPeople={(people as OrganizationPerson[]) ?? []}
         memberships={(memberships as PersonTeamMembership[]) ?? []}

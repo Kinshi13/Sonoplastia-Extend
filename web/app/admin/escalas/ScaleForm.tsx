@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, X, ChevronUp, ChevronDown } from "lucide-react";
 import { Scale, OrganizationRole, OrganizationPerson, PersonTeamMembership, ScaleAssignment } from "@/lib/types/database";
 import { PersonSelector, PersonSelection } from "@/components/PersonSelector";
+import { withLegacyRoleFallback, legacyRowsFromScale } from "@/lib/legacyRoles";
 import { saveScaleAction } from "../actions";
 import { savePersonAction } from "../pessoas/actions";
 
@@ -17,9 +18,17 @@ const inputClass = "w-full rounded-lg border border-divider bg-surface px-3 py-2
  * `OrganizationRole`s exist for this church (Parte 3's migration seeds the original five so
  * nothing regresses on day one), each with a real PersonSelector instead of free text. Roles can
  * be added/removed/reordered per scale (Parte 10) without touching the organization's role list.
+ *
+ * Hotfix: `roles`/`existingAssignments` can legitimately come back empty even when the scale has
+ * real data - migrations 006-010 might not be applied yet (`organization_roles`/
+ * `scale_assignments` don't exist), or a scale was saved before either existed. `withLegacyRoleFallback`
+ * fills in the five original roles client-side when the DB doesn't have them, and when editing an
+ * existing scale with no assignments, its own legacy columns (reception_person, etc.) seed the
+ * rows directly - "Funções e pessoas" should never just be silently empty.
  */
 export function ScaleForm({
   existing,
+  churchId,
   roles,
   initialPeople,
   memberships,
@@ -27,6 +36,7 @@ export function ScaleForm({
   recentPersonIds,
 }: {
   existing: Scale | null;
+  churchId: string;
   roles: OrganizationRole[];
   initialPeople: OrganizationPerson[];
   memberships: PersonTeamMembership[];
@@ -39,6 +49,13 @@ export function ScaleForm({
   const [people, setPeople] = useState(initialPeople);
   const [quickAddRoleIndex, setQuickAddRoleIndex] = useState<number | null>(null);
 
+  const effectiveRoles = useMemo(() => withLegacyRoleFallback(churchId, roles), [churchId, roles]);
+  const roleByLegacyField = useMemo(() => {
+    const map = new Map<string, OrganizationRole>();
+    for (const r of effectiveRoles) if (r.legacy_field_key) map.set(r.legacy_field_key, r);
+    return map;
+  }, [effectiveRoles]);
+
   const [rows, setRows] = useState<Row[]>(() => {
     if (existingAssignments.length > 0) {
       const byRole = new Map<string, PersonSelection[]>();
@@ -49,13 +66,24 @@ export function ScaleForm({
       }
       return Array.from(byRole.entries()).map(([roleId, selections]) => ({ roleId, selections }));
     }
-    // New scale: pre-populate every required role (Parte 3's migrated legacy five, plus any
-    // other role marked required) so nothing that used to always show up on the form vanishes.
-    return roles.filter((r) => r.is_required && r.is_active).map((r) => ({ roleId: r.id, selections: [] }));
+    // Editing an old scale that predates scale_assignments entirely: its legacy columns are the
+    // only place the data lives - convert each filled-in one into its own editable row.
+    if (existing) {
+      const legacyRows = legacyRowsFromScale(existing);
+      if (legacyRows.length > 0) {
+        return legacyRows.map(({ field }) => {
+          const role = roleByLegacyField.get(field);
+          return { roleId: role?.id ?? field, selections: [{ personId: null, customPersonName: existing[field] }] };
+        });
+      }
+    }
+    // New scale (or an old one with every legacy field blank): pre-populate every required role
+    // so nothing that used to always show up on the form vanishes.
+    return effectiveRoles.filter((r) => r.is_required && r.is_active).map((r) => ({ roleId: r.id, selections: [] }));
   });
 
   const usedRoleIds = new Set(rows.map((r) => r.roleId));
-  const availableRoles = roles.filter((r) => r.is_active && !usedRoleIds.has(r.id));
+  const availableRoles = effectiveRoles.filter((r) => r.is_active && !usedRoleIds.has(r.id));
 
   function addRole(roleId: string) {
     setRows((prev) => [...prev, { roleId, selections: [] }]);
@@ -117,8 +145,13 @@ export function ScaleForm({
 
       <div className="flex flex-col gap-3">
         <p className="text-sm font-medium">Funções e pessoas</p>
+        {rows.length === 0 && (
+          <p className="text-sm text-text-secondary">
+            Nenhuma função adicionada ainda. Use &quot;Adicionar função&quot; abaixo para começar.
+          </p>
+        )}
         {rows.map((row, index) => {
-          const role = roles.find((r) => r.id === row.roleId);
+          const role = effectiveRoles.find((r) => r.id === row.roleId);
           if (!role) return null;
           const teamPersonIds = new Set(role.team_id ? memberships.filter((m) => m.team_id === role.team_id).map((m) => m.person_id) : []);
           return (
