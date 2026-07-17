@@ -5,8 +5,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 
@@ -49,10 +49,11 @@ private val FREE_FLOOR = Entitlements(
 )
 
 /**
- * Single source of truth for "what can this church do right now." Combines the live plan catalog
- * + this church's subscription; while offline (no plan/subscription flow emission), falls back to
- * the last cached entitlement if it's still fresh, and to the hardcoded FREE floor otherwise -
- * never grants indefinite premium access purely from a stale cache (Fase 3 Section 11).
+ * Single source of truth for "what can this church do right now." Reads this church's own
+ * subscription summary (plan/status/expiration/features/limits, pre-joined server-side by
+ * `get_church_subscription`); while offline (no subscription flow emission), falls back to the
+ * last cached entitlement if it's still fresh, and to the hardcoded FREE floor otherwise - never
+ * grants indefinite premium access purely from a stale cache (Fase 3 Section 11).
  */
 class EntitlementService(
     private val planRepository: PlanRepository,
@@ -68,24 +69,27 @@ class EntitlementService(
         planRepository.observeChurchId().onEach { currentChurchId = it }.launchIn(scope)
     }
 
-    val entitlements: StateFlow<Entitlements> = combine(
-        planRepository.observePlans(),
-        planRepository.observeSubscription()
-    ) { plans, subscription ->
-        val plan = subscription?.let { sub -> plans.firstOrNull { it.id == sub.planId } }
-        if (plan == null || subscription == null || !subscription.status.grantsAccess) {
-            FREE_FLOOR
-        } else {
-            Entitlements(
-                planCode = plan.code,
-                planName = plan.name,
-                status = subscription.status,
-                features = plan.features,
-                limits = plan.limits,
-                isFromCache = false
-            )
+    // Hotfix (Fase 11.9): the RPC already returns plan_code/features/limits pre-joined to the
+    // subscription row - no separate `plans` lookup by plan_id needed or wanted here anymore.
+    // Status and expiration are both validated explicitly: a row can say ACTIVE/TRIAL/GRACE_PERIOD
+    // and still be past its own cutoff if the writer (Stripe webhook, manual grant) hasn't caught
+    // up yet - isCurrentlyValid() checks status.grantsAccess AND the cutoff that status implies
+    // (trial_ends_at / grace_period_ends_at / expires_at) before any feature is granted.
+    val entitlements: StateFlow<Entitlements> = planRepository.observeSubscription()
+        .map { subscription ->
+            if (subscription == null || !subscription.isCurrentlyValid()) {
+                FREE_FLOOR
+            } else {
+                Entitlements(
+                    planCode = subscription.planCode,
+                    planName = subscription.planName,
+                    status = subscription.status,
+                    features = subscription.features,
+                    limits = subscription.limits,
+                    isFromCache = false
+                )
+            }
         }
-    }
         .catch { emit(resolveFromCache()) }
         .stateIn(scope, SharingStarted.WhileSubscribed(5000), FREE_FLOOR)
 

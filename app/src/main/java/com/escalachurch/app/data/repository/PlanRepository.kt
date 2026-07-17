@@ -5,12 +5,12 @@ import com.escalachurch.app.data.remote.LocalRefreshTrigger
 import com.escalachurch.app.data.remote.SupabaseTables
 import com.escalachurch.app.data.remote.dto.PlanDto
 import com.escalachurch.app.data.remote.dto.ProfileDto
-import com.escalachurch.app.data.remote.dto.SubscriptionDto
+import com.escalachurch.app.data.remote.dto.SubscriptionSummaryDto
 import com.escalachurch.app.data.remote.dto.toPlan
-import com.escalachurch.app.data.remote.dto.toSubscription
+import com.escalachurch.app.data.remote.dto.toSubscriptionSummary
 import com.escalachurch.app.data.remote.observeTable
 import com.escalachurch.app.entitlements.Plan
-import com.escalachurch.app.entitlements.Subscription
+import com.escalachurch.app.entitlements.SubscriptionSummary
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.SessionStatus
 import io.github.jan.supabase.gotrue.auth
@@ -36,7 +36,7 @@ import kotlinx.serialization.Serializable
  * since only Admin has a login screen; ordinary "public view" usage never signs in. That's why
  * PRO never loaded, for any church, not just one.
  *
- * Fixed two ways, both applied here:
+ * Fixed three ways, all applied here:
  *  1. `observeSubscription()` now goes through `get_church_subscription` (migration 012), a
  *     SECURITY DEFINER RPC scoped to one church_id, instead of a blanket table read - restores
  *     access without reopening the table the SAFE migration deliberately closed.
@@ -44,6 +44,10 @@ import kotlinx.serialization.Serializable
  *     there's a session, never BuildConfig.CHURCH_ID once authenticated - so an admin account can
  *     never inherit a different church's plan just because this particular build was compiled
  *     pinned to that church (see observeChurchId()).
+ *  3. The RPC's own return shape is minimal by design (see migration 012's header): no
+ *     plan_id/id/source/stripe_* columns, ever - it returns plan_code/plan_name/features/limits
+ *     pre-joined, so a row can never carry a billing identifier this client has no business
+ *     seeing, even if `subscriptions` grows one later.
  */
 class PlanRepository(private val client: SupabaseClient) {
 
@@ -63,10 +67,8 @@ class PlanRepository(private val client: SupabaseClient) {
     /** The church whose subscription should be resolved right now. Null means "not known yet"
      *  (session still loading from storage) - callers must not fetch on a null churchId, since
      *  that would momentarily resolve against the wrong (BuildConfig) church while a real admin
-     *  session is still being restored. */
-    /** Public so EntitlementService can track "which church is this session for" independently of
-     *  whether the subscription fetch itself succeeds - needed to keep the offline cache scoped
-     *  to the right church even before any successful resolution has happened. */
+     *  session is still being restored. Public so EntitlementService can track "which church is
+     *  this session for" independently of whether the subscription fetch itself succeeds. */
     fun observeChurchId(): Flow<String?> = client.auth.sessionStatus.map { status ->
         when (status) {
             is SessionStatus.Authenticated -> status.session.user?.id?.let { fetchProfileChurchId(it) } ?: BuildConfig.CHURCH_ID
@@ -82,12 +84,15 @@ class PlanRepository(private val client: SupabaseClient) {
             ?.churchId
     }.getOrNull()
 
-    /** This church's own subscription - at most one row, per the `church_id unique` constraint. */
-    fun observeSubscription(): Flow<Subscription?> = observeChurchId().filterNotNull().flatMapLatest { churchId ->
+    /** This church's own subscription summary - at most one row, per the `church_id unique`
+     *  constraint on `subscriptions`. Never depends on plan_id: the RPC already joins `plans` and
+     *  returns plan_code/plan_name/features/limits directly, so there is no separate catalog
+     *  lookup to keep in sync here. */
+    fun observeSubscription(): Flow<SubscriptionSummary?> = observeChurchId().filterNotNull().flatMapLatest { churchId ->
         client.observeTable(SupabaseTables.SUBSCRIPTIONS, refreshTrigger) {
-            client.postgrest.rpc("get_church_subscription", ChurchIdParam(churchId)).decodeList<SubscriptionDto>()
+            client.postgrest.rpc("get_church_subscription", ChurchIdParam(churchId)).decodeList<SubscriptionSummaryDto>()
         }
-    }.map { rows -> rows.mapNotNull { it.toSubscription() }.firstOrNull() }
+    }.map { rows -> rows.mapNotNull { it.toSubscriptionSummary() }.firstOrNull() }
 
     @Serializable
     private data class ChurchIdParam(@SerialName("p_church_id") val churchId: String)
