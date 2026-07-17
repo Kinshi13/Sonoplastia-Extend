@@ -5,6 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 import { requireAdmin, ActionResult } from "../actions";
 import { LEGACY_ROLE_DEFS } from "@/lib/legacyRoles";
 
+const MISSING_SCHEMA_CODES = new Set(["PGRST205", "42P01", "42703"]);
+const PEOPLE_UNAVAILABLE_MESSAGE =
+  "O banco de pessoas ainda não está disponível nesta igreja (aguardando uma atualização do sistema) - por enquanto, use \"Nome manual\" para preencher a função.";
+
 /**
  * Hotfix: self-heals a church that has zero `organization_roles` rows - either because migrations
  * 006-010 haven't run yet (this silently no-ops, since `organization_roles` doesn't exist to
@@ -138,7 +142,7 @@ export async function savePersonAction(id: string | null, formData: FormData): P
 
   if (id) {
     const { error } = await supabase.from("organization_people").update(payload).eq("id", id).eq("church_id", admin.churchId);
-    if (error) return { error: error.message };
+    if (error) return { error: MISSING_SCHEMA_CODES.has(error.code) ? PEOPLE_UNAVAILABLE_MESSAGE : error.message };
     await syncTeamMemberships(id, formData);
     revalidatePath("/admin/pessoas");
     return { id };
@@ -149,7 +153,10 @@ export async function savePersonAction(id: string | null, formData: FormData): P
     .insert({ ...payload, church_id: admin.churchId, created_at: Date.now() })
     .select("id")
     .single();
-  if (error) return { error: error.message };
+  // Hotfix: organization_people doesn't exist yet on a database where migrations 006-010 haven't
+  // been applied - a clear, actionable message here instead of a raw Postgres error, and pointing
+  // at "Nome manual" (which works today, with zero dependency on this table) as the real fallback.
+  if (error) return { error: MISSING_SCHEMA_CODES.has(error.code) ? PEOPLE_UNAVAILABLE_MESSAGE : error.message };
   await syncTeamMemberships(inserted.id, formData);
   revalidatePath("/admin/pessoas");
   return { id: inserted.id };

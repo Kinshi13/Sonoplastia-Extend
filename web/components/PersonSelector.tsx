@@ -32,6 +32,7 @@ export function PersonSelector({
 }) {
   const [query, setQuery] = useState("");
   const [manualMode, setManualMode] = useState(false);
+  const [manualName, setManualName] = useState("");
 
   const ranked = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -67,6 +68,7 @@ export function PersonSelector({
     const next = { personId: null, customPersonName: name.trim() };
     onChange(allowMultiple ? [...selected, next] : [next]);
     setManualMode(false);
+    setManualName("");
   }
 
   return (
@@ -138,18 +140,31 @@ export function PersonSelector({
             </button>
           </div>
           {manualMode && (
+            // Hotfix: this used to only commit the name on Enter, with no visible button - typing
+            // a name and clicking the form's main "Salvar" instead (without pressing Enter first)
+            // silently dropped it, since nothing had called onChange yet. Now controlled + an
+            // explicit "Adicionar" button so the value can't be lost that way.
             <div className="flex items-center gap-1.5 border-t border-divider p-1.5">
               <input
                 autoFocus
+                value={manualName}
+                onChange={(e) => setManualName(e.target.value)}
                 placeholder="Digitar nome..."
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    addManualName((e.target as HTMLInputElement).value);
+                    addManualName(manualName);
                   }
                 }}
                 className="flex-1 rounded-md border border-divider bg-surface px-2 py-1 text-xs outline-none"
               />
+              <button
+                type="button"
+                onClick={() => addManualName(manualName)}
+                className="shrink-0 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-white"
+              >
+                Adicionar
+              </button>
             </div>
           )}
         </div>

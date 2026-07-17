@@ -10,6 +10,7 @@ import { constellationForDay } from "@/components/celestial/DayConstellation";
 import { DeleteButton } from "../DeleteButton";
 import { deleteScaleAction } from "../actions";
 import { ExportStudio } from "./ExportStudio";
+import { LEGACY_ROLE_DEFS } from "@/lib/legacyRoles";
 
 export const revalidate = 0;
 
@@ -50,6 +51,10 @@ export default async function AdminEscalasPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {items.map((scale) => {
             const kind = constellationForDay(new Date(`${scale.date}T00:00:00`).getDay(), scale.is_special_event);
+            // Hotfix: this list never showed who's assigned, so a successful save was invisible
+            // without opening "Editar" again - reads straight off the legacy columns, which is
+            // what saveScaleAction always keeps up to date regardless of migration state.
+            const assigned = LEGACY_ROLE_DEFS.map((d) => scale[d.field]).filter((v) => v && v.trim().length > 0);
             return (
               <CelestialAdminCard key={scale.id} kind={kind} className="p-5 flex flex-col gap-3">
                 <div>
@@ -59,6 +64,11 @@ export default async function AdminEscalasPage() {
                     <Calendar size={14} className="shrink-0" />
                     {formatDatePt(scale.date)} às {formatTimePt(scale.start_time)}
                   </p>
+                  {assigned.length > 0 ? (
+                    <p className="mt-2 text-xs text-text-secondary line-clamp-2">{assigned.join(" · ")}</p>
+                  ) : (
+                    <p className="mt-2 text-xs text-text-muted italic">Ninguém escalado ainda</p>
+                  )}
                 </div>
                 <div className="mt-auto flex items-center justify-between gap-3 border-t border-border-soft pt-3">
                   <Link href={`/admin/escalas/${scale.id}`} className="text-sm font-medium text-primary">

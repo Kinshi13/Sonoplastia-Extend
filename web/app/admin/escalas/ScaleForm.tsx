@@ -231,20 +231,35 @@ export function ScaleForm({
   );
 }
 
+/**
+ * Hotfix: this used to be its own nested `<form action={handleSubmit}>` *inside* ScaleForm's own
+ * `<form>` - invalid HTML (forms can't nest), and with React 19's `action` prop specifically, a
+ * submit dispatched on the inner form is not reliably contained to it: the outer ScaleForm could
+ * end up submitting too, on stale/incomplete state, which is consistent with "cliquei em
+ * Adicionar mas a escala parece não salvar". Rebuilt as a plain div with an explicit button
+ * onClick instead of a second form element, so there is exactly one <form> on the page.
+ */
 function QuickAddPerson({ onDone, onCancel }: { onDone: (person: OrganizationPerson) => void; onCancel: () => void }) {
+  const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  async function handleSubmit(formData: FormData) {
+  async function handleAdd() {
+    const fullName = name.trim();
+    if (!fullName) {
+      setError("Informe o nome.");
+      return;
+    }
     setPending(true);
     setError(null);
+    const formData = new FormData();
+    formData.set("full_name", fullName);
     const result = await savePersonAction(null, formData);
     setPending(false);
     if (result.error || !result.id) {
       setError(result.error ?? "Não foi possível cadastrar a pessoa.");
       return;
     }
-    const fullName = String(formData.get("full_name"));
     onDone({
       id: result.id,
       church_id: "",
@@ -264,13 +279,25 @@ function QuickAddPerson({ onDone, onCancel }: { onDone: (person: OrganizationPer
   }
 
   return (
-    <form action={handleSubmit} className="flex items-center gap-2 rounded-md border border-dashed border-divider p-2">
-      <input name="full_name" required autoFocus placeholder="Nome da nova pessoa" className={`${inputClass} py-1.5`} />
-      <button type="submit" disabled={pending} className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60">
+    <div className="flex items-center gap-2 rounded-md border border-dashed border-divider p-2">
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            handleAdd();
+          }
+        }}
+        autoFocus
+        placeholder="Nome da nova pessoa"
+        className={`${inputClass} py-1.5`}
+      />
+      <button type="button" onClick={handleAdd} disabled={pending} className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60">
         {pending ? "..." : "Adicionar"}
       </button>
       <button type="button" onClick={onCancel} className="shrink-0 text-xs text-text-secondary">Cancelar</button>
       {error && <p className="text-xs text-error">{error}</p>}
-    </form>
+    </div>
   );
 }
