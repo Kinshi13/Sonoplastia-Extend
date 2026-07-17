@@ -26,6 +26,10 @@ class EntitlementCacheStore(private val context: Context) {
         val STATUS = stringPreferencesKey("cached_subscription_status")
         val FEATURES = stringSetPreferencesKey("cached_features")
         val CACHED_AT = longPreferencesKey("cached_at")
+        // Hotfix (Fase 11.9): which church this snapshot belongs to. A stale FREE cache from one
+        // church must never leak into another church's resolution after a login/session switch -
+        // resolveFromCache() only trusts this entry when the church_id matches the current one.
+        val CHURCH_ID = stringPreferencesKey("cached_church_id")
     }
 
     companion object {
@@ -34,6 +38,7 @@ class EntitlementCacheStore(private val context: Context) {
     }
 
     data class CachedEntitlement(
+        val churchId: String?,
         val planCode: PlanCode,
         val status: SubscriptionStatus,
         val features: Set<FeatureKey>,
@@ -49,13 +54,14 @@ class EntitlementCacheStore(private val context: Context) {
         val features = (prefs[Keys.FEATURES] ?: emptySet())
             .mapNotNull { runCatching { FeatureKey.valueOf(it) }.getOrNull() }
             .toSet()
-        CachedEntitlement(planCode = planCode, status = status, features = features, cachedAt = cachedAt)
+        CachedEntitlement(churchId = prefs[Keys.CHURCH_ID], planCode = planCode, status = status, features = features, cachedAt = cachedAt)
     }
 
     suspend fun current(): CachedEntitlement? = cachedFlow.first()
 
-    suspend fun save(planCode: PlanCode, status: SubscriptionStatus, features: Set<FeatureKey>) {
+    suspend fun save(churchId: String, planCode: PlanCode, status: SubscriptionStatus, features: Set<FeatureKey>) {
         context.entitlementDataStore.edit { prefs ->
+            prefs[Keys.CHURCH_ID] = churchId
             prefs[Keys.PLAN_CODE] = planCode.name
             prefs[Keys.STATUS] = status.name
             prefs[Keys.FEATURES] = features.map { it.name }.toSet()

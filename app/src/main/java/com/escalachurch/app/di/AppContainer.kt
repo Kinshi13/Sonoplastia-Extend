@@ -65,5 +65,5 @@ class AppContainer(context: Context) {
         settingsRepository = settingsRepository
     )
 
-    val adminSession = AdminSession(supabase, userProfileRepository)
+    val adminSession = AdminSession(supabase, userProfileRepository, planRepository)
 }

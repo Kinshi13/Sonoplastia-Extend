@@ -59,6 +59,15 @@ class EntitlementService(
     private val cacheStore: EntitlementCacheStore,
     scope: CoroutineScope
 ) {
+    // Hotfix (Fase 11.9): tracked independently of the subscription fetch's own success/failure,
+    // so a cache lookup during a *first-ever* offline resolution still knows which church it's for
+    // - see resolveFromCache() and EntitlementCacheStore.
+    private var currentChurchId: String? = null
+
+    init {
+        planRepository.observeChurchId().onEach { currentChurchId = it }.launchIn(scope)
+    }
+
     val entitlements: StateFlow<Entitlements> = combine(
         planRepository.observePlans(),
         planRepository.observeSubscription()
@@ -84,8 +93,9 @@ class EntitlementService(
         // Keep the cache warm any time we resolve a real (non-cache, non-error) entitlement, so a
         // later offline session has something better than FREE_FLOOR to fall back to.
         entitlements.onEach { current ->
-            if (!current.isFromCache) {
-                cacheStore.save(current.planCode, current.status, current.features)
+            val churchId = currentChurchId
+            if (!current.isFromCache && churchId != null) {
+                cacheStore.save(churchId, current.planCode, current.status, current.features)
             }
         }.launchIn(scope)
     }
@@ -93,6 +103,9 @@ class EntitlementService(
     private suspend fun resolveFromCache(): Entitlements {
         val cached = cacheStore.current() ?: return FREE_FLOOR
         if (!cached.isFresh()) return FREE_FLOOR
+        // A cache from a different church (e.g. an admin who just logged into another church's
+        // account) must never leak that church's plan into this one - treat it as no cache at all.
+        if (currentChurchId != null && cached.churchId != currentChurchId) return FREE_FLOOR
         return Entitlements(
             planCode = cached.planCode,
             planName = cached.planCode.name,

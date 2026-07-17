@@ -1,5 +1,6 @@
 package com.escalachurch.app.security
 
+import com.escalachurch.app.data.repository.PlanRepository
 import com.escalachurch.app.data.repository.UserProfileRepository
 import com.escalachurch.app.domain.model.AccessLevel
 import io.github.jan.supabase.SupabaseClient
@@ -18,7 +19,8 @@ import kotlinx.coroutines.flow.StateFlow
  */
 class AdminSession(
     private val client: SupabaseClient,
-    private val userProfileRepository: UserProfileRepository
+    private val userProfileRepository: UserProfileRepository,
+    private val planRepository: PlanRepository
 ) {
     private val _isUnlocked = MutableStateFlow(client.auth.currentUserOrNull() != null)
     val isUnlocked: StateFlow<Boolean> = _isUnlocked
@@ -30,11 +32,16 @@ class AdminSession(
         }
         _isUnlocked.value = true
         userProfileRepository.setAccessLevel(AccessLevel.ADMIN)
+        // Hotfix (Fase 11.9): the new SessionStatus-driven PlanRepository already re-resolves the
+        // subscription reactively on login, but this forces it immediately rather than waiting on
+        // that emission, so entitlements never briefly show stale/FREE right after a successful login.
+        planRepository.refresh()
     }
 
     suspend fun signOut() {
         client.auth.signOut()
         _isUnlocked.value = false
         userProfileRepository.setAccessLevel(AccessLevel.MEMBER)
+        planRepository.refresh()
     }
 }
