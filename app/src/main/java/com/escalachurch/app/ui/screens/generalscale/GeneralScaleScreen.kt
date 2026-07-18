@@ -41,8 +41,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.escalachurch.app.ui.components.ConstellationIntensity
+import com.escalachurch.app.ui.components.DayConstellationGlyph
+import com.escalachurch.app.ui.components.accentColor
+import com.escalachurch.app.ui.components.constellationKind
+import com.escalachurch.app.ui.components.tintColor
 import com.escalachurch.app.di.appViewModel
 import com.escalachurch.app.di.rememberAppContainer
 import com.escalachurch.app.domain.model.AppSettings
@@ -235,9 +241,17 @@ private fun GeneralScaleRow(
                     Spacer(Modifier.height(4.dp))
                     Text(scale.title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                     SourceBadge(scale.sourceType)
                     if (scale.isSpecialEvent) SpecialBadge()
+                    val kind = scale.constellationKind()
+                    DayConstellationGlyph(
+                        kind = kind,
+                        modifier = Modifier.size(22.dp),
+                        intensity = ConstellationIntensity.COMPACT,
+                        tint = kind.tintColor(),
+                        accentColor = kind.accentColor()
+                    )
                 }
             }
 

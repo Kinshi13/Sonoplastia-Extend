@@ -98,7 +98,12 @@ fun HomeScreen(
 
         Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Próxima Escala", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+            Text(
+                "Próxima Escala",
+                style = MaterialTheme.typography.headlineMedium,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                color = MaterialTheme.colorScheme.onBackground
+            )
             Row {
                 IconButton(onClick = onOpenSonoplastia) {
                     Icon(Icons.Filled.Computer, contentDescription = "Sonoplastia (arquivos remotos)", tint = MaterialTheme.colorScheme.primary)

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
@@ -22,8 +23,6 @@ import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Speaker
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -46,7 +45,6 @@ import com.escalachurch.app.entitlements.EntitlementService
 import com.escalachurch.app.entitlements.FeatureKey
 import com.escalachurch.app.export.ExportFormat
 import com.escalachurch.app.export.ScaleExporter
-import com.escalachurch.app.ui.theme.CardShape
 import com.escalachurch.app.ui.theme.SpecialGold
 
 /**
@@ -72,13 +70,9 @@ fun ScaleCard(
     var showPremiumPreview by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val canExport = entitlementService?.has(FeatureKey.EXPORT) ?: true
+    val constellationKind = scale.constellationKind()
 
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = CardShape,
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
+    CelestialFrame(modifier = modifier.fillMaxWidth(), cornerRadius = 28.dp) {
         Column(modifier = Modifier.padding(24.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -95,6 +89,13 @@ fun ScaleCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                     SourceBadge(scale.sourceType)
                     if (scale.isSpecialEvent) SpecialBadge()
+                    DayConstellationGlyph(
+                        kind = constellationKind,
+                        modifier = Modifier.size(32.dp),
+                        intensity = ConstellationIntensity.HERO,
+                        tint = constellationKind.tintColor(),
+                        accentColor = constellationKind.accentColor()
+                    )
                 }
             }
 
