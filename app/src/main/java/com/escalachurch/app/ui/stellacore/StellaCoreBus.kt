@@ -15,6 +15,8 @@ sealed interface StellaCoreCommand {
     data object GoToTodayCalendar : StellaCoreCommand
     data object GoToTodayGeneralScale : StellaCoreCommand
     data object ToggleOnlyMyClassesGeneralScale : StellaCoreCommand
+    /** Fase 11.10 - "Compartilhar acesso da igreja" from Stella Core (admin only). */
+    data object ShareChurchAccess : StellaCoreCommand
 }
 
 /** Same shape/spirit as [com.escalachurch.app.data.remote.LocalRefreshTrigger] - a fire-and-forget

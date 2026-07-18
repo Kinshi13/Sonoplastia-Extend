@@ -64,10 +64,14 @@ fun ScaleCard(
     // Null keeps every existing caller ungated (e.g. previews/tests); real screens pass the
     // container's EntitlementService so EXPORT can be checked - see Fase 3 FeatureGate pattern.
     entitlementService: EntitlementService? = null,
-    onSeePlans: () -> Unit = {}
+    onSeePlans: () -> Unit = {},
+    // Fase 11.10 - "Compartilhar acesso da igreja" on the Hero Card, admin-only, FREE-available
+    // (no entitlementService check, unlike showExportAction above).
+    isAdmin: Boolean = false
 ) {
     var showExportDialog by remember { mutableStateOf(false) }
     var showPremiumPreview by remember { mutableStateOf(false) }
+    var showShareChurchAccess by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val canExport = entitlementService?.has(FeatureKey.EXPORT) ?: true
     val constellationKind = scale.constellationKind()
@@ -137,23 +141,36 @@ fun ScaleCard(
                 Text(scale.notes, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
-            if (showExportAction) {
+            if (showExportAction || isAdmin) {
                 Spacer(Modifier.height(16.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    androidx.compose.material3.TextButton(onClick = {
-                        if (canExport) showExportDialog = true else showPremiumPreview = true
-                    }) {
-                        Icon(Icons.Filled.Share, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.height(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Exportar escala", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    if (showExportAction) {
+                        androidx.compose.material3.TextButton(onClick = {
+                            if (canExport) showExportDialog = true else showPremiumPreview = true
+                        }) {
+                            Icon(Icons.Filled.Share, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.height(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Exportar escala", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                    if (isAdmin) {
+                        androidx.compose.material3.TextButton(onClick = { showShareChurchAccess = true }) {
+                            Icon(Icons.Filled.Share, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.height(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Compartilhar acesso", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        }
                     }
                 }
             }
         }
+    }
+
+    if (showShareChurchAccess) {
+        ShareChurchAccessBottomSheet(nextScale = scale, onDismiss = { showShareChurchAccess = false })
     }
 
     if (showExportDialog) {

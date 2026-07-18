@@ -69,6 +69,7 @@ fun SettingsScreen(
 
     var showLoginDialog by remember { mutableStateOf(false) }
     var loginError by remember { mutableStateOf<String?>(null) }
+    var showShareChurchAccess by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize().padding(top = 20.dp, start = 20.dp, end = 20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -109,6 +110,9 @@ fun SettingsScreen(
                 Spacer(Modifier.height(10.dp))
                 if (uiState.isAdmin) {
                     SecondaryButton(text = "Sair do modo administrador", onClick = { scope.launch { viewModel.adminSession.signOut() } })
+                    Spacer(Modifier.height(8.dp))
+                    // Fase 11.10 - "Compartilhar acesso da igreja", admin-only, FREE-available.
+                    SecondaryButton(text = "Compartilhar acesso", onClick = { showShareChurchAccess = true })
                 } else {
                     SecondaryButton(
                         text = "Entrar no modo administrador",
@@ -354,6 +358,15 @@ fun SettingsScreen(
                 }
             },
             onDismiss = { showLoginDialog = false }
+        )
+    }
+
+    if (showShareChurchAccess) {
+        // Fase 11.10 - opened from Configurações without a loaded "next scale" (this screen never
+        // fetches one) - the sheet degrades to text/link/code only, see ShareChurchAccessBottomSheet.
+        com.escalachurch.app.ui.components.ShareChurchAccessBottomSheet(
+            nextScale = null,
+            onDismiss = { showShareChurchAccess = false }
         )
     }
 }

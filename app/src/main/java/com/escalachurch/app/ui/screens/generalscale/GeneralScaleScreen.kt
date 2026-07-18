@@ -138,11 +138,21 @@ fun GeneralScaleScreen(
         return
     }
 
+    var showShareChurchAccess by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Escala Geral") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar") } }
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar") } },
+                actions = {
+                    // Fase 11.10 - "Compartilhar acesso da igreja", admin-only, FREE-available.
+                    if (state.isAdmin) {
+                        IconButton(onClick = { showShareChurchAccess = true }) {
+                            Icon(Icons.Filled.Share, contentDescription = "Compartilhar acesso da igreja")
+                        }
+                    }
+                }
             )
         },
         floatingActionButton = {
@@ -251,6 +261,13 @@ fun GeneralScaleScreen(
                 "Veja os planos disponíveis para desbloquear esse e outros recursos.",
             onSeePlans = { showExportPremiumPreview = false; onOpenPlans() },
             onDismiss = { showExportPremiumPreview = false }
+        )
+    }
+
+    if (showShareChurchAccess) {
+        com.escalachurch.app.ui.components.ShareChurchAccessBottomSheet(
+            nextScale = state.scales.firstOrNull(),
+            onDismiss = { showShareChurchAccess = false }
         )
     }
 }

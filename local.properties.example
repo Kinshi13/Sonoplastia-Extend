@@ -9,3 +9,8 @@ SUPABASE_ANON_KEY=YOUR-ANON-PUBLIC-KEY
 # id column of this build's row in the `churches` table (SQL Editor -> select id from churches).
 # Every write requires it now that the backend is multi-tenant - see the comment in build.gradle.kts.
 CHURCH_ID=YOUR-CHURCH-UUID
+
+# Base URL of the deployed public website (the web/ Next.js project in this repo, deployed on
+# Vercel or similar) - used to build "Compartilhar acesso da igreja" links (https://SITE_URL/c/SLUG).
+# No trailing slash. Leave unset during local development if the site isn't deployed yet.
+SITE_URL=https://your-deployed-site.example

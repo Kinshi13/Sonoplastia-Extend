@@ -22,6 +22,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -88,6 +89,16 @@ fun HomeScreen(
     var editingTarget by remember { mutableStateOf<EditTarget?>(null) }
     var currentPage by remember { mutableIntStateOf(0) }
     var carouselScrollFraction by remember { mutableFloatStateOf(0f) }
+    // Fase 11.10 - "Compartilhar acesso da igreja" from Stella Core (admin only) - Home is the
+    // first screen that needs to react to a Stella Core command without navigating away.
+    var showShareChurchAccess by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        com.escalachurch.app.ui.stellacore.StellaCoreBus.events().collect { command ->
+            if (command == com.escalachurch.app.ui.stellacore.StellaCoreCommand.ShareChurchAccess) {
+                showShareChurchAccess = true
+            }
+        }
+    }
 
     val cardsVisible = rememberEntranceVisible(appSettings.animationsEnabled)
     val reducedMotion = !appSettings.animationsEnabled
@@ -184,7 +195,8 @@ fun HomeScreen(
                             scale,
                             highlightClasses = state.myClasses,
                             entitlementService = container.entitlementService,
-                            onSeePlans = onOpenPlans
+                            onSeePlans = onOpenPlans,
+                            isAdmin = state.isAdmin
                         )
                     }
                 }
@@ -240,6 +252,13 @@ fun HomeScreen(
             onView = { spotlightViewModel.viewCurrent(); onOpenAnnouncements() },
             onSnooze = spotlightViewModel::snoozeCurrent,
             onConfirm = spotlightViewModel::confirmCurrent
+        )
+    }
+
+    if (showShareChurchAccess) {
+        com.escalachurch.app.ui.components.ShareChurchAccessBottomSheet(
+            nextScale = state.scales.firstOrNull(),
+            onDismiss = { showShareChurchAccess = false }
         )
     }
 }

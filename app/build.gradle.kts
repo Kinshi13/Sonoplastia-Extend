@@ -19,6 +19,11 @@ val supabaseAnonKey: String = localProperties.getProperty("SUPABASE_ANON_KEY") ?
 // first built - every table write now requires it. There's no in-app church picker yet, so this
 // single build is pinned to one church until that lands; see CHURCH_ID in local.properties.
 val churchId: String = localProperties.getProperty("CHURCH_ID") ?: ""
+// Fase 11.10 - base URL of the public website (web/, the Next.js project in this same repo -
+// see web/app/c/[slug]/page.tsx for the actual public church route). No production domain is
+// deployed/configured anywhere in this repo yet, so this defaults to empty - see SITE_URL in
+// local.properties.example. ChurchShareLinkBuilder handles a blank base without crashing.
+val siteUrl: String = localProperties.getProperty("SITE_URL") ?: ""
 
 // Fase 11.9A NavGraph hotfix - stamped into BuildConfig so a debug log at app start can prove
 // exactly which commit produced the installed APK (see MainActivity/ChurchBootstrap logs), in
@@ -38,8 +43,8 @@ android {
         targetSdk = 34
         // Bumped for the Fase 11.9A NavGraph hotfix specifically so a stale APK can never be
         // mistaken for this build - see BuildConfig.GIT_COMMIT / ChurchBootstrap debug logs.
-        versionCode = 25
-        versionName = "1.1.22-11.9b-final"
+        versionCode = 26
+        versionName = "1.2.0-11.10-share-church-access"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -50,6 +55,7 @@ android {
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
         buildConfigField("String", "CHURCH_ID", "\"$churchId\"")
         buildConfigField("String", "GIT_COMMIT", "\"$gitCommit\"")
+        buildConfigField("String", "SITE_URL", "\"$siteUrl\"")
     }
 
     buildTypes {

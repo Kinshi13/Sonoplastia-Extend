@@ -56,7 +56,10 @@ object ScaleExporter {
         context.startActivity(Intent.createChooser(intent, "Compartilhar escala"))
     }
 
-    private fun writeJpeg(context: Context, scale: ScaleItem): File {
+    /** Fase 11.10 - widened from private so ChurchShareImageUseCase can reuse the exact same
+     *  render for "Compartilhar acesso da igreja" instead of building a second renderer
+     *  ("não criar outro renderer"). No behavior change for existing callers. */
+    internal fun writeJpeg(context: Context, scale: ScaleItem): File {
         val bitmap = renderBitmap(scale)
         val file = exportFile(context, scale, "jpg")
         FileOutputStream(file).use { out -> bitmap.compress(Bitmap.CompressFormat.JPEG, 92, out) }

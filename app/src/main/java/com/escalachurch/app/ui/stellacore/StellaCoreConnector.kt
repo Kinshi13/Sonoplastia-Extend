@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Sell
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -70,6 +71,9 @@ private fun actionsForRoute(
         },
         StellaCoreAction("home_new_event", "Novo evento", Icons.Filled.Add) {
             onNavigateTab(AppDestination.Calendar); StellaCoreBus.send(StellaCoreCommand.GoToTodayCalendar)
+        },
+        StellaCoreAction("home_share_church", "Compartilhar acesso", Icons.Filled.Share, requiresRole = AccessLevel.ADMIN) {
+            StellaCoreBus.send(StellaCoreCommand.ShareChurchAccess)
         }
     )
 
