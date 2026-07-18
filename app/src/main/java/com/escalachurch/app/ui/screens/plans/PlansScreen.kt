@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -54,20 +55,29 @@ fun PlansScreen(onBack: () -> Unit = {}) {
             Text("Planos e recursos", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
         }
         Spacer(Modifier.height(8.dp))
-        Text(
-            "Plano atual da igreja: ${current.planName}",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 4.dp)
-        )
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 4.dp)) {
+            Text(
+                "Plano atual da igreja: ${current.planName}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.width(10.dp))
+            com.escalachurch.app.ui.components.CelestialSyncIndicator(
+                state = if (current.isFromCache) com.escalachurch.app.ui.components.SyncState.OFFLINE else com.escalachurch.app.ui.components.SyncState.SYNCED
+            )
+        }
         Spacer(Modifier.height(12.dp))
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            items(plans.filter { it.isPublic }) { plan ->
-                PlanCard(plan = plan, isCurrent = plan.code == current.planCode)
+        if (plans.isEmpty()) {
+            com.escalachurch.app.ui.components.CelestialLoadingState()
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                items(plans.filter { it.isPublic }) { plan ->
+                    PlanCard(plan = plan, isCurrent = plan.code == current.planCode)
+                }
             }
         }
     }

@@ -29,7 +29,8 @@ data class GeneralScaleUiState(
     val month: YearMonth = YearMonth.now(),
     val scales: List<ScaleItem> = emptyList(),
     val isAdmin: Boolean = false,
-    val myClasses: Set<UserClass> = emptySet()
+    val myClasses: Set<UserClass> = emptySet(),
+    val isLoading: Boolean = true
 )
 
 class GeneralScaleViewModel(
@@ -53,7 +54,7 @@ class GeneralScaleViewModel(
             inMonth.filter { it.assignedRolesByClass().keys.any { cls -> cls in profile.selectedClasses } }
         } else inMonth
         val ordered = filtered.sortedWith(compareBy({ dayRank(it.date) }, { it.date }, { it.startTime }))
-        GeneralScaleUiState(month = m, scales = ordered, isAdmin = isAdmin, myClasses = profile.selectedClasses)
+        GeneralScaleUiState(month = m, scales = ordered, isAdmin = isAdmin, myClasses = profile.selectedClasses, isLoading = false)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GeneralScaleUiState())
 
     val onlyMyClassesFlow: StateFlow<Boolean> = onlyMyClasses

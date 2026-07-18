@@ -165,7 +165,9 @@ fun GeneralScaleScreen(
             }
             Spacer(Modifier.height(12.dp))
 
-            if (state.scales.isEmpty()) {
+            if (state.isLoading) {
+                com.escalachurch.app.ui.components.CelestialLoadingState(variant = com.escalachurch.app.ui.components.SkeletonVariant.COMPACT)
+            } else if (state.scales.isEmpty()) {
                 EmptyState(
                     icon = Icons.AutoMirrored.Filled.EventNote,
                     title = "Nenhuma escala geral cadastrada para este mês.",

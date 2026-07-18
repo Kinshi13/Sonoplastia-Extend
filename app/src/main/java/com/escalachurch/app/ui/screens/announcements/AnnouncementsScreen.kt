@@ -117,7 +117,9 @@ fun AnnouncementsScreen(
                 }
                 Spacer(Modifier.height(20.dp))
 
-                if (state.announcements.isEmpty()) {
+                if (state.isLoading) {
+                    com.escalachurch.app.ui.components.CelestialLoadingState(modifier = Modifier.weight(1f))
+                } else if (state.announcements.isEmpty()) {
                     EmptyState(
                         icon = Icons.Filled.Campaign,
                         title = "Nenhum anúncio publicado ainda.",

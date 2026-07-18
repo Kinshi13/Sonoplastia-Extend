@@ -20,7 +20,8 @@ data class AnnouncementsUiState(
     val announcements: List<Announcement> = emptyList(),
     val isAdmin: Boolean = false,
     val myClasses: Set<UserClass> = emptySet(),
-    val lastSeenAt: Long = 0L
+    val lastSeenAt: Long = 0L,
+    val isLoading: Boolean = true
 )
 
 class AnnouncementViewModel(
@@ -40,7 +41,8 @@ class AnnouncementViewModel(
             announcements = announcements,
             isAdmin = isAdmin,
             myClasses = profile.selectedClasses,
-            lastSeenAt = settings.lastSeenAnnouncementsAt
+            lastSeenAt = settings.lastSeenAnnouncementsAt,
+            isLoading = false
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AnnouncementsUiState())
 

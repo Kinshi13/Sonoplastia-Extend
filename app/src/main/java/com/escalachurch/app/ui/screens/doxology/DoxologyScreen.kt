@@ -74,7 +74,12 @@ fun DoxologyScreen() {
             Spacer(Modifier.height(12.dp))
         }
 
-        if (state.items.isEmpty()) {
+        if (state.isLoading) {
+            com.escalachurch.app.ui.components.CelestialLoadingState(
+                variant = com.escalachurch.app.ui.components.SkeletonVariant.HERO,
+                modifier = Modifier.weight(1f)
+            )
+        } else if (state.items.isEmpty()) {
             EmptyState(
                 icon = Icons.Filled.MusicOff,
                 title = "Nenhuma programação futura cadastrada",

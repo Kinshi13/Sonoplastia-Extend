@@ -134,7 +134,12 @@ fun HomeScreen(
         }
         Spacer(Modifier.height(20.dp))
 
-        if (state.scales.isEmpty()) {
+        if (state.isLoading) {
+            com.escalachurch.app.ui.components.CelestialLoadingState(
+                variant = com.escalachurch.app.ui.components.SkeletonVariant.HERO,
+                modifier = Modifier.weight(1f)
+            )
+        } else if (state.scales.isEmpty()) {
             EmptyState(
                 icon = Icons.Filled.EventBusy,
                 title = "Nenhuma escala futura cadastrada",
