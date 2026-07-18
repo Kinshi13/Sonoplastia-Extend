@@ -36,6 +36,7 @@ import com.escalachurch.app.di.appViewModel
 import com.escalachurch.app.di.rememberAppContainer
 import com.escalachurch.app.domain.model.AppSettings
 import com.escalachurch.app.domain.model.ScaleItem
+import com.escalachurch.app.ui.components.AnnouncementSpotlight
 import com.escalachurch.app.ui.components.CardCarousel
 import com.escalachurch.app.ui.components.ChangeNewsDialog
 import com.escalachurch.app.ui.components.EmptyState
@@ -53,7 +54,8 @@ fun HomeScreen(
     onOpenSettings: () -> Unit = {},
     onOpenBulletins: () -> Unit = {},
     onOpenSonoplastia: () -> Unit = {},
-    onOpenPlans: () -> Unit = {}
+    onOpenPlans: () -> Unit = {},
+    onOpenAnnouncements: () -> Unit = {}
 ) {
     val viewModel = appViewModel { container ->
         HomeViewModel(
@@ -68,6 +70,16 @@ fun HomeScreen(
     val state by viewModel.uiState.collectAsState()
     val pendingNews by viewModel.pendingNewsEntry.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+
+    val spotlightViewModel = appViewModel { container ->
+        AnnouncementSpotlightViewModel(
+            container.announcementRepository,
+            container.announcementSpotlightStore,
+            container.activeChurchManager,
+            container.userProfileRepository
+        )
+    }
+    val spotlightState by spotlightViewModel.uiState.collectAsState()
 
     val container = rememberAppContainer()
     val appSettings by container.settingsRepository.settingsFlow.collectAsState(initial = AppSettings())
@@ -202,6 +214,17 @@ fun HomeScreen(
                 onOpenGeneralScale(entry.relatedDateIso?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() })
             },
             onDismiss = { viewModel.dismissNews(markSeen = true) }
+        )
+    } ?: spotlightState.current?.let { announcement ->
+        // Sequential priority - a pending scale-change dialog (existing, above) takes precedence
+        // over the Spotlight so they never stack on the same open.
+        AnnouncementSpotlight(
+            announcement = announcement,
+            index = spotlightState.currentIndex,
+            total = spotlightState.total,
+            onView = { spotlightViewModel.viewCurrent(); onOpenAnnouncements() },
+            onSnooze = spotlightViewModel::snoozeCurrent,
+            onConfirm = spotlightViewModel::confirmCurrent
         )
     }
 }

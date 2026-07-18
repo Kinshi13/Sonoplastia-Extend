@@ -5,6 +5,7 @@ import com.escalachurch.app.church.ActiveChurchManager
 import com.escalachurch.app.church.LegacyChurchMigration
 import com.escalachurch.app.data.local.AppDatabase
 import com.escalachurch.app.data.preferences.ActiveChurchStore
+import com.escalachurch.app.data.preferences.AnnouncementSpotlightStore
 import com.escalachurch.app.data.preferences.RecentChurchStore
 import com.escalachurch.app.data.preferences.SettingsDataStore
 import com.escalachurch.app.data.preferences.UserProfileDataStore
@@ -70,6 +71,7 @@ class AppContainer(context: Context) {
     val settingsRepository = SettingsRepository(settingsDataStore)
     val userProfileRepository = UserProfileRepository(userProfileDataStore)
     val announcementRepository = AnnouncementRepository(supabase, activeChurchManager)
+    val announcementSpotlightStore = AnnouncementSpotlightStore(context)
     // Fase 11.9B Bloco 2: last two repositories still pinned to BuildConfig.CHURCH_ID, now fixed.
     val bulletinRepository = BulletinRepository(supabase, activeChurchManager)
     val changeLogRepository = ChangeLogRepository(database.changeLogDao())

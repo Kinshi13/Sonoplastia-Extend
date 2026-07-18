@@ -222,7 +222,8 @@ private fun EscalaChurchAppNavGraph() {
                     onOpenSettings = { navController.navigate(SecondaryDestination.SETTINGS_ROUTE) },
                     onOpenBulletins = { navController.navigate(SecondaryDestination.BULLETINS_ROUTE) },
                     onOpenSonoplastia = { navController.navigate(SecondaryDestination.SONOPLASTIA_ROUTE) },
-                    onOpenPlans = { navController.navigate(SecondaryDestination.PLANS_ROUTE) }
+                    onOpenPlans = { navController.navigate(SecondaryDestination.PLANS_ROUTE) },
+                    onOpenAnnouncements = { navigateToTab(AppDestination.Announcements.route) }
                 )
             }
             composable(AppDestination.Doxology.route) { DoxologyScreen() }
