@@ -1,5 +1,6 @@
 package com.escalachurch.app.ui.screens.doxology
 
+import com.escalachurch.app.domain.util.friendlyErrorMessage
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.escalachurch.app.data.repository.DoxologyRepository
@@ -10,7 +11,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
@@ -22,7 +25,8 @@ data class DoxologyUiState(
      *  range), if any - lets the card show an "Agora" badge regardless of which page is open. */
     val liveItemId: String? = null,
     val isLoading: Boolean = true,
-    val isAdmin: Boolean = false
+    val isAdmin: Boolean = false,
+    val hasLoadError: Boolean = false
 )
 
 class DoxologyViewModel(
@@ -31,21 +35,26 @@ class DoxologyViewModel(
 ) : ViewModel() {
 
     private val clockTick = MutableStateFlow(LocalDateTime.now())
+    private val retryTrigger = MutableStateFlow(0)
 
-    val uiState: StateFlow<DoxologyUiState> = combine(repository.observeAll(), clockTick, adminSession.isUnlocked) { items, now, isAdmin ->
-        val sorted = NextItemResolver.sortedByDateTime(items) { LocalDateTime.of(it.date, it.startTime) }
-        val startOf: (DoxologyItem) -> LocalDateTime = { LocalDateTime.of(it.date, it.startTime) }
-        val endOf: (DoxologyItem) -> LocalDateTime? = { item -> item.endTime?.let { LocalDateTime.of(item.date, it) } }
-        val liveIndex = NextItemResolver.resolveCurrentIndex(sorted, startOf, endOf, now)
-        val index = liveIndex ?: NextItemResolver.resolveStartIndex(sorted, startOf, now)
-        DoxologyUiState(
-            items = sorted,
-            startIndex = index,
-            liveItemId = liveIndex?.let { sorted[it].id },
-            isLoading = false,
-            isAdmin = isAdmin
-        )
+    val uiState: StateFlow<DoxologyUiState> = retryTrigger.flatMapLatest {
+        combine(repository.observeAll(), clockTick, adminSession.isUnlocked) { items, now, isAdmin ->
+            val sorted = NextItemResolver.sortedByDateTime(items) { LocalDateTime.of(it.date, it.startTime) }
+            val startOf: (DoxologyItem) -> LocalDateTime = { LocalDateTime.of(it.date, it.startTime) }
+            val endOf: (DoxologyItem) -> LocalDateTime? = { item -> item.endTime?.let { LocalDateTime.of(item.date, it) } }
+            val liveIndex = NextItemResolver.resolveCurrentIndex(sorted, startOf, endOf, now)
+            val index = liveIndex ?: NextItemResolver.resolveStartIndex(sorted, startOf, now)
+            DoxologyUiState(
+                items = sorted,
+                startIndex = index,
+                liveItemId = liveIndex?.let { sorted[it].id },
+                isLoading = false,
+                isAdmin = isAdmin
+            )
+        }.catch { emit(DoxologyUiState(isLoading = false, hasLoadError = true)) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DoxologyUiState())
+
+    fun retry() { retryTrigger.value++ }
 
     init {
         viewModelScope.launch {
@@ -65,14 +74,14 @@ class DoxologyViewModel(
         viewModelScope.launch {
             runCatching { repository.save(item.copy(updatedAt = System.currentTimeMillis())) }
                 .onSuccess { onSaved() }
-                .onFailure { _errorMessage.value = it.message ?: "Falha ao salvar a doxologia." }
+                .onFailure { _errorMessage.value = friendlyErrorMessage(it, "Falha ao salvar a doxologia.") }
         }
     }
 
     fun delete(item: DoxologyItem) {
         viewModelScope.launch {
             runCatching { repository.deleteById(item.id) }
-                .onFailure { _errorMessage.value = it.message ?: "Falha ao excluir a doxologia." }
+                .onFailure { _errorMessage.value = friendlyErrorMessage(it, "Falha ao excluir a doxologia.") }
         }
     }
 }

@@ -139,6 +139,8 @@ fun HomeScreen(
                 variant = com.escalachurch.app.ui.components.SkeletonVariant.HERO,
                 modifier = Modifier.weight(1f)
             )
+        } else if (state.hasLoadError) {
+            com.escalachurch.app.ui.components.CelestialOfflineState(onRetry = viewModel::retry, modifier = Modifier.weight(1f))
         } else if (state.scales.isEmpty()) {
             EmptyState(
                 icon = Icons.Filled.EventBusy,

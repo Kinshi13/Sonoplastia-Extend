@@ -167,6 +167,8 @@ fun GeneralScaleScreen(
 
             if (state.isLoading) {
                 com.escalachurch.app.ui.components.CelestialLoadingState(variant = com.escalachurch.app.ui.components.SkeletonVariant.COMPACT)
+            } else if (state.hasLoadError) {
+                com.escalachurch.app.ui.components.CelestialOfflineState(onRetry = viewModel::retry)
             } else if (state.scales.isEmpty()) {
                 EmptyState(
                     icon = Icons.AutoMirrored.Filled.EventNote,

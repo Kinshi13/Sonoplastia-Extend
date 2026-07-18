@@ -1,5 +1,6 @@
 package com.escalachurch.app.ui.screens.home
 
+import com.escalachurch.app.domain.util.friendlyErrorMessage
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.escalachurch.app.data.repository.ChangeLogRepository
@@ -17,6 +18,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
@@ -28,7 +30,11 @@ data class HomeUiState(
     val startIndex: Int? = null,
     val isLoading: Boolean = true,
     val isAdmin: Boolean = false,
-    val myClasses: Set<UserClass> = emptySet()
+    val myClasses: Set<UserClass> = emptySet(),
+    // Fase 11.9B Bloco 6 - distinguishes "the feed genuinely failed to load" from "loading" and
+    // from "genuinely no scales", so the screen can show CelestialErrorState with a real retry
+    // instead of an EmptyState that implies there's nothing to add.
+    val hasLoadError: Boolean = false
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -44,23 +50,32 @@ class HomeViewModel(
     /** Ticks every minute so the "next scale" recalculates automatically as time passes midnight. */
     private val clockTick = MutableStateFlow(LocalDateTime.now())
 
-    val uiState: StateFlow<HomeUiState> = combine(
-        generalScaleRepository.observeOfficial(),
-        clockTick,
-        adminSession.isUnlocked,
-        userProfileRepository.profileFlow,
-        settingsRepository.settingsFlow
-    ) { scales, now, isAdmin, profile, _ ->
-        val sorted = NextItemResolver.sortedByDateTime(scales) { LocalDateTime.of(it.date, it.startTime) }
-        val index = NextItemResolver.resolveStartIndex(sorted, { LocalDateTime.of(it.date, it.startTime) }, now)
-        HomeUiState(
-            scales = sorted,
-            startIndex = index,
-            isLoading = false,
-            isAdmin = isAdmin,
-            myClasses = profile.selectedClasses
-        )
+    /** Bumped by [retry] - re-subscribes the whole combine below from scratch, which re-runs each
+     *  repository's underlying fetch (see ScaleRepository/observeTable) instead of staying stuck
+     *  on whatever failed the first time. */
+    private val retryTrigger = MutableStateFlow(0)
+
+    val uiState: StateFlow<HomeUiState> = retryTrigger.flatMapLatest {
+        combine(
+            generalScaleRepository.observeOfficial(),
+            clockTick,
+            adminSession.isUnlocked,
+            userProfileRepository.profileFlow,
+            settingsRepository.settingsFlow
+        ) { scales, now, isAdmin, profile, _ ->
+            val sorted = NextItemResolver.sortedByDateTime(scales) { LocalDateTime.of(it.date, it.startTime) }
+            val index = NextItemResolver.resolveStartIndex(sorted, { LocalDateTime.of(it.date, it.startTime) }, now)
+            HomeUiState(
+                scales = sorted,
+                startIndex = index,
+                isLoading = false,
+                isAdmin = isAdmin,
+                myClasses = profile.selectedClasses
+            )
+        }.catch { emit(HomeUiState(isLoading = false, hasLoadError = true)) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
+
+    fun retry() { retryTrigger.value++ }
 
     private val _pendingNewsEntry = MutableStateFlow<ChangeLogEntry?>(null)
     val pendingNewsEntry: StateFlow<ChangeLogEntry?> = _pendingNewsEntry
@@ -111,14 +126,14 @@ class HomeViewModel(
                     scaleRepository.save(item.copy(updatedAt = System.currentTimeMillis()))
                 }
             }.onSuccess { onSaved() }
-                .onFailure { _errorMessage.value = it.message ?: "Falha ao salvar a escala." }
+                .onFailure { _errorMessage.value = friendlyErrorMessage(it, "Falha ao salvar a escala.") }
         }
     }
 
     fun delete(item: ScaleItem) {
         viewModelScope.launch {
             runCatching { scaleRepository.delete(item) }
-                .onFailure { _errorMessage.value = it.message ?: "Falha ao excluir a escala." }
+                .onFailure { _errorMessage.value = friendlyErrorMessage(it, "Falha ao excluir a escala.") }
         }
     }
 }

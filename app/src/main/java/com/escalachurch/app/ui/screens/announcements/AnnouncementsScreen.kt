@@ -119,6 +119,8 @@ fun AnnouncementsScreen(
 
                 if (state.isLoading) {
                     com.escalachurch.app.ui.components.CelestialLoadingState(modifier = Modifier.weight(1f))
+                } else if (state.hasLoadError) {
+                    com.escalachurch.app.ui.components.CelestialOfflineState(onRetry = viewModel::retry, modifier = Modifier.weight(1f))
                 } else if (state.announcements.isEmpty()) {
                     EmptyState(
                         icon = Icons.Filled.Campaign,
