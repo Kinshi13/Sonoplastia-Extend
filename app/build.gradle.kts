@@ -20,6 +20,14 @@ val supabaseAnonKey: String = localProperties.getProperty("SUPABASE_ANON_KEY") ?
 // single build is pinned to one church until that lands; see CHURCH_ID in local.properties.
 val churchId: String = localProperties.getProperty("CHURCH_ID") ?: ""
 
+// Fase 11.9A NavGraph hotfix - stamped into BuildConfig so a debug log at app start can prove
+// exactly which commit produced the installed APK (see MainActivity/ChurchBootstrap logs), in
+// case a stale APK gets reinstalled by mistake during testing.
+val gitCommit: String = providers.exec {
+    commandLine("git", "rev-parse", "--short", "HEAD")
+    isIgnoreExitValue = true
+}.standardOutput.asText.get().trim().ifBlank { "unknown" }
+
 android {
     namespace = "com.escalachurch.app"
     compileSdk = 34
@@ -28,8 +36,10 @@ android {
         applicationId = "com.escalachurch.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        // Bumped for the Fase 11.9A NavGraph hotfix specifically so a stale APK can never be
+        // mistaken for this build - see BuildConfig.GIT_COMMIT / ChurchBootstrap debug logs.
+        versionCode = 2
+        versionName = "1.0.1-11.9a-navgraph-hotfix"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -39,6 +49,7 @@ android {
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
         buildConfigField("String", "CHURCH_ID", "\"$churchId\"")
+        buildConfigField("String", "GIT_COMMIT", "\"$gitCommit\"")
     }
 
     buildTypes {

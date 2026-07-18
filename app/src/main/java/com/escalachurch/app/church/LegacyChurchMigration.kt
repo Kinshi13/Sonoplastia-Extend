@@ -38,6 +38,9 @@ class LegacyChurchMigration(
     private val profileRepository: ProfileRepository,
     private val entitlementCacheStore: EntitlementCacheStore
 ) {
+    /** Debug-log only (see ActiveChurchManager) - never used for any access decision by itself. */
+    fun isAuthenticated(): Boolean = client.auth.currentUserOrNull() != null
+
     suspend fun findMarker(): LegacyMarker {
         client.auth.currentUserOrNull()?.id?.let { userId ->
             profileRepository.fetchChurchId(userId)?.let { return LegacyMarker.AuthenticatedProfile(it) }

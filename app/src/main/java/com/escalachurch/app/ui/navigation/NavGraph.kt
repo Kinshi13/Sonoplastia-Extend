@@ -90,36 +90,67 @@ private fun AnimatedContentTransitionScope<NavBackStackEntry>.popExitToRight() =
     slideOutHorizontally(tween(TAB_TRANSITION_MS, easing = TabEasing)) { fullWidth -> fullWidth } + fadeOut(tween(TAB_TRANSITION_MS))
 
 /**
- * Fase 11.9A - gates the whole app behind [BootstrapState] (see ActiveChurchManager). Priority is
- * explicit: Loading first, then an actual blocking Error, then "no church yet" -> ChurchEntry,
- * only then the real app - there is no fixed Home start destination anymore. This also fixes the
- * original hotfix bug: BootstrapState.NeedsChurchEntry only ever comes from ActiveChurchManager
- * actually failing to find evidence of a church (persisted or legacy-migrated), never from a
- * fixed/implicit "ready" flag that could be true before a real decision was made.
+ * Fase 11.9A hotfix - the previous version of this file gated with a plain top-level `when`
+ * outside any NavHost at all. That should have been equivalent, but there was no real, inspectable
+ * "current route" to prove it (the earlier hotfix report couldn't confirm the actual startDestination
+ * in effect). This version makes it literal: a real NavHost whose startDestination is
+ * [Routes.BOOTSTRAP], never Home - Home/the rest of the app only exists behind [Routes.APP], which
+ * [BootstrapState.HasActiveChurch] is the only thing that ever navigates to. See [routeFor] for the
+ * (now independently unit-testable) BootstrapState -> route mapping.
  */
+private object Routes {
+    const val BOOTSTRAP = "bootstrap"
+    const val CHURCH_ENTRY = "church_entry"
+    const val APP = "app"
+}
+
+/** Pure - which route a given [BootstrapState] should land the user on. No Android/Compose
+ *  dependency, so this is directly unit-tested (see NavGraphRouteTest) instead of only provable
+ *  by running the real app. There is deliberately no `else` branch: every state maps explicitly,
+ *  so a new BootstrapState case that's forgotten here fails to compile instead of silently
+ *  falling through to APP/Home. */
+internal fun routeFor(state: BootstrapState): String = when (state) {
+    is BootstrapState.Loading -> Routes.BOOTSTRAP
+    is BootstrapState.Error -> Routes.CHURCH_ENTRY
+    is BootstrapState.NeedsChurchEntry -> Routes.CHURCH_ENTRY
+    is BootstrapState.HasActiveChurch -> Routes.APP
+}
+
 @Composable
 fun EscalaChurchNavGraph() {
     val container = rememberAppContainer()
     val bootstrapState by container.activeChurchManager.bootstrapState.collectAsState()
+    val navController = rememberNavController()
 
-    when (bootstrapState) {
-        is BootstrapState.Loading -> {
+    if (com.escalachurch.app.BuildConfig.DEBUG) {
+        android.util.Log.d("ChurchBootstrap", "NavHostStartDestination=${Routes.BOOTSTRAP}")
+    }
+
+    LaunchedEffect(bootstrapState) {
+        val target = routeFor(bootstrapState)
+        val current = navController.currentDestination?.route
+        if (com.escalachurch.app.BuildConfig.DEBUG) {
+            android.util.Log.d("ChurchBootstrap", "NavigationTarget target=$target currentRoute=$current")
+        }
+        if (target != Routes.BOOTSTRAP && current != target) {
+            // Fully resets the back stack to the new target - this is a top-level auth/onboarding
+            // gate switch (fresh install <-> has a church <-> switched church), never a screen the
+            // user should be able to back-swipe out of into the wrong state.
+            navController.navigate(target) {
+                popUpTo(0) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
+
+    NavHost(navController = navController, startDestination = Routes.BOOTSTRAP) {
+        composable(Routes.BOOTSTRAP) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
         }
-        is BootstrapState.Error -> {
-            // Fase 11.9A only requires this state to exist and take priority over Home - a full
-            // retry/error UI is out of scope for this hotfix; ChurchEntryScreen (reachable this
-            // way too) already lets the user retry by entering a code.
-            ChurchEntryScreen()
-        }
-        is BootstrapState.NeedsChurchEntry -> {
-            ChurchEntryScreen()
-        }
-        is BootstrapState.HasActiveChurch -> {
-            EscalaChurchAppNavGraph()
-        }
+        composable(Routes.CHURCH_ENTRY) { ChurchEntryScreen() }
+        composable(Routes.APP) { EscalaChurchAppNavGraph() }
     }
 }
 

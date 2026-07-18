@@ -86,6 +86,7 @@ class ActiveChurchManager(
     }
 
     private suspend fun runBootstrap() {
+        if (BuildConfig.DEBUG) Log.d(LOG_TAG, "BootstrapStarted buildCommit=${BuildConfig.GIT_COMMIT} versionName=${BuildConfig.VERSION_NAME}")
         val stored = store.activeChurchFlow.first()
         val recentCount = recentChurchStore.recentChurchesFlow.first().size
         val alreadyEvaluated = if (stored == null) store.isMigrationEvaluated() else false
@@ -117,6 +118,7 @@ class ActiveChurchManager(
             legacyMarkerFound = marker != LegacyMarker.None,
             migrationApplied = outcome is BootstrapState.HasActiveChurch && stored == null,
             buildConfigFallbackUsed = marker == LegacyMarker.LegacyLocalData && migratedChurch != null,
+            authenticatedUserPresent = legacyChurchMigration.isAuthenticated(),
             resultingBootstrapState = when (outcome) {
                 is BootstrapState.HasActiveChurch -> "HasActiveChurch"
                 is BootstrapState.NeedsChurchEntry -> "NeedsChurchEntry"
@@ -149,6 +151,7 @@ class ActiveChurchManager(
         legacyMarkerFound: Boolean,
         migrationApplied: Boolean,
         buildConfigFallbackUsed: Boolean,
+        authenticatedUserPresent: Boolean,
         resultingBootstrapState: String,
         initialRoute: String
     ) {
@@ -157,8 +160,8 @@ class ActiveChurchManager(
             LOG_TAG,
             "activeChurchFound=$activeChurchFound recentChurchCount=$recentChurchCount " +
                 "legacyMarkerFound=$legacyMarkerFound migrationApplied=$migrationApplied " +
-                "buildConfigFallbackUsed=$buildConfigFallbackUsed resultingBootstrapState=$resultingBootstrapState " +
-                "initialRoute=$initialRoute"
+                "buildConfigFallbackUsed=$buildConfigFallbackUsed authenticatedUserPresent=$authenticatedUserPresent " +
+                "resultingBootstrapState=$resultingBootstrapState initialRoute=$initialRoute"
         )
     }
 }

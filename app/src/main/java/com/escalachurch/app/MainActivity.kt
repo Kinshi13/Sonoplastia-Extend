@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -28,6 +29,14 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         requestNotificationPermissionIfNeeded()
+
+        if (BuildConfig.DEBUG) {
+            Log.d(
+                "ChurchBootstrap",
+                "MainActivityCreated buildCommit=${BuildConfig.GIT_COMMIT} versionName=${BuildConfig.VERSION_NAME} " +
+                    "versionCode=${BuildConfig.VERSION_CODE}"
+            )
+        }
 
         val container = (application as EscalaChurchApp).container
 
