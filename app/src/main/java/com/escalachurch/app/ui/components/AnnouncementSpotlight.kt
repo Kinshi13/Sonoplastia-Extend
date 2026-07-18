@@ -1,6 +1,8 @@
 package com.escalachurch.app.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,7 +10,11 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -38,6 +44,12 @@ import java.util.Locale
  * Media here is a static thumbnail only (no inline video playback) - keeps the pop-up light and
  * avoids two competing "which video is allowed to play" coordinators (the feed's own, see
  * AnnouncementCard); tapping "Ver anúncio" is expected to navigate to the real feed item.
+ *
+ * Fase 11.9B Bloco 23 - a VIDEO announcement has no separate thumbnail field (only [mediaUrl]
+ * pointing at the video itself), and Coil isn't set up to extract video frames here (that's the
+ * coil-video artifact, not a dependency of this module) - generating a real preview would mean
+ * adding a library for one card type. A simple play-icon placeholder instead, so a video
+ * announcement doesn't just render as a bare text card with no visual cue at all.
  */
 @Composable
 fun AnnouncementSpotlight(
@@ -61,6 +73,22 @@ fun AnnouncementSpotlight(
                             .aspectRatio(4f / 3f)
                             .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                     )
+                } else if (!announcement.mediaUrl.isNullOrBlank() && announcement.mediaType == MediaType.VIDEO) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(4f / 3f)
+                            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Filled.PlayCircle,
+                            contentDescription = "Este anúncio tem vídeo - toque em Ver anúncio para assistir",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(48.dp)
+                        )
+                    }
                 }
                 Column(modifier = Modifier.padding(24.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
