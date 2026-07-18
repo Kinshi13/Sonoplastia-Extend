@@ -21,6 +21,9 @@ data class StellaCoreAction(
     val id: String,
     val label: String,
     val icon: ImageVector,
+    /** Fase 11.9B Bloco 9 - optional second line under the label (e.g. a short status/count).
+     *  Hidden on narrow screens rather than shrinking either line's font (see StellaCoreMenu). */
+    val subtitle: String? = null,
     val requiresRole: AccessLevel? = null,
     val requiresFeature: FeatureKey? = null,
     val lockedPreview: Boolean = false,

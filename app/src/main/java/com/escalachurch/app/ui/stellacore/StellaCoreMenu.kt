@@ -1,11 +1,13 @@
 package com.escalachurch.app.ui.stellacore
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -207,16 +210,19 @@ private fun StellaCoreOverflowNode(
     modifier: Modifier = Modifier
 ) {
     StellaCoreNodeShell(offsetDp = offsetDp, staggerDelayMs = staggerDelayMs, reducedMotion = reducedMotion, modifier = modifier) { appear, tokens ->
+        val interactionSource = remember { MutableInteractionSource() }
+        val pressed by interactionSource.collectIsPressedAsState()
+        val pressScale by animateFloatAsState(if (pressed) 0.92f else 1f, tween(100), label = "stellaCoreNodePress")
         CelestialFrame(
             modifier = Modifier
-                .scale(appear)
+                .scale(appear * pressScale)
                 .size(NODE_SIZE)
                 .semantics {
                     role = androidx.compose.ui.semantics.Role.Button
                     contentDescription = "Mais ações"
                 }
                 .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
+                    interactionSource = interactionSource,
                     indication = null,
                     onClick = onClick
                 ),
@@ -245,16 +251,22 @@ private fun StellaCoreNode(
     modifier: Modifier = Modifier
 ) {
     StellaCoreNodeShell(offsetDp = offsetDp, staggerDelayMs = staggerDelayMs, reducedMotion = reducedMotion, modifier = modifier) { appear, tokens ->
+        val interactionSource = remember { MutableInteractionSource() }
+        val pressed by interactionSource.collectIsPressedAsState()
+        val pressScale by animateFloatAsState(if (pressed) 0.92f else 1f, tween(100), label = "stellaCoreNodePress")
+        // Fase 11.9B Bloco 9 - subtitle is hidden below this width rather than shrinking either
+        // line's font ("no mobile pequeno, ocultar subtítulo antes de reduzir a fonte").
+        val showSubtitle = resolved.action.subtitle != null && LocalConfiguration.current.screenWidthDp >= 360
         CelestialFrame(
             modifier = Modifier
-                .scale(appear)
+                .scale(appear * pressScale)
                 .size(NODE_SIZE)
                 .semantics {
                     role = androidx.compose.ui.semantics.Role.Button
                     contentDescription = resolved.action.label + if (resolved.isLocked) " (recurso do plano superior)" else ""
                 }
                 .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
+                    interactionSource = interactionSource,
                     indication = null,
                     onClick = onClick
                 ),
@@ -295,6 +307,15 @@ private fun StellaCoreNode(
                     color = tokens.starlight,
                     maxLines = 2
                 )
+                if (showSubtitle) {
+                    Text(
+                        resolved.action.subtitle.orEmpty(),
+                        style = MaterialTheme.typography.labelSmall,
+                        textAlign = TextAlign.Center,
+                        color = tokens.stardust,
+                        maxLines = 1
+                    )
+                }
             }
         }
     }
