@@ -21,8 +21,6 @@ import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -384,11 +382,10 @@ private fun NavRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label:
 
 @Composable
 private fun SettingsSection(title: String, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
+    // Fase 11.9B Bloco 15 - CelestialFrame instead of a plain Card, so every section of
+    // Configurações (including "Modo administrador") picks up the same identity as the rest of
+    // the app in one place, without touching each section's own content.
+    com.escalachurch.app.ui.components.CelestialFrame(modifier = Modifier.fillMaxWidth(), cornerRadius = 20.dp) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(12.dp))

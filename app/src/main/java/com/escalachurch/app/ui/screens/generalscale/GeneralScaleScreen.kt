@@ -21,8 +21,6 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
@@ -232,52 +230,45 @@ private fun GeneralScaleRow(
     onDuplicate: () -> Unit,
     onDelete: () -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    // Fase 11.9B Bloco 15 - Editar stays a direct action (spec: "ação principal"); Duplicar and
+    // Excluir move behind the overflow menu so Excluir is never a bare visible icon. onDelete here
+    // already only sets the parent's deleteTarget (see GeneralScaleScreen above) - confirmation
+    // runs there, unchanged.
+    com.escalachurch.app.ui.components.CelestialAdminCard(
+        title = scale.date.dayOfWeekLabel(),
+        subtitle = "${scale.date.toDisplayString()} · ${scale.startTime.toDisplayString()}",
+        status = {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                SourceBadge(scale.sourceType)
+                if (scale.isSpecialEvent) SpecialBadge()
+                val kind = scale.constellationKind()
+                DayConstellationGlyph(
+                    kind = kind,
+                    modifier = Modifier.size(22.dp),
+                    intensity = ConstellationIntensity.COMPACT,
+                    tint = kind.tintColor(),
+                    accentColor = kind.accentColor()
+                )
+            }
+        },
+        onEdit = if (isAdmin) onEdit else null,
+        overflowActions = if (isAdmin) {
+            listOf(
+                com.escalachurch.app.ui.components.CelestialAdminCardAction("Duplicar", Icons.Filled.ContentCopy, onClick = onDuplicate),
+                com.escalachurch.app.ui.components.CelestialAdminCardAction("Excluir", Icons.Filled.Delete, isDestructive = true, onClick = onDelete)
+            )
+        } else emptyList()
     ) {
-        Column(modifier = Modifier.padding(18.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(scale.date.dayOfWeekLabel(), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                    Text("${scale.date.toDisplayString()} · ${scale.startTime.toDisplayString()}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.height(4.dp))
-                    Text(scale.title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    SourceBadge(scale.sourceType)
-                    if (scale.isSpecialEvent) SpecialBadge()
-                    val kind = scale.constellationKind()
-                    DayConstellationGlyph(
-                        kind = kind,
-                        modifier = Modifier.size(22.dp),
-                        intensity = ConstellationIntensity.COMPACT,
-                        tint = kind.tintColor(),
-                        accentColor = kind.accentColor()
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(10.dp))
-            RoleChip("Recepção", scale.receptionPerson, com.escalachurch.app.domain.model.UserClass.RECEPCIONISTA in highlightClasses)
-            RoleChip("Sonoplastia", scale.soundPerson, com.escalachurch.app.domain.model.UserClass.SONOPLASTA in highlightClasses)
-            RoleChip("Pregação", scale.preachingPerson, com.escalachurch.app.domain.model.UserClass.PREGADOR in highlightClasses)
-            RoleChip("Regência", scale.conductingPerson, com.escalachurch.app.domain.model.UserClass.REGENTE in highlightClasses)
-            RoleChip("Mensagem musical", scale.musicalMessagePerson, com.escalachurch.app.domain.model.UserClass.CANTOR in highlightClasses)
-            if (scale.notes.isNotBlank()) {
-                Spacer(Modifier.height(6.dp))
-                Text(scale.notes, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-
-            if (isAdmin) {
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                    IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, contentDescription = "Editar") }
-                    IconButton(onClick = onDuplicate) { Icon(Icons.Filled.ContentCopy, contentDescription = "Duplicar") }
-                    IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, contentDescription = "Excluir", tint = MaterialTheme.colorScheme.error) }
-                }
-            }
+        Text(scale.title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+        Spacer(Modifier.height(10.dp))
+        RoleChip("Recepção", scale.receptionPerson, com.escalachurch.app.domain.model.UserClass.RECEPCIONISTA in highlightClasses)
+        RoleChip("Sonoplastia", scale.soundPerson, com.escalachurch.app.domain.model.UserClass.SONOPLASTA in highlightClasses)
+        RoleChip("Pregação", scale.preachingPerson, com.escalachurch.app.domain.model.UserClass.PREGADOR in highlightClasses)
+        RoleChip("Regência", scale.conductingPerson, com.escalachurch.app.domain.model.UserClass.REGENTE in highlightClasses)
+        RoleChip("Mensagem musical", scale.musicalMessagePerson, com.escalachurch.app.domain.model.UserClass.CANTOR in highlightClasses)
+        if (scale.notes.isNotBlank()) {
+            Spacer(Modifier.height(6.dp))
+            Text(scale.notes, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
