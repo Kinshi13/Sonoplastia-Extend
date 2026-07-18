@@ -30,6 +30,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.escalachurch.app.church.BootstrapState
 import com.escalachurch.app.di.rememberAppContainer
 import com.escalachurch.app.domain.model.AppSettings
 import com.escalachurch.app.ui.components.EscalaBottomNavBar
@@ -89,30 +90,37 @@ private fun AnimatedContentTransitionScope<NavBackStackEntry>.popExitToRight() =
     slideOutHorizontally(tween(TAB_TRANSITION_MS, easing = TabEasing)) { fullWidth -> fullWidth } + fadeOut(tween(TAB_TRANSITION_MS))
 
 /**
- * Fase 11.9A - gates the whole app behind "is there an active church yet." [isReady] becomes true
- * once ActiveChurchManager's one-time bootstrap (persisted church, or the BuildConfig migration
- * for existing installs) has resolved either way - only after that do we know whether to show
- * ChurchEntryScreen or the real app, so a user with a valid saved church never flashes the entry
- * screen first, and a genuinely new install never flashes an empty Home before it does.
+ * Fase 11.9A - gates the whole app behind [BootstrapState] (see ActiveChurchManager). Priority is
+ * explicit: Loading first, then an actual blocking Error, then "no church yet" -> ChurchEntry,
+ * only then the real app - there is no fixed Home start destination anymore. This also fixes the
+ * original hotfix bug: BootstrapState.NeedsChurchEntry only ever comes from ActiveChurchManager
+ * actually failing to find evidence of a church (persisted or legacy-migrated), never from a
+ * fixed/implicit "ready" flag that could be true before a real decision was made.
  */
 @Composable
 fun EscalaChurchNavGraph() {
     val container = rememberAppContainer()
-    val isReady by container.activeChurchManager.isReady.collectAsState()
-    val activeChurch by container.activeChurchManager.activeChurch.collectAsState()
+    val bootstrapState by container.activeChurchManager.bootstrapState.collectAsState()
 
-    if (!isReady) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
+    when (bootstrapState) {
+        is BootstrapState.Loading -> {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
         }
-        return
+        is BootstrapState.Error -> {
+            // Fase 11.9A only requires this state to exist and take priority over Home - a full
+            // retry/error UI is out of scope for this hotfix; ChurchEntryScreen (reachable this
+            // way too) already lets the user retry by entering a code.
+            ChurchEntryScreen()
+        }
+        is BootstrapState.NeedsChurchEntry -> {
+            ChurchEntryScreen()
+        }
+        is BootstrapState.HasActiveChurch -> {
+            EscalaChurchAppNavGraph()
+        }
     }
-    if (activeChurch == null) {
-        ChurchEntryScreen()
-        return
-    }
-
-    EscalaChurchAppNavGraph()
 }
 
 @Composable

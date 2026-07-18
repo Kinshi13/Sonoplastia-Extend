@@ -2,6 +2,7 @@ package com.escalachurch.app.di
 
 import android.content.Context
 import com.escalachurch.app.church.ActiveChurchManager
+import com.escalachurch.app.church.LegacyChurchMigration
 import com.escalachurch.app.data.local.AppDatabase
 import com.escalachurch.app.data.preferences.ActiveChurchStore
 import com.escalachurch.app.data.preferences.RecentChurchStore
@@ -50,12 +51,18 @@ class AppContainer(context: Context) {
     private val containerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     // Fase 11.9A: single source of truth for "which church is this session pointed at" - every
-    // repository below that used to read BuildConfig.CHURCH_ID now reacts to this instead. See
-    // ActiveChurchManager's own doc for the BuildConfig bootstrap-migration fallback.
+    // repository below that used to read BuildConfig.CHURCH_ID now reacts to this instead.
+    // LegacyChurchMigration needs entitlementCacheStore/profileRepository built first (evidence
+    // sources for the one-time migration check - see ActiveChurchManager/LegacyChurchMigration).
     val churchRepository = ChurchRepository(supabase)
     val recentChurchStore = RecentChurchStore(context)
     private val activeChurchStore = ActiveChurchStore(context)
-    val activeChurchManager = ActiveChurchManager(activeChurchStore, churchRepository, recentChurchStore, containerScope)
+    val entitlementCacheStore = EntitlementCacheStore(context)
+    private val profileRepository = ProfileRepository(supabase)
+    private val legacyChurchMigration = LegacyChurchMigration(context, supabase, profileRepository, entitlementCacheStore)
+    val activeChurchManager = ActiveChurchManager(
+        activeChurchStore, churchRepository, recentChurchStore, legacyChurchMigration, containerScope
+    )
 
     val scaleRepository = ScaleRepository(supabase, activeChurchManager)
     val doxologyRepository = DoxologyRepository(supabase, activeChurchManager)
@@ -70,7 +77,6 @@ class AppContainer(context: Context) {
     val sonoplastiaFileRepository = SonoplastiaFileRepository(supabase)
 
     val planRepository = PlanRepository(supabase, activeChurchManager)
-    val entitlementCacheStore = EntitlementCacheStore(context)
     val entitlementService = EntitlementService(planRepository, entitlementCacheStore, activeChurchManager, containerScope)
 
     val generalScaleRepository = GeneralScaleRepository(
@@ -80,6 +86,5 @@ class AppContainer(context: Context) {
         settingsRepository = settingsRepository
     )
 
-    private val profileRepository = ProfileRepository(supabase)
     val adminSession = AdminSession(supabase, userProfileRepository, planRepository, profileRepository, churchRepository, activeChurchManager)
 }
