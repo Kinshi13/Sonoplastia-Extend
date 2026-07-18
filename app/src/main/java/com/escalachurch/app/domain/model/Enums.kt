@@ -23,7 +23,7 @@ enum class ThemeMode(val label: String) {
 }
 
 /** Fase 11.9B Bloco 12 - user's preferred decorative-detail level (parallax drift, halo/glow,
- *  star count). AUTOMATIC lets the device decide (see resolveEffectiveVisualQuality) instead of
+ *  star count). AUTOMATIC lets the device decide (see resolveEffectiveVisualSettings) instead of
  *  forcing every phone into the same setting. */
 enum class VisualQuality(val label: String) {
     AUTOMATIC("Automática"),
