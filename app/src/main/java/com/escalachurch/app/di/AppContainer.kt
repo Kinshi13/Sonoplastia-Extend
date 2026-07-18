@@ -2,12 +2,14 @@ package com.escalachurch.app.di
 
 import android.content.Context
 import com.escalachurch.app.data.local.AppDatabase
+import com.escalachurch.app.data.preferences.RecentChurchStore
 import com.escalachurch.app.data.preferences.SettingsDataStore
 import com.escalachurch.app.data.preferences.UserProfileDataStore
 import com.escalachurch.app.data.remote.SupabaseClientProvider
 import com.escalachurch.app.data.repository.AnnouncementRepository
 import com.escalachurch.app.data.repository.BulletinRepository
 import com.escalachurch.app.data.repository.ChangeLogRepository
+import com.escalachurch.app.data.repository.ChurchRepository
 import com.escalachurch.app.data.repository.CustomEventRepository
 import com.escalachurch.app.data.repository.DoxologyRepository
 import com.escalachurch.app.data.repository.GeneralScaleRepository
@@ -66,4 +68,9 @@ class AppContainer(context: Context) {
     )
 
     val adminSession = AdminSession(supabase, userProfileRepository, planRepository)
+
+    // Fase 11.9 Parte 3 - data-layer only, not wired into navigation yet (ChurchEntryScreen is a
+    // later step). Ready for that screen to call once built.
+    val churchRepository = ChurchRepository(supabase)
+    val recentChurchStore = RecentChurchStore(context)
 }
