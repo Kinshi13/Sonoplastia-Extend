@@ -49,6 +49,9 @@ fun PlansScreen(onBack: () -> Unit = {}) {
     val plans by viewModel.plans.collectAsState()
     val current by viewModel.current.collectAsState()
     val appSettings by rememberAppContainer().settingsRepository.settingsFlow.collectAsState(initial = AppSettings())
+    // Fase 11.9B Bloco 19 - avoid re-filtering the plan list on every unrelated recomposition
+    // (e.g. appSettings changing) - only recompute when the plans themselves actually change.
+    val publicPlans = androidx.compose.runtime.remember(plans) { plans.filter { it.isPublic } }
 
     Column(modifier = Modifier.fillMaxSize().padding(top = 20.dp, start = 20.dp, end = 20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -79,7 +82,7 @@ fun PlansScreen(onBack: () -> Unit = {}) {
                 contentPadding = PaddingValues(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                items(plans.filter { it.isPublic }) { plan ->
+                items(publicPlans, key = { it.id }) { plan ->
                     PlanCard(plan = plan, isCurrent = plan.code == current.planCode)
                 }
             }

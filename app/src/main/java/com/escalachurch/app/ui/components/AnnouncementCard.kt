@@ -29,6 +29,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -191,6 +192,17 @@ private fun VideoPreview(uri: String, isActivePlayer: Boolean, onRequestPlay: ()
 
     LaunchedEffect(isActivePlayer) {
         if (!isActivePlayer && isPlaying) {
+            videoView?.pause()
+            isPlaying = false
+        }
+    }
+
+    // Fase 11.9B Bloco 19 - VideoView has no built-in "pause when the app backgrounds" behavior
+    // (unlike Media3's own lifecycle awareness) - without this, a playing video keeps its audio
+    // track running after the user leaves the app.
+    val lifecycleState by androidx.compose.ui.platform.LocalLifecycleOwner.current.lifecycle.currentStateAsState()
+    LaunchedEffect(lifecycleState) {
+        if (!lifecycleState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) && isPlaying) {
             videoView?.pause()
             isPlaying = false
         }
