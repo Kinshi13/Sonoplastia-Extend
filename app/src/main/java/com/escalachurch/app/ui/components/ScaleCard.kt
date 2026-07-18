@@ -71,6 +71,9 @@ fun ScaleCard(
     val context = LocalContext.current
     val canExport = entitlementService?.has(FeatureKey.EXPORT) ?: true
     val constellationKind = scale.constellationKind()
+    val isDark = MaterialTheme.colorScheme.background.let {
+        (0.299f * it.red + 0.587f * it.green + 0.114f * it.blue) < 0.5f
+    }
 
     CelestialFrame(modifier = modifier.fillMaxWidth(), cornerRadius = 28.dp) {
         Column(modifier = Modifier.padding(24.dp)) {
@@ -93,8 +96,8 @@ fun ScaleCard(
                         kind = constellationKind,
                         modifier = Modifier.size(32.dp),
                         intensity = ConstellationIntensity.HERO,
-                        tint = constellationKind.tintColor(),
-                        accentColor = constellationKind.accentColor()
+                        tint = constellationKind.tintColor(isDark),
+                        accentColor = constellationKind.accentColor(isDark)
                     )
                 }
             }

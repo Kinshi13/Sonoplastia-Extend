@@ -277,6 +277,9 @@ private fun GeneralScaleRow(
     onDelete: () -> Unit,
     onExport: () -> Unit
 ) {
+    val isDark = MaterialTheme.colorScheme.background.let {
+        (0.299f * it.red + 0.587f * it.green + 0.114f * it.blue) < 0.5f
+    }
     // Fase 11.9B Bloco 15/16 - Editar stays a direct action (spec: "ação principal"); Duplicar,
     // Exportar and Excluir move behind CelestialOverflowMenu so Excluir is never a bare visible
     // icon. onDelete/onExport here only set the parent's state (see GeneralScaleScreen above) -
@@ -293,8 +296,8 @@ private fun GeneralScaleRow(
                     kind = kind,
                     modifier = Modifier.size(22.dp),
                     intensity = ConstellationIntensity.COMPACT,
-                    tint = kind.tintColor(),
-                    accentColor = kind.accentColor()
+                    tint = kind.tintColor(isDark),
+                    accentColor = kind.accentColor(isDark)
                 )
             }
         },

@@ -102,8 +102,8 @@ fun DoxologyCard(
                         kind = kind,
                         modifier = Modifier.size(22.dp),
                         intensity = ConstellationIntensity.COMPACT,
-                        tint = kind.tintColor(),
-                        accentColor = kind.accentColor()
+                        tint = kind.tintColor(isDark),
+                        accentColor = kind.accentColor(isDark)
                     )
                 }
             }

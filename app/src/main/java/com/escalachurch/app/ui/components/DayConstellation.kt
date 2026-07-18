@@ -41,19 +41,25 @@ fun ScaleItem.constellationKind(): DayConstellationKind = when {
  *  (Bloco 21: "listas longas devem usar uma versão mais leve"). */
 enum class ConstellationIntensity { HERO, COMPACT }
 
-/** Per-kind hue, per Entrega 2's spec (Farol: azul frio/ciano, Coroa: azul profundo + dourado,
- *  Aurora: azul claro/lavanda, Peregrina: violeta/azul estelar) - a fixed identity independent of
- *  light/dark theme, since the accent needs to read the same way in both. */
-fun DayConstellationKind.tintColor(): Color = when (this) {
-    DayConstellationKind.FAROL -> Color(0xFF5BC8D6)
+/**
+ * Per-kind hue, per Entrega 2's spec (Farol: azul frio/ciano, Coroa: azul profundo + dourado,
+ * Aurora: azul claro/lavanda, Peregrina: violeta/azul estelar) - the same identity in both themes,
+ * just not the exact same hex: the original values were tuned against a near-black background and
+ * measured well under WCAG's 3:1 graphical-object contrast on the light theme's near-white one
+ * (Fase 11.9B Bloco 17 audit - FAROL ~2.0:1, AURORA ~1.8:1, COROA's gold accent ~2.2:1 against
+ * Light.nebula). [isDark] picks a darker/more saturated variant of the same hue for the light
+ * theme where needed (COROA's blue and PEREGRINA already cleared 3:1 as-is, so they're unchanged).
+ */
+fun DayConstellationKind.tintColor(isDark: Boolean): Color = when (this) {
+    DayConstellationKind.FAROL -> if (isDark) Color(0xFF5BC8D6) else Color(0xFF197D8A)
     DayConstellationKind.COROA -> Color(0xFF3A5AC9)
-    DayConstellationKind.AURORA -> Color(0xFFA9C2F0)
+    DayConstellationKind.AURORA -> if (isDark) Color(0xFFA9C2F0) else Color(0xFF1659D4)
     DayConstellationKind.PEREGRINA -> Color(0xFF8B6BE0)
 }
 
-fun DayConstellationKind.accentColor(): Color = when (this) {
-    DayConstellationKind.COROA -> Color(0xFFD4A94A) // "dourado suave"
-    else -> tintColor()
+fun DayConstellationKind.accentColor(isDark: Boolean): Color = when (this) {
+    DayConstellationKind.COROA -> if (isDark) Color(0xFFD4A94A) else Color(0xFF8B6718) // "dourado suave"
+    else -> tintColor(isDark)
 }
 
 @Composable

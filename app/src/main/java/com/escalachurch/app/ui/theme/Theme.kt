@@ -5,6 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import com.escalachurch.app.domain.model.AppSettings
 import com.escalachurch.app.domain.model.FontSizeOption
 import com.escalachurch.app.domain.model.ThemeMode
@@ -15,6 +16,11 @@ import com.escalachurch.app.domain.model.ThemeMode
 // MaterialTheme.colorScheme (effectively the whole app; see Color.kt). Same role structure as
 // before (primary/onPrimary/...), so this is a re-skin, not a rewrite: no screen's layout,
 // navigation, or behavior changes, only the palette they render with.
+// Fase 11.9B Bloco 17 audit - errorContainer/onErrorContainer (ErrorBanner, used app-wide for
+// save/load failures) and tertiary (CalendarScreen's event-type dot) were left unset, so Material3
+// filled them with its own generic baseline instead of a Constellation-tuned tone - not a contrast
+// break (Material3's own defaults are pre-checked), but a "cor fixa fora do tema" gap. Soft-red
+// container tones below are nova blended toward each theme's own surface, not arbitrary colors.
 private val LightColors = lightColorScheme(
     primary = ConstellationColors.Light.polaris,
     onPrimary = ConstellationColors.Light.nebula,
@@ -22,6 +28,7 @@ private val LightColors = lightColorScheme(
     onPrimaryContainer = ConstellationColors.Light.starlight,
     secondary = ConstellationColors.Light.aurora,
     onSecondary = ConstellationColors.Light.nebula,
+    tertiary = ConstellationColors.Light.comet,
     background = ConstellationColors.Light.void,
     onBackground = ConstellationColors.Light.starlight,
     surface = ConstellationColors.Light.nebula,
@@ -29,7 +36,9 @@ private val LightColors = lightColorScheme(
     surfaceVariant = ConstellationColors.Light.nebulaElevated,
     onSurfaceVariant = ConstellationColors.Light.stardust,
     outline = ConstellationColors.Light.horizon,
-    error = ConstellationColors.Light.nova
+    error = ConstellationColors.Light.nova,
+    errorContainer = Color(0xFFF8E0E4),
+    onErrorContainer = Color(0xFF6C1422)
 )
 
 private val DarkColors = darkColorScheme(
@@ -39,6 +48,7 @@ private val DarkColors = darkColorScheme(
     onPrimaryContainer = ConstellationColors.Dark.starlight,
     secondary = ConstellationColors.Dark.aurora,
     onSecondary = ConstellationColors.Dark.void,
+    tertiary = ConstellationColors.Dark.comet,
     background = ConstellationColors.Dark.void,
     onBackground = ConstellationColors.Dark.starlight,
     surface = ConstellationColors.Dark.nebula,
@@ -46,7 +56,9 @@ private val DarkColors = darkColorScheme(
     surfaceVariant = ConstellationColors.Dark.nebulaElevated,
     onSurfaceVariant = ConstellationColors.Dark.stardust,
     outline = ConstellationColors.Dark.horizon,
-    error = ConstellationColors.Dark.nova
+    error = ConstellationColors.Dark.nova,
+    errorContainer = Color(0xFF5C3246),
+    onErrorContainer = Color(0xFFF3AFBA)
 )
 
 /**
