@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
@@ -71,7 +72,8 @@ import java.util.Locale
 @Composable
 fun GeneralScaleScreen(
     initialDate: LocalDate? = null,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onOpenPlans: () -> Unit = {}
 ) {
     val viewModel = appViewModel { container ->
         GeneralScaleViewModel(container.generalScaleRepository, container.userProfileRepository, container.adminSession)
@@ -88,6 +90,13 @@ fun GeneralScaleScreen(
     var isCreatingExtraDays by remember { mutableStateOf(false) }
     var duplicateSource by remember { mutableStateOf<ScaleItem?>(null) }
     var deleteTarget by remember { mutableStateOf<ScaleItem?>(null) }
+    // Fase 11.9B Bloco 16 - "Exportar" in the admin overflow menu, same FeatureKey.EXPORT gate and
+    // PDF/JPEG choice already used by ScaleCard's public copy - no new entitlement decision here.
+    var exportTarget by remember { mutableStateOf<ScaleItem?>(null) }
+    var showExportPremiumPreview by remember { mutableStateOf(false) }
+    val container = rememberAppContainer()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val canExport = container.entitlementService.has(com.escalachurch.app.entitlements.FeatureKey.EXPORT)
 
     LaunchedEffect(initialDate) {
         initialDate?.let { viewModel.setMonth(YearMonth.from(it)) }
@@ -183,7 +192,8 @@ fun GeneralScaleScreen(
                                 highlightClasses = state.myClasses,
                                 onEdit = { editingTarget = scale; isCreatingNew = false; isEditing = true },
                                 onDuplicate = { duplicateSource = scale },
-                                onDelete = { deleteTarget = scale }
+                                onDelete = { deleteTarget = scale },
+                                onExport = { if (canExport) exportTarget = scale else showExportPremiumPreview = true }
                             )
                         }
                     }
@@ -207,6 +217,42 @@ fun GeneralScaleScreen(
             onDismiss = { deleteTarget = null }
         )
     }
+
+    exportTarget?.let { target ->
+        var format by remember(target) { mutableStateOf(com.escalachurch.app.export.ExportFormat.PDF) }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { exportTarget = null },
+            title = { Text("Exportar escala") },
+            text = {
+                com.escalachurch.app.ui.components.CelestialDropdown(
+                    label = "Formato",
+                    options = listOf(com.escalachurch.app.export.ExportFormat.PDF, com.escalachurch.app.export.ExportFormat.JPEG),
+                    selected = format,
+                    optionLabel = { it.name },
+                    onSelect = { format = it }
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    com.escalachurch.app.export.ScaleExporter.share(context, target, format)
+                    exportTarget = null
+                }) { Text("Exportar") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { exportTarget = null }) { Text("Cancelar") }
+            }
+        )
+    }
+
+    if (showExportPremiumPreview) {
+        com.escalachurch.app.ui.components.PremiumPreviewSheet(
+            featureName = "Exportar escala",
+            featureDescription = "Exportar a escala em PDF ou JPEG faz parte dos planos pagos. " +
+                "Veja os planos disponíveis para desbloquear esse e outros recursos.",
+            onSeePlans = { showExportPremiumPreview = false; onOpenPlans() },
+            onDismiss = { showExportPremiumPreview = false }
+        )
+    }
 }
 
 @Composable
@@ -228,12 +274,13 @@ private fun GeneralScaleRow(
     highlightClasses: Set<com.escalachurch.app.domain.model.UserClass>,
     onEdit: () -> Unit,
     onDuplicate: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onExport: () -> Unit
 ) {
-    // Fase 11.9B Bloco 15 - Editar stays a direct action (spec: "ação principal"); Duplicar and
-    // Excluir move behind the overflow menu so Excluir is never a bare visible icon. onDelete here
-    // already only sets the parent's deleteTarget (see GeneralScaleScreen above) - confirmation
-    // runs there, unchanged.
+    // Fase 11.9B Bloco 15/16 - Editar stays a direct action (spec: "ação principal"); Duplicar,
+    // Exportar and Excluir move behind CelestialOverflowMenu so Excluir is never a bare visible
+    // icon. onDelete/onExport here only set the parent's state (see GeneralScaleScreen above) -
+    // confirmation/format choice run there, unchanged.
     com.escalachurch.app.ui.components.CelestialAdminCard(
         title = scale.date.dayOfWeekLabel(),
         subtitle = "${scale.date.toDisplayString()} · ${scale.startTime.toDisplayString()}",
@@ -254,8 +301,9 @@ private fun GeneralScaleRow(
         onEdit = if (isAdmin) onEdit else null,
         overflowActions = if (isAdmin) {
             listOf(
-                com.escalachurch.app.ui.components.CelestialAdminCardAction("Duplicar", Icons.Filled.ContentCopy, onClick = onDuplicate),
-                com.escalachurch.app.ui.components.CelestialAdminCardAction("Excluir", Icons.Filled.Delete, isDestructive = true, onClick = onDelete)
+                com.escalachurch.app.ui.components.CelestialMenuAction("Duplicar", Icons.Filled.ContentCopy, onClick = onDuplicate),
+                com.escalachurch.app.ui.components.CelestialMenuAction("Exportar", Icons.Filled.Share, onClick = onExport),
+                com.escalachurch.app.ui.components.CelestialMenuAction("Excluir", Icons.Filled.Delete, isDestructive = true, onClick = onDelete)
             )
         } else emptyList()
     ) {

@@ -248,7 +248,8 @@ private fun EscalaChurchAppNavGraph() {
                 val dateArg = entry.arguments?.getString("date").orEmpty()
                 GeneralScaleScreen(
                     initialDate = dateArg.takeIf { it.isNotBlank() }?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() },
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onOpenPlans = { navController.navigate(SecondaryDestination.PLANS_ROUTE) }
                 )
             }
             composable(
