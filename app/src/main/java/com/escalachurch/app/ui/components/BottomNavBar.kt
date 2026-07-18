@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -125,11 +126,17 @@ fun EscalaBottomNavBar(
                 )
 
                 if (showIndicator) {
+                    val indicatorAlpha by androidx.compose.animation.core.animateFloatAsState(
+                        targetValue = if (stellaOpen) 0.35f else 1f,
+                        animationSpec = androidx.compose.animation.core.tween(ConstellationMotion.STANDARD_MS),
+                        label = "navIndicatorDim"
+                    )
                     Box(
                         modifier = Modifier
                             .align(Alignment.CenterStart)
                             .offset(x = indicatorX)
                             .size(REGULAR_INDICATOR_SIZE)
+                            .graphicsLayer { alpha = indicatorAlpha }
                             .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
                     )
                 }
@@ -199,13 +206,27 @@ fun EscalaBottomNavBar(
                                 targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 label = "navIconTint"
                             )
+                            // Fase 11.9B Bloco 11 - the other tabs stay tappable while Stella Core is
+                            // open (tapping one still cancels the menu and switches tab, same gesture
+                            // handler as always), but they dim to echo the backdrop's "everything but
+                            // the core dims" rule and keep visual focus on the open fan.
+                            val iconAlpha by androidx.compose.animation.core.animateFloatAsState(
+                                targetValue = if (stellaOpen) 0.35f else 1f,
+                                animationSpec = androidx.compose.animation.core.tween(ConstellationMotion.STANDARD_MS),
+                                label = "navIconDim"
+                            )
                             // Every slot gets an equal share of the row's width (not just equal visual
                             // gaps, which is all SpaceEvenly guarantees) - the indicator's x position is
                             // computed as slotWidth * index, so the slots it targets must actually be
                             // uniform width, regardless of each icon's own intrinsic size.
                             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
                                 entry.icon?.let {
-                                    Icon(it, contentDescription = entry.label, tint = tint, modifier = Modifier.size(26.dp))
+                                    Icon(
+                                        it,
+                                        contentDescription = entry.label,
+                                        tint = tint,
+                                        modifier = Modifier.size(26.dp).graphicsLayer { alpha = iconAlpha }
+                                    )
                                 }
                             }
                         }
