@@ -7,11 +7,11 @@ import org.junit.Test
 class ChurchShareMessageBuilderTest {
 
     @Test
-    fun includesChurchNameLinkAndUppercasedCode() {
+    fun containsChurchNameCodeAndFullPublicUrl_verifiably() {
         val message = buildChurchShareMessage(
             churchName = "IASD Ariston",
-            churchSlug = "iasd-ariston",
-            link = "https://escalachurch.app/c/iasd-ariston"
+            churchCode = "IASD-ARISTON",
+            publicUrl = "https://escalachurch.app/c/iasd-ariston"
         )
         assertTrue(message.contains("IASD Ariston"))
         assertTrue(message.contains("https://escalachurch.app/c/iasd-ariston"))
@@ -19,25 +19,19 @@ class ChurchShareMessageBuilderTest {
     }
 
     @Test
-    fun withoutNextScaleSummary_stillProducesAValidMessage() {
-        val message = buildChurchShareMessage("Igreja", "slug", "https://escalachurch.app/c/slug")
-        assertTrue(message.contains("Baixe também o aplicativo Escala Church"))
-    }
-
-    @Test
-    fun withNextScaleSummary_includesIt() {
-        val message = buildChurchShareMessage(
-            "Igreja", "slug", "https://escalachurch.app/c/slug",
-            nextScaleSummary = "Culto de Domingo · 15/09 · 19:00"
-        )
-        assertTrue(message.contains("Culto de Domingo · 15/09 · 19:00"))
-    }
-
-    @Test
     fun neverContainsChurchIdOrTokenLookingStrings() {
-        val message = buildChurchShareMessage("Igreja", "slug", "https://escalachurch.app/c/slug")
+        val message = buildChurchShareMessage("Igreja", "CODE", "https://escalachurch.app/c/code")
         assertFalse(message.contains("church_id"))
         assertFalse(message.contains("Bearer"))
         assertFalse(message.contains("eyJ")) // common JWT prefix
+    }
+
+    @Test
+    fun neverContainsPlaceholderText() {
+        val message = buildChurchShareMessage("IASD Ariston", "IASD-ARISTON", "https://escalachurch.app/c/iasd-ariston")
+        assertFalse(message.contains("SEUDOMINIO"))
+        assertFalse(message.contains("SLUG_DA_IGREJA"))
+        assertFalse(message.contains("CODIGO_DA_IGREJA"))
+        assertFalse(message.contains("Igreja Exemplo"))
     }
 }

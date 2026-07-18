@@ -1,47 +1,34 @@
 package com.escalachurch.app.share
 
 /**
- * Fase 11.10 - the default share text for "Compartilhar acesso da igreja", matching the phase's
- * own template. [nextScaleSummary] (e.g. "Culto de Domingo · 15/09 · 19:00"), when given, is
- * inserted right after the link so the recipient sees what's coming up without opening it.
- *
- * Only ever takes [churchName]/[churchSlug]/[link] - never a church id, token, or any internal
- * identifier (Bloco: "nunca compartilhar church_id, JWT, tokens, IDs internos").
+ * Fase 11.10 (correção) - the share text for "Compartilhar acesso da igreja". Requires
+ * [churchName]/[churchCode]/[publicUrl] - there is no fixed/default message this can fall back to
+ * (root cause of the original bug: the Bottom Sheet built its own message inline instead of always
+ * routing through this function with real ViewModel state, so a stale or default value could slip
+ * through). Never takes a church id, JWT, or any internal identifier.
  *
  * No string-resource/i18n system exists anywhere in this app today (checked res/values/strings.xml -
- * only app_name is there; every other screen's text in the whole codebase is a hardcoded Kotlin
- * literal) - this follows that same established convention rather than introducing a new one.
+ * only app_name is there) - this follows that same established convention.
  *
  * Pure - see ChurchShareMessageBuilderTest.
  */
-fun buildChurchShareMessage(
-    churchName: String,
-    churchSlug: String,
-    link: String,
-    nextScaleSummary: String? = null
-): String = buildString {
-    append("📅 Próxima programação da ").append(churchName.ifBlank { "nossa igreja" })
+fun buildChurchShareMessage(churchName: String, churchCode: String, publicUrl: String): String = buildString {
+    append("📅 Próxima programação da ").append(churchName)
     appendLine()
     appendLine()
-    append("Veja a escala completa, anúncios e programação acessando:")
+    append("Acesse a escala completa, anúncios e programações da igreja:")
     appendLine()
     appendLine()
-    append(link)
-    appendLine()
-    if (!nextScaleSummary.isNullOrBlank()) {
-        appendLine()
-        append(nextScaleSummary)
-        appendLine()
-    }
-    appendLine()
-    append("Código da igreja:")
+    append(publicUrl)
     appendLine()
     appendLine()
-    append(churchSlug.uppercase())
+    append("🔑 Código da igreja:")
+    appendLine()
+    append(churchCode)
     appendLine()
     appendLine()
-    append("Baixe também o aplicativo Escala Church.")
+    append("Você também pode acompanhar pelo aplicativo Escala Church.")
     appendLine()
     appendLine()
-    append("Mensagem enviada automaticamente pelo Escala Church.")
+    append("Mensagem enviada pelo Escala Church.")
 }

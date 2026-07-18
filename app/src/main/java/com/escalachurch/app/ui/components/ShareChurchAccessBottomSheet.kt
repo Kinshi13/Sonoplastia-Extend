@@ -2,6 +2,7 @@ package com.escalachurch.app.ui.components
 
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,7 +30,6 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
-import com.escalachurch.app.BuildConfig
 import com.escalachurch.app.di.appViewModel
 import com.escalachurch.app.domain.model.ScaleItem
 import com.escalachurch.app.share.ChurchAccessAnalytics
@@ -37,13 +37,15 @@ import com.escalachurch.app.share.ChurchShareImageUseCase
 import com.escalachurch.app.share.ShareChurchAccessAction
 
 /**
- * Fase 11.10 - "Compartilhar acesso da igreja". FREE-available (no FeatureGate/EntitlementService
- * check anywhere in this file - the phase is explicit this is a FREE-plan feature, unlike
- * ScaleExporter's PDF/JPEG export which stays gated). [nextScale] is optional - Home and Escala
+ * Fase 11.10 (correção) - "Compartilhar acesso da igreja". FREE-available (no FeatureGate/
+ * EntitlementService check anywhere in this file). [nextScale] is optional - Home and Escala
  * Geral pass their already-loaded upcoming scale; Stella Core and the admin Configurações entry
- * point open this with `null` since they don't have that data at hand, and the sheet degrades
- * gracefully (see ChurchAccessPreviewCard's "sem imagem" branch and ChurchShareImageUseCase's
- * text-only fallback) rather than fetching a second copy of it.
+ * point open this with `null`, and the sheet degrades gracefully (ChurchShareImageUseCase falls
+ * back to text-only).
+ *
+ * Every value shown/shared/copied here comes from [ShareChurchAccessUiState] - this composable
+ * never builds a link or a message itself (that was the original bug: the message used to be
+ * assembled inline in this file from separate pieces instead of one ViewModel-owned state).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,17 +53,10 @@ fun ShareChurchAccessBottomSheet(
     nextScale: ScaleItem?,
     onDismiss: () -> Unit
 ) {
-    val viewModel = appViewModel { container ->
-        ShareChurchAccessViewModel(container.activeChurchManager, BuildConfig.SITE_URL)
-    }
+    val viewModel = appViewModel { container -> ShareChurchAccessViewModel(container.activeChurchManager) }
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
-
-    val nextScaleSummary = nextScale?.let {
-        "${it.title} · ${it.date.dayOfWeekLabel()} ${it.date.toDisplayString()} · ${it.startTime.toDisplayString()}"
-    }
-    val message = viewModel.buildMessage(nextScaleSummary)
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
@@ -70,34 +65,44 @@ fun ShareChurchAccessBottomSheet(
         ) {
             Text("Compartilhar acesso da igreja", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
 
-            if (!state.isReady) {
-                Text(
-                    "Não foi possível carregar os dados da igreja ativa.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            if (state.isLoading) {
+                Text("Carregando...", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 return@Column
+            }
+
+            state.errorMessage?.let { error ->
+                Text(error, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                // Bloco 11 (correção) - "permitir compartilhar código e texto, caso possível" even
+                // when the public URL couldn't be built (missing domain, not missing church data).
+                if (state.churchCode.isBlank()) return@Column
             }
 
             ChurchAccessPreviewCard(
                 churchName = state.churchName,
-                churchSlug = state.churchSlug,
-                link = state.link,
+                churchSlug = state.churchCode,
+                link = state.publicUrl.ifBlank { "-" },
                 nextScale = nextScale
             )
 
             PrimaryButton(
                 text = "Compartilhar",
+                enabled = state.shareMessage.isNotBlank() || state.churchCode.isNotBlank(),
                 onClick = {
-                    ChurchShareImageUseCase.share(context, nextScale, message)
+                    // Fase 11.10 (correção) - always the ViewModel's shareMessage; when it's blank
+                    // (no publicUrl yet) fall back to a minimal text with just the code, never a
+                    // silently-fixed/default message.
+                    val text = state.shareMessage.ifBlank { "Código da igreja: ${state.churchCode}" }
+                    ChurchShareImageUseCase.share(context, nextScale, text)
                     ChurchAccessAnalytics.logShareEvent(state.churchSlug, ShareChurchAccessAction.SHARE_SHEET)
                 }
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedButton(
+                    enabled = state.publicUrl.startsWith("http://") || state.publicUrl.startsWith("https://"),
                     onClick = {
-                        clipboard.setText(AnnotatedString(state.link))
+                        clipboard.setText(AnnotatedString(state.publicUrl))
+                        Toast.makeText(context, "Link da igreja copiado", Toast.LENGTH_SHORT).show()
                         ChurchAccessAnalytics.logShareEvent(state.churchSlug, ShareChurchAccessAction.COPY_LINK)
                     },
                     modifier = Modifier.weight(1f)
@@ -107,8 +112,10 @@ fun ShareChurchAccessBottomSheet(
                     Text("Copiar link")
                 }
                 OutlinedButton(
+                    enabled = state.churchCode.isNotBlank(),
                     onClick = {
-                        clipboard.setText(AnnotatedString(state.churchSlug.uppercase()))
+                        clipboard.setText(AnnotatedString(state.churchCode))
+                        Toast.makeText(context, "Código da igreja copiado", Toast.LENGTH_SHORT).show()
                         ChurchAccessAnalytics.logShareEvent(state.churchSlug, ShareChurchAccessAction.COPY_CODE)
                     },
                     modifier = Modifier.weight(1f)
@@ -121,11 +128,10 @@ fun ShareChurchAccessBottomSheet(
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 TextButton(
+                    enabled = state.publicUrl.startsWith("http://") || state.publicUrl.startsWith("https://"),
                     onClick = {
-                        if (state.link.isNotBlank()) {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(state.link)))
-                            ChurchAccessAnalytics.logShareEvent(state.churchSlug, ShareChurchAccessAction.OPEN_SITE)
-                        }
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(state.publicUrl)))
+                        ChurchAccessAnalytics.logShareEvent(state.churchSlug, ShareChurchAccessAction.OPEN_SITE)
                     }
                 ) {
                     Icon(Icons.Filled.OpenInBrowser, contentDescription = null, modifier = Modifier.height(18.dp))
