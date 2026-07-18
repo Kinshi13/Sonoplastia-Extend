@@ -20,8 +20,9 @@ data class SharedFileDto(
     @SerialName("uploaded_at") val uploadedAt: Long = 0L
 )
 
-fun SharedFile.toDto() = SharedFileDto(
+fun SharedFile.toDto(churchId: String = BuildConfig.CHURCH_ID) = SharedFileDto(
     id = id.ifBlank { null },
+    churchId = churchId,
     fileName = fileName,
     url = url,
     mediaType = mediaType.name,

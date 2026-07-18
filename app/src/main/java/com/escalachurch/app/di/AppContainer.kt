@@ -70,11 +70,10 @@ class AppContainer(context: Context) {
     val settingsRepository = SettingsRepository(settingsDataStore)
     val userProfileRepository = UserProfileRepository(userProfileDataStore)
     val announcementRepository = AnnouncementRepository(supabase, activeChurchManager)
-    // Not yet switched to the active church (Fase 11.9A only covers scales/doxologies/
-    // announcements/plan per spec) - still pinned to BuildConfig.CHURCH_ID, a known limitation.
-    val bulletinRepository = BulletinRepository(supabase)
+    // Fase 11.9B Bloco 2: last two repositories still pinned to BuildConfig.CHURCH_ID, now fixed.
+    val bulletinRepository = BulletinRepository(supabase, activeChurchManager)
     val changeLogRepository = ChangeLogRepository(database.changeLogDao())
-    val sonoplastiaFileRepository = SonoplastiaFileRepository(supabase)
+    val sonoplastiaFileRepository = SonoplastiaFileRepository(supabase, activeChurchManager)
 
     val planRepository = PlanRepository(supabase, activeChurchManager)
     val entitlementService = EntitlementService(planRepository, entitlementCacheStore, activeChurchManager, containerScope)
