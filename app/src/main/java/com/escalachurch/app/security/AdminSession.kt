@@ -68,6 +68,12 @@ class AdminSession(
         return result
     }
 
+    /** Fase 11.9B Bloco 8 - "Esqueci minha senha" on the entry screen's admin login. Uses Supabase
+     *  Auth's own recovery email flow (no new backend, no password ever touches this app). */
+    suspend fun resetPassword(email: String): Result<Unit> = runCatching {
+        client.auth.resetPasswordForEmail(email = email)
+    }
+
     suspend fun signOut() {
         client.auth.signOut()
         _isUnlocked.value = false

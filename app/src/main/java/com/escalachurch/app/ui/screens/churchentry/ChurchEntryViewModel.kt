@@ -22,7 +22,9 @@ data class ChurchEntryUiState(
     val errorMessage: String? = null,
     val recentChurches: List<RecentChurch> = emptyList(),
     val showAdminLogin: Boolean = false,
-    val adminLoginError: String? = null
+    val adminLoginError: String? = null,
+    val adminLoginBusy: Boolean = false,
+    val forgotPasswordMessage: String? = null
 )
 
 /** Fase 11.9A - backs ChurchEntryScreen: first-use code entry, "Continuar em" for recent
@@ -95,16 +97,35 @@ class ChurchEntryViewModel(
         viewModelScope.launch { recentChurchStore.remove(churchId) }
     }
 
-    fun openAdminLogin() = _uiState.update { it.copy(showAdminLogin = true, adminLoginError = null) }
-    fun dismissAdminLogin() = _uiState.update { it.copy(showAdminLogin = false, adminLoginError = null) }
+    fun openAdminLogin() = _uiState.update { it.copy(showAdminLogin = true, adminLoginError = null, forgotPasswordMessage = null) }
+    fun dismissAdminLogin() = _uiState.update { it.copy(showAdminLogin = false, adminLoginError = null, forgotPasswordMessage = null) }
 
     fun adminSignIn(email: String, password: String) {
         viewModelScope.launch {
+            _uiState.update { it.copy(adminLoginBusy = true, adminLoginError = null) }
             val result = adminSession.signIn(email, password)
             if (result.isSuccess) {
-                _uiState.update { it.copy(showAdminLogin = false, adminLoginError = null) }
+                _uiState.update { it.copy(showAdminLogin = false, adminLoginError = null, adminLoginBusy = false) }
             } else {
-                _uiState.update { it.copy(adminLoginError = "Não foi possível entrar. Confira o e-mail e a senha.") }
+                _uiState.update { it.copy(adminLoginError = "Não foi possível entrar. Confira o e-mail e a senha.", adminLoginBusy = false) }
+            }
+        }
+    }
+
+    fun forgotPassword(email: String) {
+        if (email.isBlank()) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(adminLoginBusy = true) }
+            val result = adminSession.resetPassword(email)
+            _uiState.update {
+                it.copy(
+                    adminLoginBusy = false,
+                    forgotPasswordMessage = if (result.isSuccess) {
+                        "Se este e-mail estiver cadastrado, enviamos um link de recuperação."
+                    } else {
+                        "Não foi possível enviar o link agora. Tente novamente."
+                    }
+                )
             }
         }
     }
