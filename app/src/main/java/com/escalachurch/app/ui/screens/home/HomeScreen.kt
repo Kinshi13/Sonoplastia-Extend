@@ -90,6 +90,14 @@ fun HomeScreen(
 
     val cardsVisible = rememberEntranceVisible(appSettings.animationsEnabled)
     val reducedMotion = !appSettings.animationsEnabled
+    // Fase 11.9B Bloco 12 - "Efeitos visuais" off means no parallax drift at all, not just no
+    // continuous motion; quality picks how many stars render (see resolveEffectiveVisualQuality).
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val isLowRamDevice = remember {
+        context.getSystemService(android.app.ActivityManager::class.java)?.isLowRamDevice == true
+    }
+    val visualQuality = com.escalachurch.app.domain.util.resolveEffectiveVisualQuality(appSettings.visualQuality, isLowRamDevice)
+    val parallaxReducedMotion = reducedMotion || !appSettings.visualEffectsEnabled
 
     editingTarget?.let { target ->
         ScaleEditScreen(
@@ -106,7 +114,11 @@ fun HomeScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        ParallaxStarfield(scrollFraction = carouselScrollFraction, reducedMotion = reducedMotion)
+        ParallaxStarfield(
+            scrollFraction = carouselScrollFraction,
+            reducedMotion = parallaxReducedMotion,
+            starCount = if (visualQuality == com.escalachurch.app.domain.util.EffectiveVisualQuality.REDUCED) 18 else 36
+        )
 
         Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {

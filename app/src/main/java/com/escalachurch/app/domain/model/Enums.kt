@@ -22,6 +22,15 @@ enum class ThemeMode(val label: String) {
     AUTO("Automático")
 }
 
+/** Fase 11.9B Bloco 12 - user's preferred decorative-detail level (parallax drift, halo/glow,
+ *  star count). AUTOMATIC lets the device decide (see resolveEffectiveVisualQuality) instead of
+ *  forcing every phone into the same setting. */
+enum class VisualQuality(val label: String) {
+    AUTOMATIC("Automática"),
+    REDUCED("Reduzida"),
+    FULL("Completa")
+}
+
 enum class AppFont(val label: String, val isPremium: Boolean) {
     SYSTEM_DEFAULT("Padrão do sistema", false),
     SERIF_CLASSIC("Serifada clássica", false),

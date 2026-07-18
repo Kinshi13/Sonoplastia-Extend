@@ -12,6 +12,7 @@ import com.escalachurch.app.domain.model.AppFont
 import com.escalachurch.app.domain.model.AppSettings
 import com.escalachurch.app.domain.model.FontSizeOption
 import com.escalachurch.app.domain.model.ThemeMode
+import com.escalachurch.app.domain.model.VisualQuality
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -26,6 +27,7 @@ class SettingsDataStore(private val context: Context) {
         val EFFECTS_VOLUME = floatPreferencesKey("effects_volume")
         val ANIMATIONS_ENABLED = booleanPreferencesKey("animations_enabled")
         val VISUAL_EFFECTS_ENABLED = booleanPreferencesKey("visual_effects_enabled")
+        val VISUAL_QUALITY = stringPreferencesKey("visual_quality")
         val VIBRATION_ENABLED = booleanPreferencesKey("vibration_enabled")
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val MY_NAME = stringPreferencesKey("my_name")
@@ -49,6 +51,8 @@ class SettingsDataStore(private val context: Context) {
             effectsVolume = prefs[Keys.EFFECTS_VOLUME] ?: 0.7f,
             animationsEnabled = prefs[Keys.ANIMATIONS_ENABLED] ?: true,
             visualEffectsEnabled = prefs[Keys.VISUAL_EFFECTS_ENABLED] ?: true,
+            visualQuality = prefs[Keys.VISUAL_QUALITY]?.let { runCatching { VisualQuality.valueOf(it) }.getOrNull() }
+                ?: VisualQuality.AUTOMATIC,
             vibrationEnabled = prefs[Keys.VIBRATION_ENABLED] ?: true,
             themeMode = prefs[Keys.THEME_MODE]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
                 ?: ThemeMode.AUTO,
@@ -71,6 +75,7 @@ class SettingsDataStore(private val context: Context) {
             prefs[Keys.EFFECTS_VOLUME] = settings.effectsVolume
             prefs[Keys.ANIMATIONS_ENABLED] = settings.animationsEnabled
             prefs[Keys.VISUAL_EFFECTS_ENABLED] = settings.visualEffectsEnabled
+            prefs[Keys.VISUAL_QUALITY] = settings.visualQuality.name
             prefs[Keys.VIBRATION_ENABLED] = settings.vibrationEnabled
             prefs[Keys.THEME_MODE] = settings.themeMode.name
             prefs[Keys.MY_NAME] = settings.myName

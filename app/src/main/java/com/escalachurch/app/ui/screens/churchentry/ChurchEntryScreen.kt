@@ -26,6 +26,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -34,7 +35,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.escalachurch.app.di.appViewModel
+import com.escalachurch.app.di.rememberAppContainer
+import com.escalachurch.app.domain.model.AppSettings
 import com.escalachurch.app.domain.model.RecentChurch
+import com.escalachurch.app.domain.util.resolveEffectiveVisualQuality
 import com.escalachurch.app.ui.components.AppTextField
 import com.escalachurch.app.ui.components.AdminLoginDialog
 import com.escalachurch.app.ui.components.CelestialBackground
@@ -60,8 +64,16 @@ fun ChurchEntryScreen() {
         )
     }
     val state by viewModel.uiState.collectAsState()
+    val appSettings by rememberAppContainer().settingsRepository.settingsFlow.collectAsState(initial = AppSettings())
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val isLowRamDevice = remember {
+        context.getSystemService(android.app.ActivityManager::class.java)?.isLowRamDevice == true
+    }
 
-    CelestialBackground {
+    CelestialBackground(
+        parallaxEnabled = appSettings.visualEffectsEnabled && appSettings.animationsEnabled,
+        quality = resolveEffectiveVisualQuality(appSettings.visualQuality, isLowRamDevice)
+    ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()

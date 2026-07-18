@@ -45,6 +45,7 @@ import com.escalachurch.app.di.appViewModel
 import com.escalachurch.app.domain.model.AppFont
 import com.escalachurch.app.domain.model.FontSizeOption
 import com.escalachurch.app.domain.model.ThemeMode
+import com.escalachurch.app.domain.model.VisualQuality
 import com.escalachurch.app.ui.components.AdminLoginDialog
 import com.escalachurch.app.ui.components.AppTextField
 import com.escalachurch.app.ui.components.PulledUpEntrance
@@ -294,8 +295,21 @@ fun SettingsScreen(
                 SwitchRow("Animações suaves entre cards", settings.animationsEnabled) { checked ->
                     viewModel.update { it.copy(animationsEnabled = checked) }
                 }
-                SwitchRow("Efeitos visuais", settings.visualEffectsEnabled) { checked ->
+                SwitchRow("Efeitos visuais (parallax, brilhos)", settings.visualEffectsEnabled) { checked ->
                     viewModel.update { it.copy(visualEffectsEnabled = checked) }
+                }
+                if (settings.visualEffectsEnabled) {
+                    Spacer(Modifier.height(4.dp))
+                    Text("Qualidade visual", style = MaterialTheme.typography.titleSmall)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        VisualQuality.entries.forEach { option ->
+                            FilterChip(
+                                selected = settings.visualQuality == option,
+                                onClick = { viewModel.update { it.copy(visualQuality = option) } },
+                                label = { Text(option.label) }
+                            )
+                        }
+                    }
                 }
                 SwitchRow("Vibração ao trocar de card", settings.vibrationEnabled) { checked ->
                     viewModel.update { it.copy(vibrationEnabled = checked) }
