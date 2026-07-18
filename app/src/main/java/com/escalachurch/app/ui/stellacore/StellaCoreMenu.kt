@@ -35,6 +35,8 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.escalachurch.app.ui.components.CelestialFrame
+import com.escalachurch.app.ui.components.CelestialTone
 import com.escalachurch.app.ui.theme.ConstellationColors
 import com.escalachurch.app.ui.theme.ConstellationMotion
 import kotlinx.coroutines.delay
@@ -154,13 +156,23 @@ private fun StellaCoreNode(
         modifier = modifier.offset(x = offsetDp.x, y = offsetDp.y),
         contentAlignment = Alignment.Center
     ) {
-        Column(
+        // The "estrela-nó" (Bloco 7/9) - a small star exactly where the constellation connector
+        // line (drawn in StellaCoreMenu's Canvas, above) meets this card, so the line visually
+        // terminates in a lit point rather than just touching a flat card edge.
+        FourPointStar(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .offset(y = (-7).dp)
+                .size(11.dp)
+                .scale(appear.value),
+            color = if (resolved.isLocked) tokens.comet else tokens.polaris,
+            glowColor = tokens.comet
+        )
+
+        CelestialFrame(
             modifier = Modifier
                 .scale(appear.value)
                 .size(NODE_SIZE)
-                .clip(RoundedCornerShape(20.dp))
-                .background(tokens.nebulaElevated)
-                .background((if (resolved.isLocked) tokens.comet else tokens.polaris).copy(alpha = 0.10f))
                 .semantics {
                     role = androidx.compose.ui.semantics.Role.Button
                     contentDescription = resolved.action.label + if (resolved.isLocked) " (recurso do plano superior)" else ""
@@ -169,40 +181,45 @@ private fun StellaCoreNode(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = onClick
-                )
-                .padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
+                ),
+            tone = if (resolved.isLocked) CelestialTone.ADMIN else CelestialTone.PUBLIC,
+            cornerRadius = 20.dp
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    resolved.action.icon,
-                    contentDescription = null,
-                    tint = if (resolved.isLocked) tokens.comet else tokens.polaris,
-                    modifier = Modifier.size(26.dp)
-                )
-                if (resolved.isLocked) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .offset(x = 10.dp, y = (-6).dp)
-                            .size(16.dp)
-                            .clip(CircleShape)
-                            .background(tokens.comet),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Filled.Lock, contentDescription = null, tint = tokens.nebula, modifier = Modifier.size(10.dp))
+            Column(
+                modifier = Modifier.fillMaxSize().padding(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        resolved.action.icon,
+                        contentDescription = null,
+                        tint = if (resolved.isLocked) tokens.comet else tokens.polaris,
+                        modifier = Modifier.size(26.dp)
+                    )
+                    if (resolved.isLocked) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .offset(x = 10.dp, y = (-6).dp)
+                                .size(16.dp)
+                                .clip(CircleShape)
+                                .background(tokens.comet),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Filled.Lock, contentDescription = null, tint = tokens.nebula, modifier = Modifier.size(10.dp))
+                        }
                     }
                 }
+                Text(
+                    resolved.action.label,
+                    modifier = Modifier.padding(top = 6.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    textAlign = TextAlign.Center,
+                    color = tokens.starlight,
+                    maxLines = 2
+                )
             }
-            Text(
-                resolved.action.label,
-                modifier = Modifier.padding(top = 6.dp),
-                style = MaterialTheme.typography.labelSmall,
-                textAlign = TextAlign.Center,
-                color = tokens.starlight,
-                maxLines = 2
-            )
         }
     }
 }

@@ -54,6 +54,8 @@ fun StellaCore(
     modifier: Modifier = Modifier
 ) {
     var isOpen by remember { mutableStateOf(false) }
+    // Fase 11.9B Bloco 7/18 - same Back-closes-the-Core rule as the bar-embedded variant.
+    androidx.activity.compose.BackHandler(enabled = isOpen) { isOpen = false }
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val tokens = if (isDark) ConstellationColors.Dark else ConstellationColors.Light
 

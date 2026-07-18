@@ -193,6 +193,9 @@ private fun EscalaChurchAppNavGraph() {
     // Stella Core visually replaces Início in the bar (see BottomNavBar.kt) - closing it whenever
     // the route changes underneath it keeps a stale open fan from lingering after navigation.
     LaunchedEffect(currentRoute) { stellaOpen = false }
+    // Fase 11.9B Bloco 7/18 - system Back must close the Core first, never leave the screen while
+    // it's open (a real gap before this: Back fell straight through to normal navigation).
+    androidx.activity.compose.BackHandler(enabled = stellaOpen) { stellaOpen = false }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
