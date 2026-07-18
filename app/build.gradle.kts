@@ -38,8 +38,8 @@ android {
         targetSdk = 34
         // Bumped for the Fase 11.9A NavGraph hotfix specifically so a stale APK can never be
         // mistaken for this build - see BuildConfig.GIT_COMMIT / ChurchBootstrap debug logs.
-        versionCode = 18
-        versionName = "1.1.15-11.9b-theme-contrast"
+        versionCode = 19
+        versionName = "1.1.16-11.9b-a11y"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

@@ -108,10 +108,17 @@ private fun DayCell(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Fase 11.9B Bloco 18 - the clickable target used to be the 36dp visual circle itself, below
+    // the 48dp minimum touch target (WCAG 2.5.5 / Material). The full cell is at least that big in
+    // any real month grid, so the click area moved here - the circle keeps its compact look.
     Box(
         modifier = modifier
             .aspectRatio(1f)
-            .padding(3.dp),
+            .padding(3.dp)
+            .clickable(
+                onClick = onClick,
+                onClickLabel = "${date.dayOfMonth}"
+            ),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -125,8 +132,7 @@ private fun DayCell(
                             isToday -> MaterialTheme.colorScheme.primaryContainer
                             else -> androidx.compose.ui.graphics.Color.Transparent
                         }
-                    )
-                    .clickable(onClick = onClick),
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Text(

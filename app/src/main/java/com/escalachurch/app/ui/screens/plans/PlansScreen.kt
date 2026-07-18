@@ -31,6 +31,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.escalachurch.app.di.appViewModel
+import com.escalachurch.app.di.rememberAppContainer
+import com.escalachurch.app.domain.model.AppSettings
 import com.escalachurch.app.entitlements.Plan
 
 private fun formatPrice(cents: Int?, currency: String): String {
@@ -46,6 +48,7 @@ fun PlansScreen(onBack: () -> Unit = {}) {
     }
     val plans by viewModel.plans.collectAsState()
     val current by viewModel.current.collectAsState()
+    val appSettings by rememberAppContainer().settingsRepository.settingsFlow.collectAsState(initial = AppSettings())
 
     Column(modifier = Modifier.fillMaxSize().padding(top = 20.dp, start = 20.dp, end = 20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -63,7 +66,8 @@ fun PlansScreen(onBack: () -> Unit = {}) {
             )
             Spacer(Modifier.width(10.dp))
             com.escalachurch.app.ui.components.CelestialSyncIndicator(
-                state = if (current.isFromCache) com.escalachurch.app.ui.components.SyncState.OFFLINE else com.escalachurch.app.ui.components.SyncState.SYNCED
+                state = if (current.isFromCache) com.escalachurch.app.ui.components.SyncState.OFFLINE else com.escalachurch.app.ui.components.SyncState.SYNCED,
+                reducedMotion = !appSettings.animationsEnabled
             )
         }
         Spacer(Modifier.height(12.dp))

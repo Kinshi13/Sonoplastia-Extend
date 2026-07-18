@@ -24,6 +24,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -63,6 +68,15 @@ fun DatePickerField(
             .fillMaxWidth()
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
                 showDialog = true
+            }
+            // Fase 11.9B Bloco 18 - enabled = false below marks OutlinedTextField's own semantics
+            // node "disabled", which can swallow the outer .clickable's TalkBack double-tap
+            // affordance. clearAndSetSemantics replaces that whole subtree with one clean,
+            // definitely-enabled node instead of relying on however the two would otherwise merge.
+            .clearAndSetSemantics {
+                contentDescription = label + (date?.let { ", ${it.toDisplayString()}" } ?: ", nenhuma data selecionada")
+                role = Role.Button
+                onClick(label = "Selecionar data") { showDialog = true; true }
             },
         shape = MaterialTheme.shapes.small,
         colors = OutlinedTextFieldDefaults.colors(
@@ -119,6 +133,11 @@ fun TimePickerField(
             .fillMaxWidth()
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
                 showDialog = true
+            }
+            .clearAndSetSemantics {
+                contentDescription = label + (time?.let { ", ${it.toDisplayString()}" } ?: ", nenhum horário selecionado")
+                role = Role.Button
+                onClick(label = "Selecionar horário") { showDialog = true; true }
             },
         shape = MaterialTheme.shapes.small,
         colors = OutlinedTextFieldDefaults.colors(
