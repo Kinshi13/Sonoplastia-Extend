@@ -1,5 +1,6 @@
 package com.escalachurch.app.data.repository
 
+import com.escalachurch.app.data.remote.SupabaseTables
 import com.escalachurch.app.data.remote.dto.ChurchDto
 import com.escalachurch.app.data.remote.dto.toChurch
 import com.escalachurch.app.domain.model.Church
@@ -10,9 +11,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * Fase 11.9 Parte 3 - data-layer contract for the church-code entry flow. Not wired into any
- * screen yet (ChurchEntryScreen itself is a later step) - this only establishes how a code
- * resolves to a church, ready for that screen to call.
+ * Fase 11.9A - data-layer for the church-code entry flow: resolving a typed code to a church
+ * (ChurchEntryScreen) and resolving an admin's own church by id after login (AdminSession).
  */
 class ChurchRepository(private val client: SupabaseClient) {
 
@@ -24,6 +24,16 @@ class ChurchRepository(private val client: SupabaseClient) {
             .firstOrNull()
             ?.toChurch()
     }
+
+    /** `churches` is fully public-read (see schema.sql) - a direct table lookup by id is exactly
+     *  as safe as the code RPC, just keyed differently (used when the id is already known, e.g.
+     *  from profiles.church_id or a persisted RecentChurch, not typed by the user). */
+    suspend fun findById(id: String): Church? = runCatching {
+        client.postgrest.from(SupabaseTables.CHURCHES)
+            .select { filter { eq("id", id) } }
+            .decodeSingleOrNull<ChurchDto>()
+            ?.toChurch()
+    }.getOrNull()
 
     @Serializable
     private data class CodeParam(@SerialName("p_code") val code: String)

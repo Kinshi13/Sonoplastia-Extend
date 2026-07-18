@@ -43,8 +43,9 @@ data class DoxologyDto(
     @SerialName("updated_at") val updatedAt: Long = 0L
 )
 
-fun DoxologyItem.toDto() = DoxologyDto(
+fun DoxologyItem.toDto(churchId: String = BuildConfig.CHURCH_ID) = DoxologyDto(
     id = id.ifBlank { null },
+    churchId = churchId,
     date = date.toString(),
     startTime = startTime.toString(),
     endTime = endTime?.toString(),

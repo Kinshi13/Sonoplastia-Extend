@@ -1,6 +1,8 @@
 package com.escalachurch.app.data.remote
 
 object SupabaseTables {
+    const val CHURCHES = "churches"
+    const val PROFILES = "profiles"
     const val SCALES = "scales"
     const val DOXOLOGIES = "doxologies"
     const val ANNOUNCEMENTS = "announcements"

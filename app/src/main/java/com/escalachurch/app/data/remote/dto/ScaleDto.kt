@@ -38,8 +38,9 @@ data class ScaleDto(
     @SerialName("updated_at") val updatedAt: Long = 0L
 )
 
-fun ScaleItem.toDto() = ScaleDto(
+fun ScaleItem.toDto(churchId: String = BuildConfig.CHURCH_ID) = ScaleDto(
     id = id.ifBlank { null },
+    churchId = churchId,
     date = date.toString(),
     startTime = startTime.toString(),
     endTime = endTime?.toString(),

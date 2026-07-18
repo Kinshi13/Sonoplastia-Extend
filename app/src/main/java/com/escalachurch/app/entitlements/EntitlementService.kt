@@ -1,5 +1,6 @@
 package com.escalachurch.app.entitlements
 
+import com.escalachurch.app.church.ActiveChurchManager
 import com.escalachurch.app.data.repository.PlanRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
@@ -58,15 +59,17 @@ private val FREE_FLOOR = Entitlements(
 class EntitlementService(
     private val planRepository: PlanRepository,
     private val cacheStore: EntitlementCacheStore,
+    activeChurchManager: ActiveChurchManager,
     scope: CoroutineScope
 ) {
-    // Hotfix (Fase 11.9): tracked independently of the subscription fetch's own success/failure,
-    // so a cache lookup during a *first-ever* offline resolution still knows which church it's for
-    // - see resolveFromCache() and EntitlementCacheStore.
+    // Fase 11.9A: tracked independently of the subscription fetch's own success/failure, so a
+    // cache lookup during a *first-ever* offline resolution still knows which church it's for -
+    // see resolveFromCache() and EntitlementCacheStore. Same source every other repository uses
+    // (ActiveChurchManager), not a separate profile/session resolution of its own.
     private var currentChurchId: String? = null
 
     init {
-        planRepository.observeChurchId().onEach { currentChurchId = it }.launchIn(scope)
+        activeChurchManager.activeChurchId.onEach { currentChurchId = it }.launchIn(scope)
     }
 
     // Hotfix (Fase 11.9): the RPC already returns plan_code/features/limits pre-joined to the

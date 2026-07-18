@@ -3,7 +3,7 @@ package com.escalachurch.app.data.repository
 import android.content.Context
 import android.net.Uri
 import android.webkit.MimeTypeMap
-import com.escalachurch.app.BuildConfig
+import com.escalachurch.app.church.ActiveChurchManager
 import com.escalachurch.app.data.remote.CHURCH_FILES_BUCKET
 import com.escalachurch.app.data.remote.LocalRefreshTrigger
 import com.escalachurch.app.data.remote.SupabaseTables
@@ -18,30 +18,36 @@ import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import java.util.UUID
 
 /** What a picked file was uploaded as, ready to attach to an [Announcement]. */
 data class UploadedMedia(val type: MediaType, val url: String, val fileName: String?)
 
 /** Announcements + optional media, backed by Supabase's `announcements` table + Storage bucket. */
-class AnnouncementRepository(private val client: SupabaseClient) {
+class AnnouncementRepository(private val client: SupabaseClient, private val activeChurchManager: ActiveChurchManager) {
 
     private val table get() = client.postgrest.from(SupabaseTables.ANNOUNCEMENTS)
     private val refreshTrigger = LocalRefreshTrigger()
 
-    // See ScaleRepository.observeAll for why this filters by church_id client-side.
-    fun observeActive(): Flow<List<Announcement>> = client.observeTable(SupabaseTables.ANNOUNCEMENTS, refreshTrigger) {
-        table.select { filter { eq("is_active", true); eq("church_id", BuildConfig.CHURCH_ID) } }
-            .decodeList<AnnouncementDto>()
-            .mapNotNull { it.toAnnouncement() }
-            .sortedWith(compareByDescending<Announcement> { it.isPinned }.thenByDescending { it.publishedAt })
+    // See ScaleRepository.observeAll for why this filters by church_id client-side and where that
+    // church_id comes from.
+    fun observeActive(): Flow<List<Announcement>> = activeChurchManager.activeChurchId.flatMapLatest { churchId ->
+        client.observeTable(SupabaseTables.ANNOUNCEMENTS, refreshTrigger) {
+            table.select { filter { eq("is_active", true); eq("church_id", churchId) } }
+                .decodeList<AnnouncementDto>()
+                .mapNotNull { it.toAnnouncement() }
+                .sortedWith(compareByDescending<Announcement> { it.isPinned }.thenByDescending { it.publishedAt })
+        }
     }
 
     suspend fun save(item: Announcement): String {
+        val churchId = activeChurchManager.activeChurchId.first()
         val id = if (item.id.isBlank()) {
-            table.insert(item.toDto()) { select(Columns.list("id")) }.decodeSingle<AnnouncementDto>().id!!
+            table.insert(item.toDto(churchId)) { select(Columns.list("id")) }.decodeSingle<AnnouncementDto>().id!!
         } else {
-            table.update(item.toDto()) { filter { eq("id", item.id) } }
+            table.update(item.toDto(churchId)) { filter { eq("id", item.id) } }
             item.id
         }
         refreshTrigger.bump()

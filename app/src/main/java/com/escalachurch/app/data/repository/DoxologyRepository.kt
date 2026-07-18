@@ -1,6 +1,6 @@
 package com.escalachurch.app.data.repository
 
-import com.escalachurch.app.BuildConfig
+import com.escalachurch.app.church.ActiveChurchManager
 import com.escalachurch.app.data.remote.LocalRefreshTrigger
 import com.escalachurch.app.data.remote.SupabaseTables
 import com.escalachurch.app.data.remote.dto.DoxologyDto
@@ -12,25 +12,31 @@ import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 
 /** Official doxologies (order of service), backed by Supabase's `doxologies` table. */
-class DoxologyRepository(private val client: SupabaseClient) {
+class DoxologyRepository(private val client: SupabaseClient, private val activeChurchManager: ActiveChurchManager) {
 
     private val table get() = client.postgrest.from(SupabaseTables.DOXOLOGIES)
     private val refreshTrigger = LocalRefreshTrigger()
 
-    // See ScaleRepository.observeAll for why this filters by church_id client-side.
-    fun observeAll(): Flow<List<DoxologyItem>> = client.observeTable(SupabaseTables.DOXOLOGIES, refreshTrigger) {
-        table.select { filter { eq("church_id", BuildConfig.CHURCH_ID) } }
-            .decodeList<DoxologyDto>()
-            .mapNotNull { it.toDoxologyItem() }
+    // See ScaleRepository.observeAll for why this filters by church_id client-side and where that
+    // church_id comes from.
+    fun observeAll(): Flow<List<DoxologyItem>> = activeChurchManager.activeChurchId.flatMapLatest { churchId ->
+        client.observeTable(SupabaseTables.DOXOLOGIES, refreshTrigger) {
+            table.select { filter { eq("church_id", churchId) } }
+                .decodeList<DoxologyDto>()
+                .mapNotNull { it.toDoxologyItem() }
+        }
     }
 
     suspend fun save(item: DoxologyItem): String {
+        val churchId = activeChurchManager.activeChurchId.first()
         val id = if (item.id.isBlank()) {
-            table.insert(item.toDto()) { select(Columns.list("id")) }.decodeSingle<DoxologyDto>().id!!
+            table.insert(item.toDto(churchId)) { select(Columns.list("id")) }.decodeSingle<DoxologyDto>().id!!
         } else {
-            table.update(item.toDto()) { filter { eq("id", item.id) } }
+            table.update(item.toDto(churchId)) { filter { eq("id", item.id) } }
             item.id
         }
         refreshTrigger.bump()

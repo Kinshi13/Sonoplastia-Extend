@@ -1,7 +1,9 @@
 package com.escalachurch.app.di
 
 import android.content.Context
+import com.escalachurch.app.church.ActiveChurchManager
 import com.escalachurch.app.data.local.AppDatabase
+import com.escalachurch.app.data.preferences.ActiveChurchStore
 import com.escalachurch.app.data.preferences.RecentChurchStore
 import com.escalachurch.app.data.preferences.SettingsDataStore
 import com.escalachurch.app.data.preferences.UserProfileDataStore
@@ -14,6 +16,7 @@ import com.escalachurch.app.data.repository.CustomEventRepository
 import com.escalachurch.app.data.repository.DoxologyRepository
 import com.escalachurch.app.data.repository.GeneralScaleRepository
 import com.escalachurch.app.data.repository.PlanRepository
+import com.escalachurch.app.data.repository.ProfileRepository
 import com.escalachurch.app.data.repository.ScaleRepository
 import com.escalachurch.app.data.repository.SettingsRepository
 import com.escalachurch.app.data.repository.SonoplastiaFileRepository
@@ -42,23 +45,33 @@ class AppContainer(context: Context) {
 
     private val supabase = SupabaseClientProvider.client
 
-    val scaleRepository = ScaleRepository(supabase)
-    val doxologyRepository = DoxologyRepository(supabase)
+    // Lives for as long as the container (effectively the process) - the active church and
+    // entitlements need to keep resolving in the background regardless of which screen is on top.
+    private val containerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    // Fase 11.9A: single source of truth for "which church is this session pointed at" - every
+    // repository below that used to read BuildConfig.CHURCH_ID now reacts to this instead. See
+    // ActiveChurchManager's own doc for the BuildConfig bootstrap-migration fallback.
+    val churchRepository = ChurchRepository(supabase)
+    val recentChurchStore = RecentChurchStore(context)
+    private val activeChurchStore = ActiveChurchStore(context)
+    val activeChurchManager = ActiveChurchManager(activeChurchStore, churchRepository, recentChurchStore, containerScope)
+
+    val scaleRepository = ScaleRepository(supabase, activeChurchManager)
+    val doxologyRepository = DoxologyRepository(supabase, activeChurchManager)
     val customEventRepository = CustomEventRepository(database.customEventDao())
     val settingsRepository = SettingsRepository(settingsDataStore)
     val userProfileRepository = UserProfileRepository(userProfileDataStore)
-    val announcementRepository = AnnouncementRepository(supabase)
+    val announcementRepository = AnnouncementRepository(supabase, activeChurchManager)
+    // Not yet switched to the active church (Fase 11.9A only covers scales/doxologies/
+    // announcements/plan per spec) - still pinned to BuildConfig.CHURCH_ID, a known limitation.
     val bulletinRepository = BulletinRepository(supabase)
     val changeLogRepository = ChangeLogRepository(database.changeLogDao())
     val sonoplastiaFileRepository = SonoplastiaFileRepository(supabase)
 
-    // Lives for as long as the container (effectively the process), same lifetime as the
-    // Supabase client itself - entitlements need to keep resolving in the background regardless
-    // of which screen is on top, not just while one screen's ViewModel is alive.
-    private val containerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    val planRepository = PlanRepository(supabase)
+    val planRepository = PlanRepository(supabase, activeChurchManager)
     val entitlementCacheStore = EntitlementCacheStore(context)
-    val entitlementService = EntitlementService(planRepository, entitlementCacheStore, containerScope)
+    val entitlementService = EntitlementService(planRepository, entitlementCacheStore, activeChurchManager, containerScope)
 
     val generalScaleRepository = GeneralScaleRepository(
         context = context,
@@ -67,10 +80,6 @@ class AppContainer(context: Context) {
         settingsRepository = settingsRepository
     )
 
-    val adminSession = AdminSession(supabase, userProfileRepository, planRepository)
-
-    // Fase 11.9 Parte 3 - data-layer only, not wired into navigation yet (ChurchEntryScreen is a
-    // later step). Ready for that screen to call once built.
-    val churchRepository = ChurchRepository(supabase)
-    val recentChurchStore = RecentChurchStore(context)
+    private val profileRepository = ProfileRepository(supabase)
+    val adminSession = AdminSession(supabase, userProfileRepository, planRepository, profileRepository, churchRepository, activeChurchManager)
 }

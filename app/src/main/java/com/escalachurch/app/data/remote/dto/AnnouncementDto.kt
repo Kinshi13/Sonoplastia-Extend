@@ -31,8 +31,9 @@ data class AnnouncementDto(
     @SerialName("is_active") val isActive: Boolean = true
 )
 
-fun Announcement.toDto() = AnnouncementDto(
+fun Announcement.toDto(churchId: String = BuildConfig.CHURCH_ID) = AnnouncementDto(
     id = id.ifBlank { null },
+    churchId = churchId,
     title = title,
     description = description,
     mediaType = mediaType.name,

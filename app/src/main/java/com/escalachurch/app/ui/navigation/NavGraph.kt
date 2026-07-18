@@ -10,6 +10,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,6 +35,7 @@ import com.escalachurch.app.domain.model.AppSettings
 import com.escalachurch.app.ui.components.EscalaBottomNavBar
 import com.escalachurch.app.ui.components.PremiumPreviewSheet
 import com.escalachurch.app.ui.screens.announcements.AnnouncementsScreen
+import com.escalachurch.app.ui.screens.churchentry.ChurchEntryScreen
 import com.escalachurch.app.ui.screens.bulletins.BulletinsScreen
 import com.escalachurch.app.ui.screens.calendar.CalendarScreen
 import com.escalachurch.app.ui.screens.doxology.DoxologyScreen
@@ -86,8 +88,35 @@ private fun AnimatedContentTransitionScope<NavBackStackEntry>.pushExit() =
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.popExitToRight() =
     slideOutHorizontally(tween(TAB_TRANSITION_MS, easing = TabEasing)) { fullWidth -> fullWidth } + fadeOut(tween(TAB_TRANSITION_MS))
 
+/**
+ * Fase 11.9A - gates the whole app behind "is there an active church yet." [isReady] becomes true
+ * once ActiveChurchManager's one-time bootstrap (persisted church, or the BuildConfig migration
+ * for existing installs) has resolved either way - only after that do we know whether to show
+ * ChurchEntryScreen or the real app, so a user with a valid saved church never flashes the entry
+ * screen first, and a genuinely new install never flashes an empty Home before it does.
+ */
 @Composable
 fun EscalaChurchNavGraph() {
+    val container = rememberAppContainer()
+    val isReady by container.activeChurchManager.isReady.collectAsState()
+    val activeChurch by container.activeChurchManager.activeChurch.collectAsState()
+
+    if (!isReady) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+    if (activeChurch == null) {
+        ChurchEntryScreen()
+        return
+    }
+
+    EscalaChurchAppNavGraph()
+}
+
+@Composable
+private fun EscalaChurchAppNavGraph() {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
