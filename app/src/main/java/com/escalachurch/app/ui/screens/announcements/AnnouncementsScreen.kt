@@ -60,6 +60,9 @@ fun AnnouncementsScreen(
     val feedVisible = rememberEntranceVisible(appSettings.animationsEnabled)
     var editingTarget by remember { mutableStateOf<AnnouncementEditTarget?>(null) }
     var isEditing by remember { mutableStateOf(false) }
+    // Fase 11.9B Entrega 3 Bloco 3 - "não tocar vários vídeos simultaneamente": one shared id for
+    // the whole feed, passed down to every AnnouncementCard (see its isActivePlayer/onRequestPlay).
+    var currentlyPlayingId by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) { viewModel.markAllSeen() }
 
@@ -138,7 +141,9 @@ fun AnnouncementsScreen(
                                     onOpenCalendar = announcement.relatedEventDate?.let { date -> { onOpenCalendarDate(date) } },
                                     onClick = if (state.isAdmin) {
                                         { editingTarget = AnnouncementEditTarget(announcement); isEditing = true }
-                                    } else null
+                                    } else null,
+                                    activePlayingId = currentlyPlayingId,
+                                    onRequestPlay = { currentlyPlayingId = it }
                                 )
                             }
                         }

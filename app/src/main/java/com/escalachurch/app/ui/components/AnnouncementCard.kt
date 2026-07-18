@@ -23,13 +23,13 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,7 +47,21 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** Feed card for the Anúncios screen. Images keep a fixed 4:3 ratio with rounded corners. */
+/**
+ * Fase 11.9B Entrega 3 Bloco 3 - CelestialAnnouncementCard. Feed card for the Anúncios screen.
+ * Images/video keep a fixed 4:3 ratio with rounded corners; the card itself is now a CelestialFrame.
+ *
+ * [activePlayingId]/[onRequestPlay] coordinate playback across the whole feed so at most one video
+ * plays at a time (Bloco 3: "não tocar vários simultaneamente") - see AnnouncementsScreen, which
+ * hoists a single "which announcement is playing" state above the list. Passing null for both
+ * (the default) keeps this card's video fully self-contained, same as before this phase.
+ *
+ * Note (honestly scoped): the `announcements` table has no priority/urgency column today (checked
+ * schema.sql and web/lib/types/database.ts - neither has one), so NORMAL/IMPORTANT/URGENT badges
+ * requested for this block are not rendered here - there is no real data to back them, and this
+ * phase's rules forbid fabricating fields to demonstrate a screen. Only isNew/isPinned (already
+ * real, existing fields) are shown.
+ */
 @Composable
 fun AnnouncementCard(
     announcement: Announcement,
@@ -55,27 +69,31 @@ fun AnnouncementCard(
     highlighted: Boolean,
     modifier: Modifier = Modifier,
     onOpenCalendar: (() -> Unit)? = null,
-    onClick: (() -> Unit)? = null
+    onClick: (() -> Unit)? = null,
+    activePlayingId: String? = null,
+    onRequestPlay: ((String) -> Unit)? = null
 ) {
-    Card(
+    CelestialFrame(
         modifier = modifier
             .fillMaxWidth()
             .let { if (onClick != null) it.clickable { onClick() } else it },
-        shape = MaterialTheme.shapes.large,
-        elevation = CardDefaults.cardElevation(defaultElevation = if (highlighted) 5.dp else 2.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        cornerRadius = 24.dp
     ) {
         Column {
             val hasMedia = !announcement.mediaUrl.isNullOrBlank()
             if (hasMedia && (announcement.mediaType == MediaType.IMAGE || announcement.mediaType == MediaType.VIDEO)) {
-                MediaPreview(announcement)
+                MediaPreview(
+                    announcement = announcement,
+                    isActivePlayer = activePlayingId == announcement.id,
+                    onRequestPlay = { onRequestPlay?.invoke(announcement.id) }
+                )
             }
 
             Column(modifier = Modifier.padding(20.dp)) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (announcement.isPinned) {
-                            Icon(Icons.Filled.PushPin, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.height(16.dp))
+                            Icon(Icons.Filled.PushPin, contentDescription = "Fixado", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.height(16.dp))
                             Spacer(Modifier.width(6.dp))
                         }
                         Text(announcement.title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
@@ -133,7 +151,7 @@ fun AnnouncementCard(
 
 /** Images always render at a fixed 4:3 ratio; videos get their own player so the layout never breaks. */
 @Composable
-private fun MediaPreview(announcement: Announcement) {
+private fun MediaPreview(announcement: Announcement, isActivePlayer: Boolean, onRequestPlay: () -> Unit) {
     val mediaUrl = announcement.mediaUrl ?: return
     Box(
         modifier = Modifier
@@ -148,7 +166,9 @@ private fun MediaPreview(announcement: Announcement) {
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
-            MediaType.VIDEO -> androidx.compose.runtime.key(mediaUrl) { VideoPreview(mediaUrl) }
+            MediaType.VIDEO -> androidx.compose.runtime.key(mediaUrl) {
+                VideoPreview(uri = mediaUrl, isActivePlayer = isActivePlayer, onRequestPlay = onRequestPlay)
+            }
             else -> Unit
         }
     }
@@ -156,13 +176,29 @@ private fun MediaPreview(announcement: Announcement) {
 
 /**
  * Minimal video player for the 4:3 media slot: never autoplays (and never with sound until the
- * viewer explicitly taps play), shows the first frame as a still, and offers a simple play/pause
- * toggle - matching "controles básicos de play/pause" and "evitar autoplay com som".
+ * viewer explicitly taps play), shows the first frame as a still, offers a simple play/pause
+ * toggle, and releases the player when the composable leaves composition (list scroll/recycle) -
+ * matching "controles básicos de play/pause", "evitar autoplay com som" and "liberar recursos".
+ *
+ * [isActivePlayer]/[onRequestPlay] let a parent (AnnouncementsScreen) enforce "only one video
+ * plays at a time" across the feed: tapping play here asks the parent to make this card the active
+ * one; if some *other* card becomes active, this one's LaunchedEffect below pauses itself.
  */
 @Composable
-private fun VideoPreview(uri: String) {
+private fun VideoPreview(uri: String, isActivePlayer: Boolean, onRequestPlay: () -> Unit) {
     var isPlaying by remember(uri) { mutableStateOf(false) }
     var videoView by remember(uri) { mutableStateOf<VideoView?>(null) }
+
+    LaunchedEffect(isActivePlayer) {
+        if (!isActivePlayer && isPlaying) {
+            videoView?.pause()
+            isPlaying = false
+        }
+    }
+
+    DisposableEffect(uri) {
+        onDispose { videoView?.stopPlayback() }
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black)) {
         AndroidView(
@@ -189,8 +225,14 @@ private fun VideoPreview(uri: String) {
                 .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.45f))
                 .clickable {
                     val view = videoView ?: return@clickable
-                    if (isPlaying) view.pause() else view.start()
-                    isPlaying = !isPlaying
+                    if (isPlaying) {
+                        view.pause()
+                        isPlaying = false
+                    } else {
+                        onRequestPlay()
+                        view.start()
+                        isPlaying = true
+                    }
                 },
             contentAlignment = Alignment.Center
         ) {
