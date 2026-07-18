@@ -26,7 +26,9 @@ class SettingsDataStore(private val context: Context) {
         val SELECTED_FONT = stringPreferencesKey("selected_font")
         val EFFECTS_VOLUME = floatPreferencesKey("effects_volume")
         val ANIMATIONS_ENABLED = booleanPreferencesKey("animations_enabled")
-        val VISUAL_EFFECTS_ENABLED = booleanPreferencesKey("visual_effects_enabled")
+        // Key name kept from Bloco 12 (only the AppSettings field was renamed to parallaxEnabled
+        // in Bloco 14) - no reason to churn already-persisted local prefs over a label change.
+        val PARALLAX_ENABLED = booleanPreferencesKey("visual_effects_enabled")
         val VISUAL_QUALITY = stringPreferencesKey("visual_quality")
         val VIBRATION_ENABLED = booleanPreferencesKey("vibration_enabled")
         val THEME_MODE = stringPreferencesKey("theme_mode")
@@ -50,7 +52,7 @@ class SettingsDataStore(private val context: Context) {
                 ?: AppFont.SYSTEM_DEFAULT,
             effectsVolume = prefs[Keys.EFFECTS_VOLUME] ?: 0.7f,
             animationsEnabled = prefs[Keys.ANIMATIONS_ENABLED] ?: true,
-            visualEffectsEnabled = prefs[Keys.VISUAL_EFFECTS_ENABLED] ?: true,
+            parallaxEnabled = prefs[Keys.PARALLAX_ENABLED] ?: true,
             visualQuality = prefs[Keys.VISUAL_QUALITY]?.let { runCatching { VisualQuality.valueOf(it) }.getOrNull() }
                 ?: VisualQuality.AUTOMATIC,
             vibrationEnabled = prefs[Keys.VIBRATION_ENABLED] ?: true,
@@ -74,7 +76,7 @@ class SettingsDataStore(private val context: Context) {
             prefs[Keys.SELECTED_FONT] = settings.selectedFont.name
             prefs[Keys.EFFECTS_VOLUME] = settings.effectsVolume
             prefs[Keys.ANIMATIONS_ENABLED] = settings.animationsEnabled
-            prefs[Keys.VISUAL_EFFECTS_ENABLED] = settings.visualEffectsEnabled
+            prefs[Keys.PARALLAX_ENABLED] = settings.parallaxEnabled
             prefs[Keys.VISUAL_QUALITY] = settings.visualQuality.name
             prefs[Keys.VIBRATION_ENABLED] = settings.vibrationEnabled
             prefs[Keys.THEME_MODE] = settings.themeMode.name

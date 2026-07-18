@@ -244,6 +244,25 @@ fun SettingsScreen(
                         )
                     }
                 }
+
+                Spacer(Modifier.height(20.dp))
+                Text("Qualidade visual", style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Automática ajusta os efeitos ao seu aparelho. Reduzida usa menos estrelas e brilho, poupando bateria.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    VisualQuality.entries.forEach { option ->
+                        FilterChip(
+                            selected = settings.visualQuality == option,
+                            onClick = { viewModel.update { it.copy(visualQuality = option) } },
+                            label = { Text(option.label) }
+                        )
+                    }
+                }
             }
         }
 
@@ -291,26 +310,29 @@ fun SettingsScreen(
         }
 
         item {
-            SettingsSection(title = "Interações") {
+            SettingsSection(title = "Movimento") {
                 SwitchRow("Animações suaves entre cards", settings.animationsEnabled) { checked ->
                     viewModel.update { it.copy(animationsEnabled = checked) }
                 }
-                SwitchRow("Efeitos visuais (parallax, brilhos)", settings.visualEffectsEnabled) { checked ->
-                    viewModel.update { it.copy(visualEffectsEnabled = checked) }
+                Text(
+                    "Transições ficam instantâneas quando desativado - também desliga o parallax.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(12.dp))
+                SwitchRow("Parallax", settings.parallaxEnabled) { checked ->
+                    viewModel.update { it.copy(parallaxEnabled = checked) }
                 }
-                if (settings.visualEffectsEnabled) {
-                    Spacer(Modifier.height(4.dp))
-                    Text("Qualidade visual", style = MaterialTheme.typography.titleSmall)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        VisualQuality.entries.forEach { option ->
-                            FilterChip(
-                                selected = settings.visualQuality == option,
-                                onClick = { viewModel.update { it.copy(visualQuality = option) } },
-                                label = { Text(option.label) }
-                            )
-                        }
-                    }
-                }
+                Text(
+                    "Estrelas e brilhos de fundo reagem sutilmente à rolagem. Desativar deixa o fundo parado, sem remover as estrelas fixas.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        item {
+            SettingsSection(title = "Interações") {
                 SwitchRow("Vibração ao trocar de card", settings.vibrationEnabled) { checked ->
                     viewModel.update { it.copy(vibrationEnabled = checked) }
                 }

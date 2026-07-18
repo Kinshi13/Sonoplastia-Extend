@@ -6,13 +6,15 @@ data class AppSettings(
     val selectedFont: AppFont = AppFont.SYSTEM_DEFAULT,
     val effectsVolume: Float = 0.7f,
     val animationsEnabled: Boolean = true,
-    /** Fase 11.9B Bloco 12 - master switch for decorative-only effects (ambient parallax drift,
-     *  halos): [animationsEnabled] already covers UI motion in general, this is specifically the
-     *  "Efeitos visuais" toggle shown in Configurações. */
-    val visualEffectsEnabled: Boolean = true,
-    /** Fase 11.9B Bloco 12 - how much decorative detail (stars, blur, glow) to render; see
-     *  [com.escalachurch.app.domain.util.resolveEffectiveVisualQuality] for how AUTOMATIC picks
-     *  between REDUCED/FULL based on the device. */
+    /** Fase 11.9B Bloco 14 - dedicated "Parallax: Ativado/Desativado" control (Bloco 12 first
+     *  wired this to the field then named "visualEffectsEnabled"; renamed here to say what it
+     *  actually does). [animationsEnabled] still covers UI motion in general - this is only the
+     *  reactive/ambient parallax layer. See VisualQualityResolver for how this combines with
+     *  [visualQuality], device capability and system accessibility settings. */
+    val parallaxEnabled: Boolean = true,
+    /** Fase 11.9B Bloco 12/14 - how much decorative detail (stars, glow, blur) to render; see
+     *  [com.escalachurch.app.domain.util.resolveEffectiveVisualSettings] for how AUTOMATIC picks
+     *  between REDUCED/FULL based on the device and battery state. */
     val visualQuality: VisualQuality = VisualQuality.AUTOMATIC,
     val vibrationEnabled: Boolean = true,
     val themeMode: ThemeMode = ThemeMode.AUTO,
