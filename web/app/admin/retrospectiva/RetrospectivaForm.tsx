@@ -19,6 +19,7 @@ export function RetrospectivaForm({ existing }: { existing: RetrospectiveItem | 
   );
   const [youtubeUrl, setYoutubeUrl] = useState(existing?.media_type === "YOUTUBE" ? existing.media_url : "");
   const [aspectRatio, setAspectRatio] = useState(existing?.media_aspect_ratio ?? "4:3");
+  const [isActive, setIsActive] = useState(existing?.is_active ?? true);
   const [pickedFile, setPickedFile] = useState<File | null>(null);
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<{ url: string; isVideo: boolean } | null>(
@@ -145,6 +146,7 @@ export function RetrospectivaForm({ existing }: { existing: RetrospectiveItem | 
       formData.set("media_type", mediaType);
       formData.set("media_aspect_ratio", finalAspectRatio);
       formData.set("poster_url", mediaType !== "IMAGE" ? (posterUrl ?? "") : "");
+      formData.set("is_active", isActive ? "true" : "false");
 
       setProgressLabel("Salvando...");
       const result = await saveRetrospectiveItemAction(existing?.id ?? null, formData);
@@ -176,6 +178,16 @@ export function RetrospectivaForm({ existing }: { existing: RetrospectiveItem | 
       <Field label="Data do evento (opcional)">
         <input type="date" name="event_date" defaultValue={existing?.event_date ?? ""} className={inputClass} />
       </Field>
+
+      <label className="flex items-center gap-2 text-sm font-medium">
+        <input
+          type="checkbox"
+          checked={isActive}
+          onChange={(e) => setIsActive(e.target.checked)}
+          className="h-4 w-4 rounded border-divider"
+        />
+        Publicado (visível para os membros)
+      </label>
 
       <div className="flex rounded-lg border border-divider p-1 text-sm">
         <button

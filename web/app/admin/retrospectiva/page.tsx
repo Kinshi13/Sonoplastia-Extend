@@ -50,6 +50,11 @@ export default async function AdminRetrospectivaPage() {
                     <Video size={14} />
                   </span>
                 )}
+                {!item.is_active && (
+                  <span className="absolute left-2 top-2 rounded-full bg-amber-500/90 px-2.5 py-1 text-xs font-medium text-white">
+                    Rascunho
+                  </span>
+                )}
               </div>
               <div className="p-4 flex flex-col gap-3">
                 <p className="font-medium leading-tight truncate">{item.title || "(sem título)"}</p>

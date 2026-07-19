@@ -509,7 +509,7 @@ export async function saveRetrospectiveItemAction(
     media_aspect_ratio: String(formData.get("media_aspect_ratio") ?? "4:3"),
     poster_url: formData.get("poster_url") ? String(formData.get("poster_url")) : null,
     event_date: formData.get("event_date") ? String(formData.get("event_date")) : null,
-    is_active: true,
+    is_active: formData.get("is_active") !== "false",
     updated_at: Date.now(),
   };
 

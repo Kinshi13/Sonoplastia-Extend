@@ -5,6 +5,7 @@ import { Announcement, RetrospectiveItem } from "@/lib/types/database";
 import { announcementToRetrospectiveItem, RETROSPECTIVE_WINDOW_DAYS } from "@/lib/expiredAnnouncements";
 import { EmptyState } from "@/components/EmptyState";
 import { RetrospectivaGrid } from "@/components/RetrospectivaGrid";
+import { AnunciosRetrospectivaTabs } from "@/components/AnunciosRetrospectivaTabs";
 
 export const revalidate = 0;
 
@@ -50,6 +51,8 @@ export default async function RetrospectivaPage({ params }: { params: Promise<{ 
 
   return (
     <div className="flex flex-col gap-6">
+      <AnunciosRetrospectivaTabs slug={slug} active="retrospectiva" />
+
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Retrospectiva</h2>
         <p className="mt-1 text-sm text-text-secondary">Fotos e vídeos dos últimos cultos e eventos.</p>
