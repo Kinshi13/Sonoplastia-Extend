@@ -158,7 +158,7 @@ function ScaleCard({ scale }: { scale: Scale }) {
   const kind = dayKindFor(scale);
 
   return (
-    <CelestialCompactCard kind={kind} className="p-6 flex flex-col gap-3">
+    <CelestialCompactCard kind={kind} id={scale.id} interactive className="p-6 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-1.5">
           <CelestialOfficialHeader kind={kind} org="" showOrg={false} />

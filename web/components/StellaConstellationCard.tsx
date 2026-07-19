@@ -172,37 +172,26 @@ export function StellaConstellationCard({
       </button>
 
       <style jsx>{`
+        /* Web Fase 6.7 - the star-node/halo used to "breathe" continuously (infinite animation)
+           for as long as Stella Core stayed open, which is exactly the kind of always-on cost
+           section 10 asks to remove. Both now sit at a static resting value and only change on
+           the card's own hover/focus (via .group/card, same mechanism the border glow already
+           uses two blocks up) - a state change, not a loop. */
         .stella-star-node {
-          animation: stella-star-pulse 1.8s ease-in-out infinite;
+          opacity: 0.75;
+          transition: opacity 200ms var(--cc-ease-stellar, ease);
+        }
+        :global(.stella-card:hover) .stella-star-node,
+        :global(.stella-card:focus-visible) .stella-star-node {
+          opacity: 1;
         }
         .stella-glow-halo {
-          animation: stella-halo-pulse 2.6s ease-in-out infinite;
+          opacity: 0.16;
+          transition: opacity 200ms var(--cc-ease-stellar, ease);
         }
-        @keyframes stella-star-pulse {
-          0%,
-          100% {
-            opacity: 0.65;
-            transform: translate(-50%, -50%) scale(1);
-          }
-          50% {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1.25);
-          }
-        }
-        @keyframes stella-halo-pulse {
-          0%,
-          100% {
-            opacity: 0.13;
-          }
-          50% {
-            opacity: 0.2;
-          }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .stella-star-node,
-          .stella-glow-halo {
-            animation: none;
-          }
+        :global(.stella-card:hover) .stella-glow-halo,
+        :global(.stella-card:focus-visible) .stella-glow-halo {
+          opacity: 0.22;
         }
       `}</style>
     </div>

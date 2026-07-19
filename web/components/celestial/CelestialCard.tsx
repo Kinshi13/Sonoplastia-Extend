@@ -1,5 +1,8 @@
-import { ReactNode } from "react";
+"use client";
+
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { ConstellationKind, DayConstellationBackground, DayConstellationMark } from "./DayConstellation";
+import { CardConstellation, pickCardConstellation } from "./CardConstellation";
 
 type Accent = "beacon" | "crown" | "dawn" | "pilgrim" | "neutral";
 
@@ -19,6 +22,17 @@ const KIND_TO_ACCENT: Record<ConstellationKind, Accent> = {
   PILGRIM: "pilgrim",
 };
 
+// Web Fase 6.7 (section 9) - standardized card states. Success has no existing Constellation Calm
+// token (the palette only has polaris/aurora/comet/nova) - #3fb87f is a one-off addition in the
+// same spirit as `pilgrim`'s #8b6cf0 two lines up, kept deliberately muted ("tonalidade verde
+// discreta"), not a saturated/neon green.
+type CardState = "success" | "warning" | "error" | "disabled" | "selected";
+const STATE_COLOR: Record<Exclude<CardState, "disabled" | "selected">, string> = {
+  success: "#3fb87f",
+  warning: "var(--cc-comet)",
+  error: "var(--cc-nova)",
+};
+
 type CelestialCardProps = {
   children: ReactNode;
   className?: string;
@@ -32,6 +46,17 @@ type CelestialCardProps = {
   /** Bloco B5: a small luminous dot near the corner mark, for a card whose content just changed
    *  without needing to redesign the whole card to say so. */
   updated?: boolean;
+  /** Stable id (or index) used to deterministically pick a CardConstellation pattern for cards
+   *  without a `kind` - same card always gets the same pattern, never random per render. */
+  id?: string | number;
+  /** Web Fase 6.7 (section 9) - success/warning/error tint the glow/border; disabled removes both
+   *  interaction and glow entirely; selected is a persistent moderate glow (distinct from the
+   *  hover-only "active" glow value above). */
+  state?: CardState;
+  /** Web Fase 6.7 (section 8) - opt-in touch "observed" state: a tap lights the card up for ~1.8s
+   *  then fades, without delaying whatever the tap itself does (no preventDefault, no stopPropagation).
+   *  Only wired on coarse-pointer devices; desktop keeps its existing hover/focus behavior. */
+  interactive?: boolean;
 };
 
 /**
@@ -46,36 +71,71 @@ type CelestialCardProps = {
  * background → day-constellation watermark → content → corner star ornament. Content sits in a
  * plain div on top, unaffected by any of the decoration below it - legibility first.
  */
-export function CelestialCard({ children, className = "", kind, solemn, compact, glow = "none", updated }: CelestialCardProps) {
+export function CelestialCard({
+  children,
+  className = "",
+  kind,
+  solemn,
+  compact,
+  glow = "none",
+  updated,
+  id,
+  state,
+  interactive = false,
+}: CelestialCardProps) {
   const accent = kind ? KIND_TO_ACCENT[kind] : "neutral";
-  const color = ACCENT_COLOR[accent];
+  const stateColor = state && state !== "disabled" && state !== "selected" ? STATE_COLOR[state] : undefined;
+  const color = stateColor ?? ACCENT_COLOR[accent];
   const isCrownSolemn = solemn ?? kind === "CROWN";
+  const disabled = state === "disabled";
+  const selected = state === "selected";
+  const pattern = !kind && id !== undefined ? pickCardConstellation(id) : undefined;
+
+  const [observed, setObserved] = useState(false);
+  const observedTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => () => clearTimeout(observedTimeout.current), []);
+
+  function handleTouchObserve() {
+    if (!interactive || disabled) return;
+    if (!window.matchMedia("(pointer: coarse)").matches) return;
+    setObserved(true);
+    clearTimeout(observedTimeout.current);
+    observedTimeout.current = setTimeout(() => setObserved(false), 1800);
+  }
+
+  const showActiveGlow = glow === "active" || selected || observed;
 
   return (
     <div
-      className={`group relative overflow-hidden border transition-[box-shadow,transform] duration-300 focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-offset-background ${
-        glow === "hover" ? "hover:-translate-y-[3px]" : ""
+      onPointerDown={interactive ? handleTouchObserve : undefined}
+      aria-disabled={disabled || undefined}
+      // Web Fase 6.7 - no translate on hover ("não mover o card"); glow/border alone signal
+      // interactivity. Transition tightened to the requested 180-260ms window (was 300ms).
+      className={`group relative overflow-hidden border transition-[box-shadow] duration-[220ms] focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-offset-background ${
+        disabled ? "pointer-events-none opacity-60" : ""
       } ${className}`}
       style={{
         // @ts-expect-error -- CSS custom property, not a real color token
         "--tw-ring-color": color,
-        borderColor: "var(--border-soft)",
+        borderColor: disabled ? "var(--border-soft)" : "var(--border-soft)",
         borderRadius: "var(--radius-lg)",
         clipPath: isCrownSolemn
           ? "polygon(0 14px, 14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%)"
           : "polygon(0 10px, 10px 0, 100% 0, 100% 100%, 0 100%)",
         background: `linear-gradient(155deg, var(--surface) 0%, var(--surface-elevated) 100%)`,
-        boxShadow:
-          glow === "active"
-            ? `var(--elevation-elevated), 0 0 0 1px ${color}55, 0 0 32px -8px ${color}55`
-            : "var(--elevation-raised)",
+        boxShadow: showActiveGlow
+          ? `var(--elevation-elevated), 0 0 0 1px ${color}55, 0 0 32px -8px ${color}55`
+          : "var(--elevation-raised)",
       }}
     >
-      {/* Layer 1: external glow, hover only */}
-      {glow === "hover" && (
+      {/* Layer 1: external glow, hover only (desktop) / observed (touch) */}
+      {(glow === "hover" || interactive) && (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+          className={`pointer-events-none absolute inset-0 transition-opacity duration-[220ms] group-hover:opacity-100 ${
+            observed ? "opacity-100" : "opacity-0"
+          }`}
           style={{ boxShadow: `0 0 32px -6px ${color}66`, borderRadius: "inherit" }}
         />
       )}
@@ -87,23 +147,31 @@ export function CelestialCard({ children, className = "", kind, solemn, compact,
         className="pointer-events-none absolute inset-[5px] rounded-[calc(var(--radius-lg)-6px)] border"
         style={{ borderColor: `${color}2a` }}
       />
-      {glow === "hover" && (
+      {(glow === "hover" || interactive) && (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-[5px] rounded-[calc(var(--radius-lg)-6px)] border opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+          className={`pointer-events-none absolute inset-[5px] rounded-[calc(var(--radius-lg)-6px)] border transition-opacity duration-[220ms] group-hover:opacity-100 ${
+            observed ? "opacity-100" : "opacity-0"
+          }`}
           style={{ borderColor: `${color}70` }}
         />
       )}
 
-      {/* Layer 5: day-constellation watermark - Bloco B3: base opacity raised into the 12-24%
-          range (was 9%, read as too faint) and brightens further on hover/selection. */}
-      {kind && !compact && (
+      {/* Layer 5: day-constellation (or generic CardConstellation) watermark - Bloco B3: base
+          opacity in the 12-24% range, brightens further on hover/selection/observed. */}
+      {(kind || pattern) && !compact && (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -right-6 -bottom-6 opacity-[0.18] transition-opacity duration-300 group-hover:opacity-[0.3]"
+          className={`pointer-events-none absolute -right-6 -bottom-6 opacity-[0.18] transition-opacity duration-[220ms] group-hover:opacity-[0.3] ${
+            observed ? "opacity-[0.3]" : ""
+          }`}
           style={{ color }}
         >
-          <DayConstellationBackground kind={kind} className={isCrownSolemn ? "h-56 w-56" : "h-40 w-40"} />
+          {kind ? (
+            <DayConstellationBackground kind={kind} className={isCrownSolemn ? "h-56 w-56" : "h-40 w-40"} />
+          ) : (
+            <CardConstellation pattern={pattern!} className="h-40 w-40" />
+          )}
         </div>
       )}
 

@@ -113,6 +113,7 @@ export default async function PlanosPage({
           return (
             <CelestialPlanCard
               key={plan.id}
+              id={plan.id}
               glow={isCurrent ? "active" : "hover"}
               className={`p-5 flex flex-col gap-3`}
             >
