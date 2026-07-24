@@ -7,6 +7,7 @@ import { formatPublishedAt } from "@/lib/format";
 import { Card } from "@/components/Card";
 import { EmptyState } from "@/components/EmptyState";
 import { AnunciosRetrospectivaTabs } from "@/components/AnunciosRetrospectivaTabs";
+import { AnnouncementShareButton } from "@/components/AnnouncementShareButton";
 
 export const revalidate = 0;
 
@@ -57,6 +58,8 @@ export default async function AnunciosPage({ params }: { params: Promise<{ slug:
               key={announcement.id}
               announcement={announcement}
               bulletin={bulletinByAnnouncement.get(announcement.id) ?? null}
+              churchName={church.name}
+              churchSlug={slug}
             />
           ))}
         </div>
@@ -68,9 +71,13 @@ export default async function AnunciosPage({ params }: { params: Promise<{ slug:
 function AnnouncementCard({
   announcement,
   bulletin,
+  churchName,
+  churchSlug,
 }: {
   announcement: Announcement;
   bulletin: Bulletin | null;
+  churchName: string;
+  churchSlug: string;
 }) {
   const hasMedia = !!announcement.media_url;
 
@@ -101,16 +108,19 @@ function AnnouncementCard({
         {announcement.description && (
           <p className="text-sm text-foreground/90 whitespace-pre-line">{announcement.description}</p>
         )}
-        {bulletin && (
-          <a
-            href={bulletin.pdf_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-1 flex w-fit items-center gap-1.5 rounded-full bg-primary-container px-3 py-1.5 text-xs font-medium text-on-primary-container"
-          >
-            <FileText size={13} /> Ver boletim
-          </a>
-        )}
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          {bulletin && (
+            <a
+              href={bulletin.pdf_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex w-fit items-center gap-1.5 rounded-full bg-primary-container px-3 py-1.5 text-xs font-medium text-on-primary-container"
+            >
+              <FileText size={13} /> Ver boletim
+            </a>
+          )}
+          <AnnouncementShareButton announcement={announcement} churchName={churchName} churchSlug={churchSlug} />
+        </div>
       </div>
     </Card>
   );

@@ -23,13 +23,20 @@ const KIND_ACCENT: Record<ConstellationKind, string> = {
  * capture library (html2canvas/dom-to-image) was added for this - it's a deliberately small,
  * self-contained draw routine covering the one format this phase ships: the 4:5 share card.
  * 9:16/16:9 variants are not implemented yet (see the Fase 11.8 report for why).
+ *
+ * Correção/expansão de compartilhamento: `churchName` now comes from the real church row (this
+ * used to be hardcoded to the literal string "Escala Church" by the only caller, which meant
+ * every exported card printed the product's own name where the church's name belongs). Also
+ * added an optional public-link/code footer line and a PNG/JPEG output switch - the drawing
+ * itself is unchanged otherwise, still one small routine, no new dependency.
  */
 export async function renderScaleCardPng(
   scale: Scale,
   kind: ConstellationKind,
   churchName: string,
   formatDatePt: (d: string) => string,
-  formatTimePt: (t: string) => string
+  formatTimePt: (t: string) => string,
+  options?: { publicUrl?: string; churchCode?: string; format?: "png" | "jpeg"; quality?: number }
 ): Promise<Blob> {
   const width = 1080;
   const height = 1350; // 4:5
@@ -102,11 +109,24 @@ export async function renderScaleCardPng(
     y += 110;
   }
 
+  if (options?.publicUrl) {
+    ctx.fillStyle = "#8a90b3";
+    ctx.font = "500 26px system-ui, sans-serif";
+    ctx.fillText(options.publicUrl.replace(/^https?:\/\//, ""), 90, height - 140);
+  }
+  if (options?.churchCode) {
+    ctx.fillStyle = "#5c6280";
+    ctx.font = "400 22px system-ui, sans-serif";
+    ctx.fillText(`Código da igreja: ${options.churchCode}`, 90, height - 105);
+  }
+
   ctx.fillStyle = "#5c6280";
   ctx.font = "400 24px system-ui, sans-serif";
-  ctx.fillText("✦ Escala Church", 90, height - 80);
+  ctx.fillText("✦ Escala Church", 90, height - 60);
 
-  return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob!), "image/png"));
+  const mime = options?.format === "jpeg" ? "image/jpeg" : "image/png";
+  const quality = options?.format === "jpeg" ? (options.quality ?? 0.92) : undefined;
+  return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob!), mime, quality));
 }
 
 function roundRectCut(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number, cut: number) {

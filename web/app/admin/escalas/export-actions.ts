@@ -7,7 +7,7 @@ import { Scale } from "@/lib/types/database";
 import { formatTimePt } from "@/lib/format";
 
 export type ExportResult = { csv?: string; filename?: string; error?: string };
-export type ScaleForExportResult = { scale?: Scale; error?: string };
+export type ScaleForExportResult = { scale?: Scale; churchName?: string; churchSlug?: string; error?: string };
 
 const ROLE_COLUMNS: { key: keyof Scale; label: string }[] = [
   { key: "reception_person", label: "Recepção" },
@@ -100,15 +100,18 @@ export async function getNextScaleForExportAction(): Promise<ScaleForExportResul
 
   const supabase = await createClient();
   const today = new Date().toISOString().slice(0, 10);
-  const { data, error } = await supabase
-    .from("scales")
-    .select("*")
-    .eq("church_id", churchId)
-    .gte("date", today)
-    .order("date", { ascending: true })
-    .order("start_time", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  const [{ data, error }, { data: church }] = await Promise.all([
+    supabase
+      .from("scales")
+      .select("*")
+      .eq("church_id", churchId)
+      .gte("date", today)
+      .order("date", { ascending: true })
+      .order("start_time", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    supabase.from("churches").select("name, slug").eq("id", churchId).single(),
+  ]);
   if (error) return { error: error.message };
   if (!data) return { error: "Nenhuma escala futura para exportar." };
 
@@ -121,7 +124,7 @@ export async function getNextScaleForExportAction(): Promise<ScaleForExportResul
     created_at: Date.now(),
   });
 
-  return { scale: data as Scale };
+  return { scale: data as Scale, churchName: church?.name ?? "", churchSlug: church?.slug ?? "" };
 }
 
 /** Used by the print view to confirm access + log the export before rendering (Parte 11: the
