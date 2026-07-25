@@ -23,6 +23,7 @@ export default async function AdminMusicaPage() {
     .order("program_date", { ascending: false, nullsFirst: false })
     .order("order_index", { ascending: true });
   const items = (data as WorshipSong[]) ?? [];
+  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <div>
@@ -60,11 +61,19 @@ export default async function AdminMusicaPage() {
               <div className="p-4 flex flex-col gap-2">
                 <div className="flex items-center gap-2">
                   <p className="font-medium leading-tight truncate flex-1">{item.title}</p>
-                  {!item.is_published && (
-                    <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-600">
-                      Rascunho
-                    </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <StatusBadge
+                    label={item.is_published ? "Publicada" : "Rascunho"}
+                    tone={item.is_published ? "green" : "amber"}
+                  />
+                  {item.is_daily_recommendation && (
+                    <StatusBadge
+                      label={item.recommendation_date === today ? "Recomendação do dia" : "Agendada"}
+                      tone="violet"
+                    />
                   )}
+                  {!item.program_date && <StatusBadge label="Sem programação vinculada" tone="neutral" />}
                 </div>
                 <p className="text-xs text-text-secondary">
                   {item.artist || "Artista/canal não informado"}
@@ -91,4 +100,17 @@ export default async function AdminMusicaPage() {
       )}
     </div>
   );
+}
+
+const BADGE_TONE = {
+  green: "bg-emerald-500/15 text-emerald-600",
+  amber: "bg-amber-500/15 text-amber-600",
+  violet: "bg-violet-500/15 text-violet-600",
+  neutral: "bg-divider text-text-secondary",
+} as const;
+
+/** Admin-only status indicators (Bloco 7) - never rendered on the public page, which only ever
+ *  fetches `is_published = true` rows to begin with. */
+function StatusBadge({ label, tone }: { label: string; tone: keyof typeof BADGE_TONE }) {
+  return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${BADGE_TONE[tone]}`}>{label}</span>;
 }

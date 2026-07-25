@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { WorshipSong } from "@/lib/types/database";
-import { extractYouTubeId, buildYouTubeWatchUrl, youTubeThumbnailUrl } from "@/lib/youtube";
+import { parseYouTubeUrl } from "@/lib/youtube";
 import { saveWorshipSongAction } from "../actions";
 
 type FormState = {
@@ -15,6 +15,12 @@ type FormState = {
   programDate: string;
   orderIndex: number;
   isPublished: boolean;
+  isDailyRecommendation: boolean;
+  recommendationDate: string;
+  notificationEnabled: boolean;
+  notificationTime: string;
+  notificationTitle: string;
+  notificationBody: string;
 };
 
 function stateFrom(existing: WorshipSong | null): FormState {
@@ -27,6 +33,12 @@ function stateFrom(existing: WorshipSong | null): FormState {
     programDate: existing?.program_date ?? "",
     orderIndex: existing?.order_index ?? 0,
     isPublished: existing?.is_published ?? true,
+    isDailyRecommendation: existing?.is_daily_recommendation ?? false,
+    recommendationDate: existing?.recommendation_date ?? "",
+    notificationEnabled: existing?.notification_enabled ?? false,
+    notificationTime: existing?.notification_time?.slice(0, 5) ?? "",
+    notificationTitle: existing?.notification_title ?? "",
+    notificationBody: existing?.notification_body ?? "",
   };
 }
 
@@ -35,9 +47,14 @@ function isDirty(a: FormState, b: FormState): boolean {
 }
 
 /**
- * Música e Louvor - "YouTubeUrlParser" lives in lib/youtube.ts (shared with Retrospectiva's
- * YouTube-mode uploads, not duplicated here). Pasting a link recomputes videoId + thumbnail live,
- * before the form is even submitted, so the preview the Admin sees is exactly what gets saved.
+ * Música e Louvor - "YouTubeUrlParser" (parseYouTubeUrl, lib/youtube.ts) is shared with
+ * Retrospectiva's YouTube-mode uploads, not duplicated here. Pasting a link recomputes
+ * videoId/thumbnail live, before the form is even submitted, so the preview the Admin sees is
+ * exactly what gets saved.
+ *
+ * Notification fields (title/body/enabled/time) are captured here but no push is actually sent
+ * yet (Bloco 15/19: "preparar arquitetura, não precisa enviar push real ainda") - they're stored
+ * so a future sending job has real data to read instead of nothing.
  */
 export function MusicaForm({ existing }: { existing: WorshipSong | null }) {
   const router = useRouter();
@@ -48,9 +65,9 @@ export function MusicaForm({ existing }: { existing: WorshipSong | null }) {
   const [form, setForm] = useState<FormState>(initial);
   const dirty = isDirty(initial, form);
 
-  const videoId = extractYouTubeId(form.youtubeUrl.trim());
+  const parsed = parseYouTubeUrl(form.youtubeUrl);
   const linkTouched = form.youtubeUrl.trim().length > 0;
-  const linkIsValid = !linkTouched || !!videoId;
+  const linkIsValid = !linkTouched || parsed.isValid;
 
   function handleCancel() {
     if (dirty && !confirm("Descartar alterações não salvas nesta música?")) return;
@@ -65,7 +82,7 @@ export function MusicaForm({ existing }: { existing: WorshipSong | null }) {
       setError("Informe o título da música.");
       return;
     }
-    if (!videoId) {
+    if (!parsed.isValid || !parsed.videoId) {
       setError("Link do YouTube inválido.");
       return;
     }
@@ -74,14 +91,20 @@ export function MusicaForm({ existing }: { existing: WorshipSong | null }) {
     const formData = new FormData();
     formData.set("title", form.title.trim());
     formData.set("artist", form.artist);
-    formData.set("youtube_url", buildYouTubeWatchUrl(videoId));
-    formData.set("youtube_video_id", videoId);
-    formData.set("thumbnail_url", youTubeThumbnailUrl(videoId));
+    formData.set("youtube_url", parsed.normalizedUrl!);
+    formData.set("youtube_video_id", parsed.videoId);
+    formData.set("thumbnail_url", parsed.thumbnailUrl!);
     formData.set("moment_label", form.momentLabel);
     formData.set("notes", form.notes);
     formData.set("program_date", form.programDate);
     formData.set("order_index", String(form.orderIndex));
     formData.set("is_published", form.isPublished ? "true" : "false");
+    formData.set("is_daily_recommendation", form.isDailyRecommendation ? "true" : "false");
+    formData.set("recommendation_date", form.recommendationDate);
+    formData.set("notification_enabled", form.notificationEnabled ? "true" : "false");
+    formData.set("notification_time", form.notificationTime);
+    formData.set("notification_title", form.notificationTitle);
+    formData.set("notification_body", form.notificationBody);
 
     const result = await saveWorshipSongAction(existing?.id ?? null, formData);
     if (result.error) {
@@ -105,10 +128,10 @@ export function MusicaForm({ existing }: { existing: WorshipSong | null }) {
         {linkTouched && !linkIsValid && <p className="mt-1 text-xs text-error">Link do YouTube inválido.</p>}
       </Field>
 
-      {videoId && (
+      {parsed.thumbnailUrl && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={youTubeThumbnailUrl(videoId)}
+          src={parsed.thumbnailUrl}
           alt="Prévia da thumbnail"
           className="w-48 rounded-xl border border-divider aspect-video object-cover"
         />
@@ -176,6 +199,79 @@ export function MusicaForm({ existing }: { existing: WorshipSong | null }) {
           </span>
         </span>
       </label>
+
+      <div className="rounded-lg border border-divider p-3 flex flex-col gap-3">
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={form.isDailyRecommendation}
+            onChange={(e) => setForm((f) => ({ ...f, isDailyRecommendation: e.target.checked }))}
+          />
+          <span>
+            Marcar como recomendação do dia
+            <span className="block text-xs text-text-secondary">
+              Aparece em destaque na tela pública, na data escolhida abaixo.
+            </span>
+          </span>
+        </label>
+        {form.isDailyRecommendation && (
+          <Field label="Data da recomendação">
+            <input
+              type="date"
+              value={form.recommendationDate}
+              onChange={(e) => setForm((f) => ({ ...f, recommendationDate: e.target.value }))}
+              className={inputClass}
+            />
+          </Field>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-divider p-3 flex flex-col gap-3">
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={form.notificationEnabled}
+            onChange={(e) => setForm((f) => ({ ...f, notificationEnabled: e.target.checked }))}
+          />
+          <span>
+            Preparar notificação para esta música
+            <span className="block text-xs text-text-secondary">
+              Só guarda o conteúdo por enquanto - o envio automático ainda não está ativo (ver seção de notificações).
+            </span>
+          </span>
+        </label>
+        {form.notificationEnabled && (
+          <>
+            <Field label="Horário do lembrete (opcional)">
+              <input
+                type="time"
+                value={form.notificationTime}
+                onChange={(e) => setForm((f) => ({ ...f, notificationTime: e.target.value }))}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Título da notificação (opcional)">
+              <input
+                value={form.notificationTitle}
+                onChange={(e) => setForm((f) => ({ ...f, notificationTitle: e.target.value }))}
+                placeholder={form.title || "Música e Louvor"}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Texto da notificação (opcional)">
+              <textarea
+                value={form.notificationBody}
+                onChange={(e) => setForm((f) => ({ ...f, notificationBody: e.target.value }))}
+                rows={2}
+                placeholder="Confira a recomendação de hoje."
+                className={inputClass}
+              />
+            </Field>
+          </>
+        )}
+      </div>
 
       {error && <p className="text-sm text-error">{error}</p>}
 

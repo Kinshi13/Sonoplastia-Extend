@@ -193,6 +193,7 @@ export type WorshipSong = {
   church_id: string;
   schedule_id: string | null;
   program_date: string | null;
+  program_type: string | null;
   title: string;
   artist: string;
   youtube_url: string;
@@ -202,6 +203,12 @@ export type WorshipSong = {
   notes: string;
   order_index: number;
   is_published: boolean;
+  is_daily_recommendation: boolean;
+  recommendation_date: string | null;
+  notification_enabled: boolean;
+  notification_time: string | null;
+  notification_title: string | null;
+  notification_body: string | null;
   created_at: number;
   updated_at: number;
 };

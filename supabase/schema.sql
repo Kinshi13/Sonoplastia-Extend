@@ -179,12 +179,14 @@ create policy "retrospective_items: admin update" on retrospective_items for upd
 create policy "retrospective_items: admin delete" on retrospective_items for delete
   using (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = retrospective_items.church_id));
 
--- Worship songs ("Música e Louvor" - see migrations/014_worship_songs.sql for the full note) ---
+-- Worship songs ("Música e Louvor" - see migrations/014_worship_songs.sql and
+-- 015_worship_recommendation_and_push.sql for the full notes) ------------
 create table worship_songs (
   id uuid primary key default gen_random_uuid(),
   church_id uuid not null references churches(id),
   schedule_id uuid references scales(id) on delete set null,
   program_date date,
+  program_type text,
   title text not null default '',
   artist text not null default '',
   youtube_url text not null default '',
@@ -194,6 +196,12 @@ create table worship_songs (
   notes text not null default '',
   order_index integer not null default 0,
   is_published boolean not null default true,
+  is_daily_recommendation boolean not null default false,
+  recommendation_date date,
+  notification_enabled boolean not null default false,
+  notification_time time,
+  notification_title text,
+  notification_body text,
   created_at bigint not null,
   updated_at bigint not null
 );
@@ -203,6 +211,8 @@ create index worship_songs_schedule_idx on worship_songs (schedule_id);
 create index worship_songs_program_date_idx on worship_songs (program_date);
 create index worship_songs_published_idx on worship_songs (is_published);
 create index worship_songs_order_idx on worship_songs (church_id, program_date, order_index);
+create index worship_songs_recommendation_date_idx on worship_songs (recommendation_date);
+create index worship_songs_is_daily_recommendation_idx on worship_songs (is_daily_recommendation);
 
 alter table worship_songs enable row level security;
 
@@ -213,6 +223,34 @@ create policy "worship_songs: admin update" on worship_songs for update
   using (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = worship_songs.church_id));
 create policy "worship_songs: admin delete" on worship_songs for delete
   using (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = worship_songs.church_id));
+
+-- Web Push subscriptions (base para notificações - ver migrations/015 para a nota completa) --
+create table web_push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  church_id uuid not null references churches(id),
+  endpoint text not null unique,
+  p256dh text not null,
+  auth text not null,
+  user_agent text,
+  platform text,
+  topics text[] not null default array['worship_daily'],
+  enabled boolean not null default true,
+  created_at bigint not null,
+  updated_at bigint not null,
+  last_seen_at bigint not null
+);
+
+create index web_push_subscriptions_church_idx on web_push_subscriptions (church_id);
+create index web_push_subscriptions_enabled_idx on web_push_subscriptions (enabled);
+
+alter table web_push_subscriptions enable row level security;
+
+create policy "web_push_subscriptions: public insert for active church" on web_push_subscriptions for insert
+  with check (exists (select 1 from churches where id = web_push_subscriptions.church_id and is_active));
+create policy "web_push_subscriptions: public update own endpoint" on web_push_subscriptions for update
+  using (exists (select 1 from churches where id = web_push_subscriptions.church_id and is_active));
+create policy "web_push_subscriptions: public delete own endpoint" on web_push_subscriptions for delete
+  using (exists (select 1 from churches where id = web_push_subscriptions.church_id and is_active));
 
 -- Bulletins (Boletins - PDF newsletters from departments/events, optionally linked to one
 -- announcement so its card can show a "Ver boletim" shortcut) -------------
@@ -389,6 +427,9 @@ create policy "shared_files: admin delete" on shared_files for delete
 grant usage on schema public to anon, authenticated;
 grant select on public.churches, public.scales, public.doxologies, public.announcements, public.shared_files, public.retrospective_items, public.bulletins, public.worship_songs to anon, authenticated;
 grant insert, update, delete on public.scales, public.doxologies, public.announcements, public.shared_files, public.retrospective_items, public.bulletins, public.worship_songs to authenticated;
+-- No visitor login exists on the public site - web_push_subscriptions writes come from anon too
+-- (see the table's own policies above for the "must reference a real active church" guard).
+grant insert, update, delete on public.web_push_subscriptions to anon, authenticated;
 grant select, insert on public.profiles to authenticated;
 
 -- Realtime: let clients subscribe to live changes on these tables.

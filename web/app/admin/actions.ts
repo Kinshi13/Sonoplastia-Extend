@@ -692,6 +692,12 @@ export async function saveWorshipSongAction(id: string | null, formData: FormDat
     program_date: formData.get("program_date") ? String(formData.get("program_date")) : null,
     order_index: Number(formData.get("order_index") ?? 0) || 0,
     is_published: formData.get("is_published") !== "false",
+    is_daily_recommendation: formData.get("is_daily_recommendation") === "true",
+    recommendation_date: formData.get("recommendation_date") ? String(formData.get("recommendation_date")) : null,
+    notification_enabled: formData.get("notification_enabled") === "true",
+    notification_time: formData.get("notification_time") ? String(formData.get("notification_time")) : null,
+    notification_title: formData.get("notification_title") ? String(formData.get("notification_title")) : null,
+    notification_body: formData.get("notification_body") ? String(formData.get("notification_body")) : null,
     updated_at: Date.now(),
   };
 

@@ -21,3 +21,24 @@ export function youTubeThumbnailUrl(videoId: string): string {
 export function youTubeEmbedUrl(videoId: string): string {
   return `https://www.youtube.com/embed/${videoId}`;
 }
+
+export type ParsedYouTubeUrl = {
+  videoId: string | null;
+  normalizedUrl: string | null;
+  thumbnailUrl: string | null;
+  isValid: boolean;
+};
+
+/** "YouTubeUrlParser" (Música e Louvor, Bloco 9) - a single-call wrapper over the functions above,
+ *  for callers (MusicaForm) that want the full videoId/normalizedUrl/thumbnailUrl/isValid shape at
+ *  once instead of composing the three calls themselves. */
+export function parseYouTubeUrl(url: string): ParsedYouTubeUrl {
+  const videoId = extractYouTubeId(url.trim());
+  if (!videoId) return { videoId: null, normalizedUrl: null, thumbnailUrl: null, isValid: false };
+  return {
+    videoId,
+    normalizedUrl: buildYouTubeWatchUrl(videoId),
+    thumbnailUrl: youTubeThumbnailUrl(videoId),
+    isValid: true,
+  };
+}
