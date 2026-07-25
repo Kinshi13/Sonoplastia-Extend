@@ -17,6 +17,7 @@ type FormState = {
   isPublished: boolean;
   isDailyRecommendation: boolean;
   recommendationDate: string;
+  recommendationMessage: string;
   notificationEnabled: boolean;
   notificationTime: string;
   notificationTitle: string;
@@ -35,6 +36,7 @@ function stateFrom(existing: WorshipSong | null): FormState {
     isPublished: existing?.is_published ?? true,
     isDailyRecommendation: existing?.is_daily_recommendation ?? false,
     recommendationDate: existing?.recommendation_date ?? "",
+    recommendationMessage: existing?.recommendation_message ?? "",
     notificationEnabled: existing?.notification_enabled ?? false,
     notificationTime: existing?.notification_time?.slice(0, 5) ?? "",
     notificationTitle: existing?.notification_title ?? "",
@@ -86,27 +88,50 @@ export function MusicaForm({ existing }: { existing: WorshipSong | null }) {
       setError("Link do YouTube inválido.");
       return;
     }
+    if (form.isDailyRecommendation && !form.recommendationDate) {
+      setError("Defina a data da recomendação.");
+      return;
+    }
 
     setPending(true);
-    const formData = new FormData();
-    formData.set("title", form.title.trim());
-    formData.set("artist", form.artist);
-    formData.set("youtube_url", parsed.normalizedUrl!);
-    formData.set("youtube_video_id", parsed.videoId);
-    formData.set("thumbnail_url", parsed.thumbnailUrl!);
-    formData.set("moment_label", form.momentLabel);
-    formData.set("notes", form.notes);
-    formData.set("program_date", form.programDate);
-    formData.set("order_index", String(form.orderIndex));
-    formData.set("is_published", form.isPublished ? "true" : "false");
-    formData.set("is_daily_recommendation", form.isDailyRecommendation ? "true" : "false");
-    formData.set("recommendation_date", form.recommendationDate);
-    formData.set("notification_enabled", form.notificationEnabled ? "true" : "false");
-    formData.set("notification_time", form.notificationTime);
-    formData.set("notification_title", form.notificationTitle);
-    formData.set("notification_body", form.notificationBody);
 
-    const result = await saveWorshipSongAction(existing?.id ?? null, formData);
+    function buildFormData(confirmReplace: boolean): FormData {
+      const formData = new FormData();
+      formData.set("title", form.title.trim());
+      formData.set("artist", form.artist);
+      formData.set("youtube_url", parsed.normalizedUrl!);
+      formData.set("youtube_video_id", parsed.videoId!);
+      formData.set("thumbnail_url", parsed.thumbnailUrl!);
+      formData.set("moment_label", form.momentLabel);
+      formData.set("notes", form.notes);
+      formData.set("program_date", form.programDate);
+      formData.set("order_index", String(form.orderIndex));
+      formData.set("is_published", form.isPublished ? "true" : "false");
+      formData.set("is_daily_recommendation", form.isDailyRecommendation ? "true" : "false");
+      formData.set("recommendation_date", form.recommendationDate);
+      formData.set("recommendation_message", form.recommendationMessage);
+      formData.set("notification_enabled", form.notificationEnabled ? "true" : "false");
+      formData.set("notification_time", form.notificationTime);
+      formData.set("notification_title", form.notificationTitle);
+      formData.set("notification_body", form.notificationBody);
+      if (confirmReplace) formData.set("confirm_replace", "true");
+      return formData;
+    }
+
+    let result = await saveWorshipSongAction(existing?.id ?? null, buildFormData(false));
+
+    // Bloco 8 - a second song already holds the recommendation for this date: ask before
+    // replacing it, then resubmit once with the confirmation flag instead of silently failing
+    // against the unique index.
+    if (result.conflictTitle) {
+      const confirmed = confirm(`Já existe uma recomendação ("${result.conflictTitle}") para esta data. Deseja substituir?`);
+      if (!confirmed) {
+        setPending(false);
+        return;
+      }
+      result = await saveWorshipSongAction(existing?.id ?? null, buildFormData(true));
+    }
+
     if (result.error) {
       setError(result.error);
       setPending(false);
@@ -216,14 +241,31 @@ export function MusicaForm({ existing }: { existing: WorshipSong | null }) {
           </span>
         </label>
         {form.isDailyRecommendation && (
-          <Field label="Data da recomendação">
-            <input
-              type="date"
-              value={form.recommendationDate}
-              onChange={(e) => setForm((f) => ({ ...f, recommendationDate: e.target.value }))}
-              className={inputClass}
-            />
-          </Field>
+          <>
+            <Field label="Data da recomendação">
+              <input
+                type="date"
+                value={form.recommendationDate}
+                onChange={(e) => setForm((f) => ({ ...f, recommendationDate: e.target.value }))}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Mensagem curta (opcional)">
+              <textarea
+                value={form.recommendationMessage}
+                onChange={(e) => setForm((f) => ({ ...f, recommendationMessage: e.target.value.slice(0, 200) }))}
+                rows={2}
+                maxLength={200}
+                placeholder="Ouça esta música para se preparar para a programação."
+                className={inputClass}
+              />
+            </Field>
+            {!form.isPublished && (
+              <p className="text-xs text-amber-600">
+                Esta música está como rascunho. Publique para aparecer ao público.
+              </p>
+            )}
+          </>
         )}
       </div>
 
@@ -255,7 +297,8 @@ export function MusicaForm({ existing }: { existing: WorshipSong | null }) {
             <Field label="Título da notificação (opcional)">
               <input
                 value={form.notificationTitle}
-                onChange={(e) => setForm((f) => ({ ...f, notificationTitle: e.target.value }))}
+                onChange={(e) => setForm((f) => ({ ...f, notificationTitle: e.target.value.slice(0, 60) }))}
+                maxLength={60}
                 placeholder={form.title || "Música e Louvor"}
                 className={inputClass}
               />
@@ -263,8 +306,9 @@ export function MusicaForm({ existing }: { existing: WorshipSong | null }) {
             <Field label="Texto da notificação (opcional)">
               <textarea
                 value={form.notificationBody}
-                onChange={(e) => setForm((f) => ({ ...f, notificationBody: e.target.value }))}
+                onChange={(e) => setForm((f) => ({ ...f, notificationBody: e.target.value.slice(0, 160) }))}
                 rows={2}
+                maxLength={160}
                 placeholder="Confira a recomendação de hoje."
                 className={inputClass}
               />

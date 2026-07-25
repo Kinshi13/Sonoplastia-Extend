@@ -9,6 +9,7 @@ import { formatDatePt } from "@/lib/format";
 import { EmptyState } from "@/components/EmptyState";
 import { AnunciosRetrospectivaTabs } from "@/components/AnunciosRetrospectivaTabs";
 import { WorshipSongCard } from "@/components/WorshipSongCard";
+import { WorshipRecommendationCard } from "@/components/WorshipRecommendationCard";
 import { WorshipNotificationOptIn } from "@/components/WorshipNotificationOptIn";
 
 export const revalidate = 0;
@@ -112,12 +113,7 @@ export default async function MusicaPage({ params }: { params: Promise<{ slug: s
       <WorshipNotificationOptIn churchId={church.id} />
 
       {recommendationSong && (
-        <div className="flex flex-col gap-2">
-          <h3 className="font-display text-lg text-foreground/90">Recomendação do dia</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-            <WorshipSongCard song={recommendationSong} position={1} churchName={church.name} churchSlug={slug} />
-          </div>
-        </div>
+        <WorshipRecommendationCard song={recommendationSong} churchName={church.name} churchSlug={slug} />
       )}
 
       <div className="flex flex-col gap-2">

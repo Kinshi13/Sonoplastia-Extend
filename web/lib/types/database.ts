@@ -205,6 +205,7 @@ export type WorshipSong = {
   is_published: boolean;
   is_daily_recommendation: boolean;
   recommendation_date: string | null;
+  recommendation_message: string | null;
   notification_enabled: boolean;
   notification_time: string | null;
   notification_title: string | null;

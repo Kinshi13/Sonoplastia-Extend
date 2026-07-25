@@ -669,7 +669,14 @@ export async function toggleSharedFilePinAction(id: string, pinned: boolean): Pr
 
 // Worship songs (Música e Louvor) ---------------------------------------
 
-export async function saveWorshipSongAction(id: string | null, formData: FormData): Promise<ActionResult> {
+export type SaveWorshipSongResult = ActionResult & {
+  /** Bloco 8 - "já existe uma recomendação para esta data": a distinct signal from a hard error,
+   *  so the form can show a Substituir/Cancelar confirmation instead of a dead-end message. Set
+   *  only when the caller didn't already pass `confirm_replace=true`. */
+  conflictTitle?: string;
+};
+
+export async function saveWorshipSongAction(id: string | null, formData: FormData): Promise<SaveWorshipSongResult> {
   const admin = await requireAdmin();
   if (admin.error) return { error: admin.error };
   const supabase = await createClient();
@@ -680,6 +687,27 @@ export async function saveWorshipSongAction(id: string | null, formData: FormDat
   const youtubeUrl = String(formData.get("youtube_url") ?? "").trim();
   const youtubeVideoId = String(formData.get("youtube_video_id") ?? "").trim();
   if (!youtubeUrl || !youtubeVideoId) return { error: "Link do YouTube inválido." };
+
+  const isDailyRecommendation = formData.get("is_daily_recommendation") === "true";
+  const recommendationDate = formData.get("recommendation_date") ? String(formData.get("recommendation_date")) : null;
+  if (isDailyRecommendation && !recommendationDate) {
+    return { error: "Defina a data da recomendação." };
+  }
+
+  // Bloco 8/13: only one *main* recommendation per church/date - the unique index is the real
+  // guarantee (see migrations/016), this check just gives the Admin a friendly confirmation
+  // instead of a raw constraint-violation error.
+  if (isDailyRecommendation && recommendationDate && formData.get("confirm_replace") !== "true") {
+    let conflictQuery = supabase
+      .from("worship_songs")
+      .select("id, title")
+      .eq("church_id", admin.churchId)
+      .eq("is_daily_recommendation", true)
+      .eq("recommendation_date", recommendationDate);
+    if (id) conflictQuery = conflictQuery.neq("id", id);
+    const { data: conflict } = await conflictQuery.maybeSingle();
+    if (conflict) return { conflictTitle: conflict.title };
+  }
 
   const payload = {
     title,
@@ -692,14 +720,29 @@ export async function saveWorshipSongAction(id: string | null, formData: FormDat
     program_date: formData.get("program_date") ? String(formData.get("program_date")) : null,
     order_index: Number(formData.get("order_index") ?? 0) || 0,
     is_published: formData.get("is_published") !== "false",
-    is_daily_recommendation: formData.get("is_daily_recommendation") === "true",
-    recommendation_date: formData.get("recommendation_date") ? String(formData.get("recommendation_date")) : null,
+    is_daily_recommendation: isDailyRecommendation,
+    recommendation_date: recommendationDate,
+    recommendation_message: formData.get("recommendation_message") ? String(formData.get("recommendation_message")) : null,
     notification_enabled: formData.get("notification_enabled") === "true",
     notification_time: formData.get("notification_time") ? String(formData.get("notification_time")) : null,
     notification_title: formData.get("notification_title") ? String(formData.get("notification_title")) : null,
     notification_body: formData.get("notification_body") ? String(formData.get("notification_body")) : null,
     updated_at: Date.now(),
   };
+
+  // Unset whichever other song currently holds the recommendation for this date, before writing
+  // the new one - without this, the unique index (migrations/016) would just reject the insert/
+  // update outright once the Admin has already confirmed they want to replace it.
+  if (isDailyRecommendation && recommendationDate) {
+    let unsetQuery = supabase
+      .from("worship_songs")
+      .update({ is_daily_recommendation: false, recommendation_date: null })
+      .eq("church_id", admin.churchId)
+      .eq("is_daily_recommendation", true)
+      .eq("recommendation_date", recommendationDate);
+    if (id) unsetQuery = unsetQuery.neq("id", id);
+    await unsetQuery;
+  }
 
   if (id) {
     const { error } = await supabase

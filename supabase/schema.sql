@@ -198,6 +198,7 @@ create table worship_songs (
   is_published boolean not null default true,
   is_daily_recommendation boolean not null default false,
   recommendation_date date,
+  recommendation_message text,
   notification_enabled boolean not null default false,
   notification_time time,
   notification_title text,
@@ -211,6 +212,10 @@ create index worship_songs_schedule_idx on worship_songs (schedule_id);
 create index worship_songs_program_date_idx on worship_songs (program_date);
 create index worship_songs_published_idx on worship_songs (is_published);
 create index worship_songs_order_idx on worship_songs (church_id, program_date, order_index);
+-- Parte 2 "Recomendação do dia" (migrations/016) - only one main recommendation per church/date.
+create unique index worship_songs_one_recommendation_per_day
+  on worship_songs (church_id, recommendation_date)
+  where is_daily_recommendation and recommendation_date is not null;
 create index worship_songs_recommendation_date_idx on worship_songs (recommendation_date);
 create index worship_songs_is_daily_recommendation_idx on worship_songs (is_daily_recommendation);
 
