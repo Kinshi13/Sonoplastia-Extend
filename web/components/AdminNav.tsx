@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Calendar, BookOpen, Megaphone, FileText, Images, FolderOpen, Sparkles, Users, LucideIcon } from "lucide-react";
+import { LayoutDashboard, Calendar, BookOpen, Megaphone, FileText, Images, FolderOpen, Sparkles, Users, Music, LucideIcon } from "lucide-react";
 
 const adminLinks: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/admin", label: "Painel", icon: LayoutDashboard },
   { href: "/admin/escalas", label: "Escalas", icon: Calendar },
+  { href: "/admin/musica", label: "Música e Louvor", icon: Music },
   { href: "/admin/doxologia", label: "Doxologia", icon: BookOpen },
   { href: "/admin/anuncios", label: "Anúncios", icon: Megaphone },
   { href: "/admin/pessoas", label: "Pessoas e Equipes", icon: Users },

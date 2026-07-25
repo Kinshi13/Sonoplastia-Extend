@@ -179,6 +179,41 @@ create policy "retrospective_items: admin update" on retrospective_items for upd
 create policy "retrospective_items: admin delete" on retrospective_items for delete
   using (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = retrospective_items.church_id));
 
+-- Worship songs ("Música e Louvor" - see migrations/014_worship_songs.sql for the full note) ---
+create table worship_songs (
+  id uuid primary key default gen_random_uuid(),
+  church_id uuid not null references churches(id),
+  schedule_id uuid references scales(id) on delete set null,
+  program_date date,
+  title text not null default '',
+  artist text not null default '',
+  youtube_url text not null default '',
+  youtube_video_id text not null default '',
+  thumbnail_url text not null default '',
+  moment_label text not null default '',
+  notes text not null default '',
+  order_index integer not null default 0,
+  is_published boolean not null default true,
+  created_at bigint not null,
+  updated_at bigint not null
+);
+
+create index worship_songs_church_idx on worship_songs (church_id);
+create index worship_songs_schedule_idx on worship_songs (schedule_id);
+create index worship_songs_program_date_idx on worship_songs (program_date);
+create index worship_songs_published_idx on worship_songs (is_published);
+create index worship_songs_order_idx on worship_songs (church_id, program_date, order_index);
+
+alter table worship_songs enable row level security;
+
+create policy "worship_songs: public read published" on worship_songs for select using (is_published);
+create policy "worship_songs: admin write" on worship_songs for insert
+  with check (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = worship_songs.church_id));
+create policy "worship_songs: admin update" on worship_songs for update
+  using (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = worship_songs.church_id));
+create policy "worship_songs: admin delete" on worship_songs for delete
+  using (exists (select 1 from profiles where id = auth.uid() and is_admin and church_id = worship_songs.church_id));
+
 -- Bulletins (Boletins - PDF newsletters from departments/events, optionally linked to one
 -- announcement so its card can show a "Ver boletim" shortcut) -------------
 create table bulletins (
@@ -352,8 +387,8 @@ create policy "shared_files: admin delete" on shared_files for delete
 -- Without these, PostgREST returns "permission denied for table X" even though the RLS policies
 -- are otherwise satisfied.
 grant usage on schema public to anon, authenticated;
-grant select on public.churches, public.scales, public.doxologies, public.announcements, public.shared_files, public.retrospective_items, public.bulletins to anon, authenticated;
-grant insert, update, delete on public.scales, public.doxologies, public.announcements, public.shared_files, public.retrospective_items, public.bulletins to authenticated;
+grant select on public.churches, public.scales, public.doxologies, public.announcements, public.shared_files, public.retrospective_items, public.bulletins, public.worship_songs to anon, authenticated;
+grant insert, update, delete on public.scales, public.doxologies, public.announcements, public.shared_files, public.retrospective_items, public.bulletins, public.worship_songs to authenticated;
 grant select, insert on public.profiles to authenticated;
 
 -- Realtime: let clients subscribe to live changes on these tables.

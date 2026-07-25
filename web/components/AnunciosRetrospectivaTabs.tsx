@@ -1,28 +1,34 @@
 import Link from "next/link";
 
 /**
- * Retrospectiva pré-lançamento correction: a visible selector between the two related public
- * feeds. Each tab is a real nested route (`/c/[slug]/anuncios`, `/c/[slug]/retrospectiva`), not
- * client-side tab state - so the active tab is always reflected in the URL, reloads keep working,
- * and the retrospectiva can be opened/shared as a direct link, all for free from Next.js routing.
+ * Retrospectiva pré-lançamento correction: a visible selector between the related public feeds.
+ * Each tab is a real nested route (`/c/[slug]/anuncios`, `/c/[slug]/musica`,
+ * `/c/[slug]/retrospectiva`), not client-side tab state - so the active tab is always reflected in
+ * the URL, reloads keep working, and each area can be opened/shared as a direct link, all for free
+ * from Next.js routing.
+ *
+ * Música e Louvor (nova área): added as a third tab rather than a fourth top-level nav item, same
+ * spirit as the original two - "fica próxima da escala do dia" is satisfied by living right next
+ * to Anúncios, one tap away, instead of being buried behind a gesture or a menu-only entry.
  */
 export function AnunciosRetrospectivaTabs({
   slug,
   active,
 }: {
   slug: string;
-  active: "anuncios" | "retrospectiva";
+  active: "anuncios" | "musica" | "retrospectiva";
 }) {
   const tabs = [
     { key: "anuncios" as const, label: "Anúncios", href: `/c/${slug}/anuncios` },
+    { key: "musica" as const, label: "Música e Louvor", href: `/c/${slug}/musica` },
     { key: "retrospectiva" as const, label: "Retrospectiva", href: `/c/${slug}/retrospectiva` },
   ];
 
   return (
     <div
       role="tablist"
-      aria-label="Alternar entre Anúncios e Retrospectiva"
-      className="inline-flex w-fit rounded-full border border-divider bg-surface p-1 text-sm"
+      aria-label="Alternar entre Anúncios, Música e Louvor e Retrospectiva"
+      className="inline-flex w-fit flex-wrap gap-1 rounded-full border border-divider bg-surface p-1 text-sm"
     >
       {tabs.map((tab) => {
         const isActive = tab.key === active;

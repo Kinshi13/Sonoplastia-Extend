@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { Calendar, Music2, Megaphone, FileText, Images, ShieldCheck } from "lucide-react";
+import { Calendar, Music2, Megaphone, FileText, Images, ShieldCheck, ListMusic } from "lucide-react";
 import { StellaDock } from "./StellaDock";
 import { StellaCoreAction } from "./StellaCore";
 
@@ -30,6 +30,7 @@ export function ChurchStellaDock({ slug }: { slug: string }) {
 
   const actions: StellaCoreAction[] = [
     { id: "retro", label: "Histórico", subtitle: "Últimas atividades", icon: Images, onClick: () => router.push(`${base}/retrospectiva`) },
+    { id: "musica", label: "Música e Louvor", subtitle: "Repertório da programação", icon: ListMusic, onClick: () => router.push(`${base}/musica`) },
   ];
   if (pathname !== base) {
     actions.push({ id: "escala", label: "Escala", subtitle: "Ver e editar", icon: Calendar, onClick: () => router.push(base) });

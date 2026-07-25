@@ -5,6 +5,7 @@ import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 import { IosInstallHint } from "@/components/IosInstallHint";
 import { ConstellationScene } from "@/components/ConstellationScene";
 import { PageBlurWrapper } from "@/components/PageBlurWrapper";
+import { PageTransition } from "@/components/PageTransition";
 import { AdminViewSwitcher } from "@/components/AdminViewSwitcher";
 import { getAdminStatus } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -114,7 +115,9 @@ export default async function RootLayout({
               </nav>
             </div>
           </header>
-          <main className="flex-1 mx-auto w-full max-w-[1400px] px-5 py-8">{children}</main>
+          <main className="flex-1 mx-auto w-full max-w-[1400px] px-5 py-8">
+            <PageTransition>{children}</PageTransition>
+          </main>
           <footer className="border-t border-border-soft py-6 text-center text-xs text-text-muted">
             Escala Church
           </footer>

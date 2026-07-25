@@ -188,6 +188,24 @@ export type RetrospectiveItem = {
   is_active: boolean;
 };
 
+export type WorshipSong = {
+  id: string;
+  church_id: string;
+  schedule_id: string | null;
+  program_date: string | null;
+  title: string;
+  artist: string;
+  youtube_url: string;
+  youtube_video_id: string;
+  thumbnail_url: string;
+  moment_label: string;
+  notes: string;
+  order_index: number;
+  is_published: boolean;
+  created_at: number;
+  updated_at: number;
+};
+
 export type Bulletin = {
   id: string;
   church_id: string;

@@ -666,3 +666,118 @@ export async function toggleSharedFilePinAction(id: string, pinned: boolean): Pr
   revalidatePath("/admin/sonoplastia");
   return {};
 }
+
+// Worship songs (Música e Louvor) ---------------------------------------
+
+export async function saveWorshipSongAction(id: string | null, formData: FormData): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  if (admin.error) return { error: admin.error };
+  const supabase = await createClient();
+
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return { error: "Informe o título da música." };
+
+  const youtubeUrl = String(formData.get("youtube_url") ?? "").trim();
+  const youtubeVideoId = String(formData.get("youtube_video_id") ?? "").trim();
+  if (!youtubeUrl || !youtubeVideoId) return { error: "Link do YouTube inválido." };
+
+  const payload = {
+    title,
+    artist: String(formData.get("artist") ?? ""),
+    youtube_url: youtubeUrl,
+    youtube_video_id: youtubeVideoId,
+    thumbnail_url: String(formData.get("thumbnail_url") ?? ""),
+    moment_label: String(formData.get("moment_label") ?? ""),
+    notes: String(formData.get("notes") ?? ""),
+    program_date: formData.get("program_date") ? String(formData.get("program_date")) : null,
+    order_index: Number(formData.get("order_index") ?? 0) || 0,
+    is_published: formData.get("is_published") !== "false",
+    updated_at: Date.now(),
+  };
+
+  if (id) {
+    const { error } = await supabase
+      .from("worship_songs")
+      .update(payload)
+      .eq("id", id)
+      .eq("church_id", admin.churchId);
+    if (error) return { error: error.message };
+  } else {
+    const { error } = await supabase
+      .from("worship_songs")
+      .insert({ ...payload, church_id: admin.churchId, created_at: Date.now() });
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath("/admin/musica");
+  revalidatePath(`/c/${admin.churchSlug}/musica`);
+  return {};
+}
+
+export async function deleteWorshipSongAction(id: string) {
+  const admin = await requireAdmin();
+  if (admin.error) throw new Error(admin.error);
+  const supabase = await createClient();
+  const { error } = await supabase.from("worship_songs").delete().eq("id", id).eq("church_id", admin.churchId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/musica");
+  revalidatePath(`/c/${admin.churchSlug}/musica`);
+}
+
+export async function toggleWorshipSongPublishedAction(id: string, isPublished: boolean): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  if (admin.error) return { error: admin.error };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("worship_songs")
+    .update({ is_published: isPublished, updated_at: Date.now() })
+    .eq("id", id)
+    .eq("church_id", admin.churchId);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/musica");
+  revalidatePath(`/c/${admin.churchSlug}/musica`);
+  return {};
+}
+
+/** Simple up/down reorder (Bloco 14: "não implementar drag-and-drop se isso atrasar ou complicar
+ *  mobile") - swaps `order_index` with whichever neighbor in the same program_date group is
+ *  immediately before/after this song. */
+export async function moveWorshipSongAction(id: string, direction: "up" | "down"): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  if (admin.error) return { error: admin.error };
+  const supabase = await createClient();
+
+  const { data: current } = await supabase
+    .from("worship_songs")
+    .select("id, church_id, program_date, order_index")
+    .eq("id", id)
+    .eq("church_id", admin.churchId)
+    .single();
+  if (!current) return { error: "Música não encontrada." };
+
+  let neighborQuery = supabase
+    .from("worship_songs")
+    .select("id, order_index")
+    .eq("church_id", admin.churchId);
+  neighborQuery =
+    current.program_date === null
+      ? neighborQuery.is("program_date", null)
+      : neighborQuery.eq("program_date", current.program_date);
+  neighborQuery =
+    direction === "up"
+      ? neighborQuery.lt("order_index", current.order_index).order("order_index", { ascending: false })
+      : neighborQuery.gt("order_index", current.order_index).order("order_index", { ascending: true });
+
+  const { data: neighbor } = await neighborQuery.limit(1).maybeSingle();
+  if (!neighbor) return {}; // already at the edge - nothing to swap with, not an error
+
+  const [{ error: error1 }, { error: error2 }] = await Promise.all([
+    supabase.from("worship_songs").update({ order_index: neighbor.order_index }).eq("id", current.id),
+    supabase.from("worship_songs").update({ order_index: current.order_index }).eq("id", neighbor.id),
+  ]);
+  if (error1 || error2) return { error: (error1 ?? error2)!.message };
+
+  revalidatePath("/admin/musica");
+  revalidatePath(`/c/${admin.churchSlug}/musica`);
+  return {};
+}
