@@ -23,7 +23,9 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -71,6 +73,7 @@ fun AnnouncementCard(
     modifier: Modifier = Modifier,
     onOpenCalendar: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
+    onShare: (() -> Unit)? = null,
     activePlayingId: String? = null,
     onRequestPlay: ((String) -> Unit)? = null
 ) {
@@ -99,7 +102,23 @@ fun AnnouncementCard(
                         }
                         Text(announcement.title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                     }
-                    if (isNew) NewBadge()
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (isNew) NewBadge()
+                        // Android replica of the web's AnnouncementShareButton - visible to any
+                        // visitor (never gated to admin mode), never rendered for a draft/hidden/
+                        // expired announcement since this card only ever receives ones the feed's
+                        // own published-only query already returned.
+                        if (onShare != null) {
+                            IconButton(onClick = onShare, modifier = Modifier.size(32.dp)) {
+                                Icon(
+                                    Icons.Filled.Share,
+                                    contentDescription = "Compartilhar anúncio",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.height(18.dp)
+                                )
+                            }
+                        }
+                    }
                 }
 
                 Spacer(Modifier.height(4.dp))

@@ -92,10 +92,15 @@ fun HomeScreen(
     // Fase 11.10 - "Compartilhar acesso da igreja" from Stella Core (admin only) - Home is the
     // first screen that needs to react to a Stella Core command without navigating away.
     var showShareChurchAccess by remember { mutableStateOf(false) }
+    // Android replica of the web's "Compartilhar escala" - same Stella Core wiring pattern as
+    // ShareChurchAccess right above.
+    var showShareSchedule by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         com.escalachurch.app.ui.stellacore.StellaCoreBus.events().collect { command ->
-            if (command == com.escalachurch.app.ui.stellacore.StellaCoreCommand.ShareChurchAccess) {
-                showShareChurchAccess = true
+            when (command) {
+                com.escalachurch.app.ui.stellacore.StellaCoreCommand.ShareChurchAccess -> showShareChurchAccess = true
+                com.escalachurch.app.ui.stellacore.StellaCoreCommand.ShareSchedule -> showShareSchedule = true
+                else -> Unit
             }
         }
     }
@@ -259,6 +264,17 @@ fun HomeScreen(
         com.escalachurch.app.ui.components.ShareChurchAccessBottomSheet(
             nextScale = state.scales.firstOrNull(),
             onDismiss = { showShareChurchAccess = false }
+        )
+    }
+
+    if (showShareSchedule) {
+        val entitlements by container.entitlementService.entitlements.collectAsState()
+        com.escalachurch.app.ui.components.ScheduleShareBottomSheet(
+            nextScale = state.scales.firstOrNull(),
+            canExport = container.entitlementService.has(com.escalachurch.app.entitlements.FeatureKey.EXPORT),
+            isFreePlan = entitlements.planCode == com.escalachurch.app.entitlements.PlanCode.FREE,
+            onSeePlans = { showShareSchedule = false; onOpenPlans() },
+            onDismiss = { showShareSchedule = false }
         )
     }
 }

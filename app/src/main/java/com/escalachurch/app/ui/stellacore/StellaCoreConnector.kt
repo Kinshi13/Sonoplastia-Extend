@@ -74,6 +74,9 @@ private fun actionsForRoute(
         },
         StellaCoreAction("home_share_church", "Compartilhar acesso", Icons.Filled.Share, requiresRole = AccessLevel.ADMIN) {
             StellaCoreBus.send(StellaCoreCommand.ShareChurchAccess)
+        },
+        StellaCoreAction("home_share_schedule", "Compartilhar escala", Icons.Filled.Share, requiresRole = AccessLevel.ADMIN) {
+            StellaCoreBus.send(StellaCoreCommand.ShareSchedule)
         }
     )
 
@@ -86,6 +89,9 @@ private fun actionsForRoute(
         },
         StellaCoreAction("scale_today", "Ir para hoje", Icons.Filled.Today) {
             StellaCoreBus.send(StellaCoreCommand.GoToTodayGeneralScale)
+        },
+        StellaCoreAction("scale_share", "Compartilhar escala", Icons.Filled.Share, requiresRole = AccessLevel.ADMIN) {
+            StellaCoreBus.send(StellaCoreCommand.ShareSchedule)
         }
     )
 

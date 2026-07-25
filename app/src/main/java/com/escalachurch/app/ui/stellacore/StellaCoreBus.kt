@@ -17,6 +17,9 @@ sealed interface StellaCoreCommand {
     data object ToggleOnlyMyClassesGeneralScale : StellaCoreCommand
     /** Fase 11.10 - "Compartilhar acesso da igreja" from Stella Core (admin only). */
     data object ShareChurchAccess : StellaCoreCommand
+    /** Android share/export replica of the web version - "Compartilhar escala" from Stella Core
+     *  (admin only, mirrors ShareChurchAccess's own gating). */
+    data object ShareSchedule : StellaCoreCommand
 }
 
 /** Same shape/spirit as [com.escalachurch.app.data.remote.LocalRefreshTrigger] - a fire-and-forget

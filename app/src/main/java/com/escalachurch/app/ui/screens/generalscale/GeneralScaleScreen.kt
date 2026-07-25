@@ -94,6 +94,7 @@ fun GeneralScaleScreen(
     // PDF/JPEG choice already used by ScaleCard's public copy - no new entitlement decision here.
     var exportTarget by remember { mutableStateOf<ScaleItem?>(null) }
     var showExportPremiumPreview by remember { mutableStateOf(false) }
+    var showShareSchedule by remember { mutableStateOf(false) }
     val container = rememberAppContainer()
     val context = androidx.compose.ui.platform.LocalContext.current
     val canExport = container.entitlementService.has(com.escalachurch.app.entitlements.FeatureKey.EXPORT)
@@ -113,6 +114,9 @@ fun GeneralScaleScreen(
                 }
                 com.escalachurch.app.ui.stellacore.StellaCoreCommand.GoToTodayGeneralScale -> {
                     viewModel.setMonth(YearMonth.now())
+                }
+                com.escalachurch.app.ui.stellacore.StellaCoreCommand.ShareSchedule -> {
+                    showShareSchedule = true
                 }
                 else -> Unit
             }
@@ -268,6 +272,17 @@ fun GeneralScaleScreen(
         com.escalachurch.app.ui.components.ShareChurchAccessBottomSheet(
             nextScale = state.scales.firstOrNull(),
             onDismiss = { showShareChurchAccess = false }
+        )
+    }
+
+    if (showShareSchedule) {
+        val entitlements by container.entitlementService.entitlements.collectAsState()
+        com.escalachurch.app.ui.components.ScheduleShareBottomSheet(
+            nextScale = state.scales.firstOrNull(),
+            canExport = canExport,
+            isFreePlan = entitlements.planCode == com.escalachurch.app.entitlements.PlanCode.FREE,
+            onSeePlans = { showShareSchedule = false; onOpenPlans() },
+            onDismiss = { showShareSchedule = false }
         )
     }
 }

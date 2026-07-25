@@ -24,12 +24,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,11 +41,15 @@ import com.escalachurch.app.di.appViewModel
 import com.escalachurch.app.di.rememberAppContainer
 import com.escalachurch.app.domain.model.Announcement
 import com.escalachurch.app.domain.model.AppSettings
+import com.escalachurch.app.share.AnnouncementShareUseCase
+import com.escalachurch.app.share.buildAnnouncementShareMessage
 import com.escalachurch.app.ui.components.AnnouncementCard
 import com.escalachurch.app.ui.components.EmptyState
 import com.escalachurch.app.ui.components.ErrorBanner
 import com.escalachurch.app.ui.components.PulledUpEntrance
+import com.escalachurch.app.ui.components.ShareChurchAccessViewModel
 import com.escalachurch.app.ui.components.rememberEntranceVisible
+import kotlinx.coroutines.launch
 
 @Composable
 fun AnnouncementsScreen(
@@ -57,6 +63,11 @@ fun AnnouncementsScreen(
     val errorMessage by viewModel.errorMessage.collectAsState()
     val context = LocalContext.current
     val appSettings by rememberAppContainer().settingsRepository.settingsFlow.collectAsState(initial = AppSettings())
+    // Android replica of the web's AnnouncementShareButton - reuses the same church-identity
+    // resolver as "Compartilhar acesso da igreja" instead of a second church-name/link lookup.
+    val shareChurchViewModel = appViewModel { container -> ShareChurchAccessViewModel(container.activeChurchManager) }
+    val shareChurchState by shareChurchViewModel.uiState.collectAsState()
+    val shareScope = rememberCoroutineScope()
     val feedVisible = rememberEntranceVisible(appSettings.animationsEnabled)
     var editingTarget by remember { mutableStateOf<AnnouncementEditTarget?>(null) }
     var isEditing by remember { mutableStateOf(false) }
@@ -146,6 +157,23 @@ fun AnnouncementsScreen(
                                     onClick = if (state.isAdmin) {
                                         { editingTarget = AnnouncementEditTarget(announcement); isEditing = true }
                                     } else null,
+                                    onShare = {
+                                        if (shareChurchState.publicUrl.isBlank()) {
+                                            Toast.makeText(context, "Endereço público do site não configurado.", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            val message = buildAnnouncementShareMessage(
+                                                title = announcement.title,
+                                                description = announcement.description,
+                                                churchName = shareChurchState.churchName,
+                                                churchCode = shareChurchState.churchCode,
+                                                publicUrl = shareChurchState.publicUrl
+                                            )
+                                            if (announcement.mediaType == com.escalachurch.app.domain.model.MediaType.IMAGE) {
+                                                Toast.makeText(context, "Preparando compartilhamento...", Toast.LENGTH_SHORT).show()
+                                            }
+                                            shareScope.launch { AnnouncementShareUseCase.share(context, announcement, message) }
+                                        }
+                                    },
                                     activePlayingId = currentlyPlayingId,
                                     onRequestPlay = { currentlyPlayingId = it }
                                 )
