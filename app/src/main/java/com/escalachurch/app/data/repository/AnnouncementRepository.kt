@@ -42,6 +42,19 @@ class AnnouncementRepository(private val client: SupabaseClient, private val act
         }
     }
 
+    /** Usabilidade (edição de anúncios) - same query as [observeActive] but without the
+     *  `is_active` filter, so an Admin who unpublishes an announcement can still find it again to
+     *  edit or republish it, instead of it vanishing from their own feed. Never used for the
+     *  public/member feed - [AnnouncementViewModel] only switches to this when `isAdmin` is true. */
+    fun observeAllForAdmin(): Flow<List<Announcement>> = activeChurchManager.activeChurchId.flatMapLatest { churchId ->
+        client.observeTable(SupabaseTables.ANNOUNCEMENTS, refreshTrigger) {
+            table.select { filter { eq("church_id", churchId) } }
+                .decodeList<AnnouncementDto>()
+                .mapNotNull { it.toAnnouncement() }
+                .sortedWith(compareByDescending<Announcement> { it.isPinned }.thenByDescending { it.publishedAt })
+        }
+    }
+
     suspend fun save(item: Announcement): String {
         val churchId = activeChurchManager.activeChurchId.first()
         val id = if (item.id.isBlank()) {

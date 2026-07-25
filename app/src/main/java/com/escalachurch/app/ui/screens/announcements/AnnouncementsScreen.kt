@@ -44,6 +44,7 @@ import com.escalachurch.app.domain.model.AppSettings
 import com.escalachurch.app.share.AnnouncementShareUseCase
 import com.escalachurch.app.share.buildAnnouncementShareMessage
 import com.escalachurch.app.ui.components.AnnouncementCard
+import com.escalachurch.app.ui.components.ConfirmDialog
 import com.escalachurch.app.ui.components.EmptyState
 import com.escalachurch.app.ui.components.ErrorBanner
 import com.escalachurch.app.ui.components.PulledUpEntrance
@@ -71,6 +72,7 @@ fun AnnouncementsScreen(
     val feedVisible = rememberEntranceVisible(appSettings.animationsEnabled)
     var editingTarget by remember { mutableStateOf<AnnouncementEditTarget?>(null) }
     var isEditing by remember { mutableStateOf(false) }
+    var deleteTarget by remember { mutableStateOf<Announcement?>(null) }
     // Fase 11.9B Entrega 3 Bloco 3 - "não tocar vários vídeos simultaneamente": one shared id for
     // the whole feed, passed down to every AnnouncementCard (see its isActivePlayer/onRequestPlay).
     var currentlyPlayingId by remember { mutableStateOf<String?>(null) }
@@ -90,7 +92,15 @@ fun AnnouncementsScreen(
             existing = editingTarget?.item,
             isAdmin = state.isAdmin,
             onUpload = { uri -> viewModel.uploadMedia(context, uri) },
-            onSave = { viewModel.save(it); isEditing = false },
+            onSave = { item ->
+                val isNewAnnouncement = editingTarget?.item == null
+                val result = viewModel.save(item)
+                if (result.isSuccess) {
+                    val message = if (isNewAnnouncement) "Anúncio publicado" else "Anúncio atualizado"
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                }
+                result.isSuccess
+            },
             onDelete = editingTarget?.item?.let { item -> { viewModel.delete(item); isEditing = false } },
             onBack = { isEditing = false }
         )
@@ -154,8 +164,14 @@ fun AnnouncementsScreen(
                                     isNew = isNew,
                                     highlighted = highlighted,
                                     onOpenCalendar = announcement.relatedEventDate?.let { date -> { onOpenCalendarDate(date) } },
-                                    onClick = if (state.isAdmin) {
+                                    onEdit = if (state.isAdmin) {
                                         { editingTarget = AnnouncementEditTarget(announcement); isEditing = true }
+                                    } else null,
+                                    onTogglePublish = if (state.isAdmin) {
+                                        { viewModel.togglePublish(announcement) }
+                                    } else null,
+                                    onDeleteRequest = if (state.isAdmin) {
+                                        { deleteTarget = announcement }
                                     } else null,
                                     onShare = {
                                         if (shareChurchState.publicUrl.isBlank()) {
@@ -183,6 +199,15 @@ fun AnnouncementsScreen(
                 }
             }
         }
+    }
+
+    deleteTarget?.let { target ->
+        ConfirmDialog(
+            title = "Excluir anúncio",
+            message = "Tem certeza que deseja excluir \"${target.title}\"?",
+            onConfirm = { viewModel.delete(target); deleteTarget = null },
+            onDismiss = { deleteTarget = null }
+        )
     }
 }
 

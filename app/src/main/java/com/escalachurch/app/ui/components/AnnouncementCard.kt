@@ -20,10 +20,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -64,6 +71,14 @@ import java.util.Locale
  * requested for this block are not rendered here - there is no real data to back them, and this
  * phase's rules forbid fabricating fields to demonstrate a screen. Only isNew/isPinned (already
  * real, existing fields) are shown.
+ *
+ * Usabilidade (edição de anúncios): the three-dot admin menu ([onEdit]/[onTogglePublish]/
+ * [onDeleteRequest]) only ever renders when a caller passes at least one of them - a member's feed
+ * (AnnouncementsScreen only wires these when `state.isAdmin`) never sees it, so there's no client-
+ * side-only gate to trust: a member simply never receives the callbacks that would show the menu.
+ * [onShare] stays a separate, always-visible icon (public members can share too), not folded into
+ * this menu. When `isAdmin` is showing an unpublished announcement (see
+ * AnnouncementRepository.observeAllForAdmin), a small "Rascunho" badge marks it.
  */
 @Composable
 fun AnnouncementCard(
@@ -74,9 +89,14 @@ fun AnnouncementCard(
     onOpenCalendar: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
     onShare: (() -> Unit)? = null,
+    onEdit: (() -> Unit)? = null,
+    onTogglePublish: (() -> Unit)? = null,
+    onDeleteRequest: (() -> Unit)? = null,
     activePlayingId: String? = null,
     onRequestPlay: ((String) -> Unit)? = null
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
     CelestialFrame(
         modifier = modifier
             .fillMaxWidth()
@@ -101,13 +121,15 @@ fun AnnouncementCard(
                             Spacer(Modifier.width(6.dp))
                         }
                         Text(announcement.title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                        if (!announcement.isActive) {
+                            Spacer(Modifier.width(6.dp))
+                            DraftBadge()
+                        }
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (isNew) NewBadge()
-                        // Android replica of the web's AnnouncementShareButton - visible to any
-                        // visitor (never gated to admin mode), never rendered for a draft/hidden/
-                        // expired announcement since this card only ever receives ones the feed's
-                        // own published-only query already returned.
+                        // Public share icon - stays outside the admin menu since any visitor can
+                        // use it, not just an Admin.
                         if (onShare != null) {
                             IconButton(onClick = onShare, modifier = Modifier.size(32.dp)) {
                                 Icon(
@@ -116,6 +138,46 @@ fun AnnouncementCard(
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.height(18.dp)
                                 )
+                            }
+                        }
+                        if (onEdit != null || onTogglePublish != null || onDeleteRequest != null) {
+                            Box {
+                                IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(32.dp)) {
+                                    Icon(
+                                        Icons.Filled.MoreVert,
+                                        contentDescription = "Mais ações do anúncio",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.height(18.dp)
+                                    )
+                                }
+                                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                                    if (onEdit != null) {
+                                        DropdownMenuItem(
+                                            text = { Text("Editar") },
+                                            leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
+                                            onClick = { menuExpanded = false; onEdit() }
+                                        )
+                                    }
+                                    if (onTogglePublish != null) {
+                                        DropdownMenuItem(
+                                            text = { Text(if (announcement.isActive) "Despublicar" else "Publicar") },
+                                            leadingIcon = {
+                                                Icon(
+                                                    if (announcement.isActive) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                                    contentDescription = null
+                                                )
+                                            },
+                                            onClick = { menuExpanded = false; onTogglePublish() }
+                                        )
+                                    }
+                                    if (onDeleteRequest != null) {
+                                        DropdownMenuItem(
+                                            text = { Text("Excluir") },
+                                            leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
+                                            onClick = { menuExpanded = false; onDeleteRequest() }
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -284,6 +346,21 @@ private fun NewBadge() {
             "Novo",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onError,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+        )
+    }
+}
+
+/** Usabilidade (edição de anúncios) - only ever rendered for an Admin viewing an unpublished
+ *  announcement (see AnnouncementRepository.observeAllForAdmin); a member's feed never queries
+ *  unpublished rows at all, so this badge simply can't appear there. */
+@Composable
+private fun DraftBadge() {
+    Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.tertiaryContainer) {
+        Text(
+            "Rascunho",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onTertiaryContainer,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
         )
     }

@@ -37,20 +37,25 @@ class AnnouncementViewModel(
 
     private val retryTrigger = MutableStateFlow(0)
 
+    // Usabilidade (edição de anúncios) - an Admin sees every announcement of the active church
+    // (including unpublished ones, so a "Despublicar" doesn't strand it out of reach); a member
+    // only ever sees [AnnouncementRepository.observeActive]'s already-published-only query. Keyed
+    // on isAdmin via flatMapLatest so switching admin mode swaps the underlying source flow too.
     val uiState: StateFlow<AnnouncementsUiState> = retryTrigger.flatMapLatest {
-        combine(
-            announcementRepository.observeActive(),
-            adminSession.isUnlocked,
-            userProfileRepository.profileFlow,
-            settingsRepository.settingsFlow
-        ) { announcements, isAdmin, profile, settings ->
-            AnnouncementsUiState(
-                announcements = announcements,
-                isAdmin = isAdmin,
-                myClasses = profile.selectedClasses,
-                lastSeenAt = settings.lastSeenAnnouncementsAt,
-                isLoading = false
-            )
+        adminSession.isUnlocked.flatMapLatest { isAdmin ->
+            combine(
+                if (isAdmin) announcementRepository.observeAllForAdmin() else announcementRepository.observeActive(),
+                userProfileRepository.profileFlow,
+                settingsRepository.settingsFlow
+            ) { announcements, profile, settings ->
+                AnnouncementsUiState(
+                    announcements = announcements,
+                    isAdmin = isAdmin,
+                    myClasses = profile.selectedClasses,
+                    lastSeenAt = settings.lastSeenAnnouncementsAt,
+                    isLoading = false
+                )
+            }
         }.catch { emit(AnnouncementsUiState(isLoading = false, hasLoadError = true)) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AnnouncementsUiState())
 
@@ -61,12 +66,14 @@ class AnnouncementViewModel(
 
     fun dismissError() { _errorMessage.value = null }
 
-    fun save(item: Announcement) {
-        viewModelScope.launch {
-            runCatching { announcementRepository.save(item) }
-                .onFailure { _errorMessage.value = friendlyErrorMessage(it, "Falha ao salvar o anúncio.") }
-        }
-    }
+    /** Usabilidade (edição de anúncios) - the edit form awaits this (instead of a fire-and-forget
+     *  `launch`) so it only closes and shows "Anúncio atualizado" once the save has actually
+     *  succeeded - the original bug this fixes: the form used to close immediately on tap,
+     *  before Supabase confirmed anything, so a failed save looked identical to a successful one. */
+    suspend fun save(item: Announcement): Result<Unit> =
+        runCatching { announcementRepository.save(item) }
+            .onFailure { _errorMessage.value = friendlyErrorMessage(it, "Falha ao salvar o anúncio.") }
+            .map {}
 
     suspend fun uploadMedia(context: android.content.Context, uri: android.net.Uri) =
         announcementRepository.uploadMedia(context, uri)
@@ -75,6 +82,15 @@ class AnnouncementViewModel(
         viewModelScope.launch {
             runCatching { announcementRepository.delete(item) }
                 .onFailure { _errorMessage.value = friendlyErrorMessage(it, "Falha ao excluir o anúncio.") }
+        }
+    }
+
+    /** "Publicar"/"Despublicar" from the card's admin menu - same [AnnouncementRepository.save]
+     *  path as the full edit form, just with only `isActive` flipped. */
+    fun togglePublish(item: Announcement) {
+        viewModelScope.launch {
+            runCatching { announcementRepository.save(item.copy(isActive = !item.isActive, updatedAt = System.currentTimeMillis())) }
+                .onFailure { _errorMessage.value = friendlyErrorMessage(it, "Falha ao atualizar o anúncio.") }
         }
     }
 
