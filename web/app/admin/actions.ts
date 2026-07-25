@@ -451,7 +451,7 @@ export async function saveAnnouncementAction(
       : null,
     source_type: "OFFICIAL",
     is_pinned: formData.get("is_pinned") === "on",
-    is_active: true,
+    is_active: formData.get("is_active") !== "false",
     updated_at: Date.now(),
   };
 
@@ -482,6 +482,23 @@ export async function deleteAnnouncementAction(id: string) {
   if (error) throw new Error(error.message);
   revalidatePath("/admin/anuncios");
   revalidatePath(`/c/${admin.churchSlug}/anuncios`);
+}
+
+/** Usabilidade (edição de anúncios) - quick "Publicar"/"Despublicar" from the admin list, without
+ *  opening the full edit form for just a status flip. */
+export async function toggleAnnouncementActiveAction(id: string, isActive: boolean): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  if (admin.error) return { error: admin.error };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("announcements")
+    .update({ is_active: isActive, updated_at: Date.now() })
+    .eq("id", id)
+    .eq("church_id", admin.churchId);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/anuncios");
+  revalidatePath(`/c/${admin.churchSlug}/anuncios`);
+  return {};
 }
 
 // Retrospective (photo/video feed) -----------------------------------------
