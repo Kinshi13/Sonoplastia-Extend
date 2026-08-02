@@ -15,6 +15,14 @@ function isMissingSchemaError(error: { code?: string } | null): boolean {
   return error?.code === "PGRST205" || error?.code === "42P01" || error?.code === "42703";
 }
 
+/** Hotfix: a raw Supabase/PostgREST error (e.g. "Could not find the 'is_temporary' column of
+ *  'scales' in the schema cache") was reaching the user as-is. The technical detail is only
+ *  useful to us - it's logged server-side, never shown in the UI. */
+function friendlyScaleError(error: { message: string; code?: string } | null): string {
+  console.error("[scales] Supabase error:", error);
+  return "Não foi possível salvar a escala. Tente novamente.";
+}
+
 export type ActionResult = { error?: string };
 
 export async function signOutAction() {
@@ -131,14 +139,14 @@ export async function saveScaleAction(id: string | null, formData: FormData): Pr
   let scaleId = id;
   if (id) {
     const { error } = await supabase.from("scales").update(payload).eq("id", id).eq("church_id", admin.churchId);
-    if (error) return { error: error.message };
+    if (error) return { error: friendlyScaleError(error) };
   } else {
     const { data: inserted, error } = await supabase
       .from("scales")
       .insert({ ...payload, church_id: admin.churchId, created_at: Date.now() })
       .select("id")
       .single();
-    if (error) return { error: error.message };
+    if (error) return { error: friendlyScaleError(error) };
     scaleId = inserted.id;
   }
 
@@ -151,7 +159,7 @@ export async function saveScaleAction(id: string | null, formData: FormData): Pr
 
   if (scaleId && !roleTableMissing) {
     const { error: deleteError } = await supabase.from("scale_assignments").delete().eq("scale_id", scaleId);
-    if (deleteError && !isMissingSchemaError(deleteError)) return { error: deleteError.message };
+    if (deleteError && !isMissingSchemaError(deleteError)) return { error: friendlyScaleError(deleteError) };
 
     if (dbBackedAssignments.length > 0) {
       const now = Date.now();
@@ -171,7 +179,7 @@ export async function saveScaleAction(id: string | null, formData: FormData): Pr
       );
       // A missing table here (deleteError already ruled that out above, but insert can still hit
       // it independently) degrades to "legacy columns only" instead of failing the whole save.
-      if (assignError && !isMissingSchemaError(assignError)) return { error: assignError.message };
+      if (assignError && !isMissingSchemaError(assignError)) return { error: friendlyScaleError(assignError) };
     }
   }
 
@@ -244,7 +252,7 @@ export async function cloneScaleStructureAction(sourceId: string, formData: Form
     })
     .select("id")
     .single();
-  if (insertError) return { error: insertError.message };
+  if (insertError) return { error: friendlyScaleError(insertError) };
 
   if (sourceAssignments && sourceAssignments.length > 0) {
     const { error: assignError } = await supabase.from("scale_assignments").insert(
@@ -261,7 +269,7 @@ export async function cloneScaleStructureAction(sourceId: string, formData: Form
         updated_at: now,
       }))
     );
-    if (assignError) return { error: assignError.message };
+    if (assignError) return { error: friendlyScaleError(assignError) };
   }
 
   revalidatePath("/admin/escalas");
@@ -414,7 +422,7 @@ export async function applyScaleTemplateAction(templateId: string, formData: For
     })
     .select("id")
     .single();
-  if (insertError) return { error: insertError.message };
+  if (insertError) return { error: friendlyScaleError(insertError) };
 
   const templateRoles = (template.roles as { roleId: string; position: number }[]) ?? [];
   const validRoles = templateRoles.filter((r) => roleNameById.has(r.roleId));
@@ -433,7 +441,7 @@ export async function applyScaleTemplateAction(templateId: string, formData: For
         updated_at: now,
       }))
     );
-    if (assignError) return { error: assignError.message };
+    if (assignError) return { error: friendlyScaleError(assignError) };
   }
 
   revalidatePath("/admin/escalas");
