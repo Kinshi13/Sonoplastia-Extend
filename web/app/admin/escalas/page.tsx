@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Calendar, Plus, RotateCcw } from "lucide-react";
+import { Calendar, Plus, RotateCcw, LayoutTemplate, Shuffle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminStatus } from "@/lib/supabase/auth";
 import { Scale } from "@/lib/types/database";
@@ -31,10 +31,22 @@ export default async function AdminEscalasPage() {
         <div className="flex items-center gap-2">
           <ExportStudio />
           <Link
+            href="/admin/escalas/modelos"
+            className="flex items-center gap-1.5 rounded-full border border-border-soft px-4 py-2 text-sm font-medium text-primary hover:bg-primary-container/20 transition-colors"
+          >
+            <LayoutTemplate size={14} /> Modelos
+          </Link>
+          <Link
             href="/admin/escalas/reutilizar"
             className="flex items-center gap-1.5 rounded-full border border-border-soft px-4 py-2 text-sm font-medium text-primary hover:bg-primary-container/20 transition-colors"
           >
             <RotateCcw size={14} /> Reutilizar
+          </Link>
+          <Link
+            href="/admin/escalas/aleatoria"
+            className="flex items-center gap-1.5 rounded-full border border-border-soft px-4 py-2 text-sm font-medium text-primary hover:bg-primary-container/20 transition-colors"
+          >
+            <Shuffle size={14} /> Aleatória
           </Link>
           <Link
             href="/admin/escalas/nova"
@@ -58,7 +70,14 @@ export default async function AdminEscalasPage() {
             return (
               <CelestialAdminCard key={scale.id} kind={kind} className="p-5 flex flex-col gap-3">
                 <div>
-                  <CelestialOfficialHeader kind={kind} org="" showOrg={false} />
+                  <div className="flex items-center gap-2">
+                    <CelestialOfficialHeader kind={kind} org="" showOrg={false} />
+                    {scale.is_temporary && (
+                      <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-600">
+                        Temporária
+                      </span>
+                    )}
+                  </div>
                   <p className="font-semibold leading-tight mt-1.5">{scale.title}</p>
                   <p className="mt-1 flex items-center gap-1.5 text-sm text-text-secondary capitalize">
                     <Calendar size={14} className="shrink-0" />

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAdminStatus } from "@/lib/supabase/auth";
 import { ProgramStep } from "@/lib/types/database";
 import { isSyntheticRoleId, LEGACY_ROLE_DEFS } from "@/lib/legacyRoles";
+import { ensureDefaultRolesAction } from "./pessoas/ensureDefaultRoles";
 
 /** Postgres/PostgREST "relation/column/table does not exist" codes - used to tell "migrations
  *  006-010 haven't been applied yet" apart from a real failure, so a save can still succeed via
@@ -54,7 +55,7 @@ export type ScaleAssignmentInput = {
  * effort, only for roles that carry a `legacy_field_key`) purely so nothing that reads them today
  * - Android, the public site, exports - has to change to keep working.
  */
-export async function saveScaleAction(id: string | null, formData: FormData): Promise<ActionResult> {
+export async function saveScaleAction(id: string | null, formData: FormData): Promise<ActionResult & { newId?: string }> {
   const admin = await requireAdmin();
   if (admin.error) return { error: admin.error };
   const supabase = await createClient();
@@ -119,6 +120,7 @@ export async function saveScaleAction(id: string | null, formData: FormData): Pr
     ...legacyPayload,
     notes: String(formData.get("notes") ?? ""),
     is_special_event: formData.get("is_special_event") === "on",
+    is_temporary: formData.get("is_temporary") === "on",
     source_type: "OFFICIAL",
     updated_at: Date.now(),
   };
@@ -175,7 +177,7 @@ export async function saveScaleAction(id: string | null, formData: FormData): Pr
 
   revalidatePath("/admin/escalas");
   revalidatePath(`/c/${admin.churchSlug}`);
-  return {};
+  return { newId: scaleId ?? undefined };
 }
 
 export async function deleteScaleAction(id: string) {
@@ -265,6 +267,268 @@ export async function cloneScaleStructureAction(sourceId: string, formData: Form
   revalidatePath("/admin/escalas");
   revalidatePath(`/c/${admin.churchSlug}`);
   return { newId: inserted.id };
+}
+
+// Scale templates ("escalas padrão") -------------------------------------
+
+/**
+ * Seeds the 3 fixed templates (quarta/sábado/domingo) the first time this church's template list
+ * is opened - self-healing, same pattern as ensureDefaultRolesAction, so there's no separate
+ * one-time migration-data step to remember to run. Never overwrites a template the Admin already
+ * customized: only inserts the 3 by protected name if they aren't there yet, so re-running this
+ * (every page load) is always a no-op once they exist. Real `organization_roles` rows are required
+ * first (scale_templates.roles / scale_assignments.role_id are real-row FKs, never synthetic
+ * "legacy:" ids), so this calls ensureDefaultRolesAction itself rather than assuming the caller did.
+ */
+const DEFAULT_TEMPLATE_NAMES = ["Escala padrão - Quarta", "Escala padrão - Sábado", "Escala padrão - Domingo"];
+
+export async function ensureDefaultScaleTemplatesAction(churchId: string): Promise<void> {
+  await ensureDefaultRolesAction(churchId);
+  const supabase = await createClient();
+  const [{ data: existing, error }, { data: roles }] = await Promise.all([
+    supabase.from("scale_templates").select("name").eq("church_id", churchId),
+    supabase.from("organization_roles").select("id, sort_order").eq("church_id", churchId).eq("is_active", true).order("sort_order", { ascending: true }),
+  ]);
+  if (error) return; // table doesn't exist yet (migration 010 not applied) - nothing to seed into.
+
+  const existingNames = new Set((existing ?? []).map((t) => t.name));
+  const missing = DEFAULT_TEMPLATE_NAMES.filter((name) => !existingNames.has(name));
+  if (missing.length === 0) return;
+
+  const templateRoles = (roles ?? []).map((r, i) => ({ roleId: r.id, position: i }));
+  const now = Date.now();
+  await supabase.from("scale_templates").insert(
+    missing.map((name) => ({
+      church_id: churchId,
+      name,
+      description: "",
+      roles: templateRoles,
+      default_notes: "",
+      is_protected: true,
+      created_at: now,
+      updated_at: now,
+    }))
+  );
+}
+
+export async function saveScaleTemplateAction(id: string | null, formData: FormData): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  if (admin.error) return { error: admin.error };
+  const supabase = await createClient();
+
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) return { error: "Informe o nome do modelo." };
+
+  let roles: { roleId: string; position: number }[];
+  try {
+    roles = JSON.parse(String(formData.get("roles") ?? "[]"));
+  } catch {
+    return { error: "Funções inválidas." };
+  }
+
+  const payload = {
+    name,
+    description: String(formData.get("description") ?? ""),
+    roles,
+    default_start_time: formData.get("default_start_time") ? String(formData.get("default_start_time")) : null,
+    default_end_time: formData.get("default_end_time") ? String(formData.get("default_end_time")) : null,
+    default_notes: String(formData.get("default_notes") ?? ""),
+    updated_at: Date.now(),
+  };
+
+  if (id) {
+    const { error } = await supabase.from("scale_templates").update(payload).eq("id", id).eq("church_id", admin.churchId);
+    if (error) return { error: error.message };
+  } else {
+    const { error } = await supabase
+      .from("scale_templates")
+      .insert({ ...payload, church_id: admin.churchId, is_protected: false, created_at: Date.now() });
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath("/admin/escalas/modelos");
+  return {};
+}
+
+export async function deleteScaleTemplateAction(id: string) {
+  const admin = await requireAdmin();
+  if (admin.error) throw new Error(admin.error);
+  const supabase = await createClient();
+
+  const { data: template } = await supabase.from("scale_templates").select("is_protected").eq("id", id).eq("church_id", admin.churchId).single();
+  if (template?.is_protected) throw new Error("Este modelo é protegido e não pode ser excluído.");
+
+  const { error } = await supabase.from("scale_templates").delete().eq("id", id).eq("church_id", admin.churchId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/escalas/modelos");
+}
+
+/** "Aplicar modelo" - same shape as cloneScaleStructureAction (structure only, never people), just
+ *  sourced from scale_templates.roles instead of a real scale's scale_assignments. */
+export async function applyScaleTemplateAction(templateId: string, formData: FormData): Promise<ActionResult & { newId?: string }> {
+  const admin = await requireAdmin();
+  if (admin.error) return { error: admin.error };
+  const supabase = await createClient();
+
+  const { data: template, error: templateError } = await supabase
+    .from("scale_templates")
+    .select("*")
+    .eq("id", templateId)
+    .eq("church_id", admin.churchId)
+    .single();
+  if (templateError || !template) return { error: "Modelo não encontrado." };
+
+  const newDate = String(formData.get("date") ?? "");
+  const newTitle = String(formData.get("title") ?? "").trim() || template.name;
+  const newStartTime = String(formData.get("start_time") ?? template.default_start_time?.slice(0, 5) ?? "");
+  if (!newDate) return { error: "Escolha uma data para a nova escala." };
+  if (!newStartTime) return { error: "Informe o horário de início." };
+
+  const roleIds = ((template.roles as { roleId: string; position: number }[]) ?? []).map((r) => r.roleId);
+  const { data: roles } = roleIds.length
+    ? await supabase.from("organization_roles").select("id, name").eq("church_id", admin.churchId).in("id", roleIds)
+    : { data: [] as { id: string; name: string }[] };
+  const roleNameById = new Map((roles ?? []).map((r) => [r.id, r.name]));
+
+  const now = Date.now();
+  const { data: inserted, error: insertError } = await supabase
+    .from("scales")
+    .insert({
+      church_id: admin.churchId,
+      date: newDate,
+      start_time: newStartTime,
+      end_time: formData.get("end_time") ? String(formData.get("end_time")) : template.default_end_time,
+      type: "COMMON_SCALE",
+      title: newTitle,
+      reception_person: "",
+      sound_person: "",
+      preaching_person: "",
+      conducting_person: "",
+      musical_message_person: "",
+      notes: template.default_notes,
+      is_special_event: false,
+      is_temporary: false,
+      source_type: "OFFICIAL",
+      created_at: now,
+      updated_at: now,
+    })
+    .select("id")
+    .single();
+  if (insertError) return { error: insertError.message };
+
+  const templateRoles = (template.roles as { roleId: string; position: number }[]) ?? [];
+  const validRoles = templateRoles.filter((r) => roleNameById.has(r.roleId));
+  if (validRoles.length > 0) {
+    const { error: assignError } = await supabase.from("scale_assignments").insert(
+      validRoles.map((r) => ({
+        scale_id: inserted.id,
+        role_id: r.roleId,
+        person_id: null,
+        custom_person_name: null,
+        role_name_snapshot: roleNameById.get(r.roleId)!,
+        person_name_snapshot: "",
+        position: r.position,
+        notes: "",
+        created_at: now,
+        updated_at: now,
+      }))
+    );
+    if (assignError) return { error: assignError.message };
+  }
+
+  revalidatePath("/admin/escalas");
+  revalidatePath(`/c/${admin.churchSlug}`);
+  return { newId: inserted.id };
+}
+
+/**
+ * "Gerar escala aleatória" - fills every active role for one specific date with a randomly picked
+ * person (preferring the role's own team when it has one, same ranking signal ScaleForm's
+ * PersonSelector already uses, just applied automatically instead of shown as a sort hint), avoids
+ * repeating a person across roles in the same generated scale unless the pool is smaller than the
+ * role count, and always saves as `is_temporary = true` - a random fill is exactly the "às pressas,
+ * fora do ciclo oficial" case that flag exists for, never silently indistinguishable from a
+ * regularly-planned scale. Delegates the actual insert to saveScaleAction so role/legacy-column
+ * resolution never has two separate implementations to keep in sync.
+ */
+export async function generateRandomScaleAction(formData: FormData): Promise<ActionResult & { newId?: string }> {
+  const admin = await requireAdmin();
+  if (admin.error) return { error: admin.error };
+  const supabase = await createClient();
+
+  const date = String(formData.get("date") ?? "");
+  const startTime = String(formData.get("start_time") ?? "");
+  if (!date) return { error: "Escolha uma data." };
+  if (!startTime) return { error: "Informe o horário de início." };
+
+  await ensureDefaultRolesAction(admin.churchId!);
+
+  const weekday = new Date(`${date}T00:00:00`).getDay(); // 0=domingo ... 6=sábado
+  const templateNameForWeekday: Record<number, string> = {
+    0: "Escala padrão - Domingo",
+    3: "Escala padrão - Quarta",
+    6: "Escala padrão - Sábado",
+  };
+
+  const [{ data: allRoles }, { data: people }, { data: memberships }, { data: matchingTemplate }] = await Promise.all([
+    supabase.from("organization_roles").select("*").eq("church_id", admin.churchId).eq("is_active", true).order("sort_order", { ascending: true }),
+    supabase.from("organization_people").select("id, full_name, display_name").eq("church_id", admin.churchId).eq("is_active", true),
+    supabase.from("person_team_memberships").select("*"),
+    templateNameForWeekday[weekday]
+      ? supabase.from("scale_templates").select("roles").eq("church_id", admin.churchId).eq("name", templateNameForWeekday[weekday]).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+
+  const rolesById = new Map((allRoles ?? []).map((r) => [r.id, r]));
+  // A matching weekday template narrows to its own role subset/order when it has one configured;
+  // otherwise every active role for the church is in play, same set "Nova escala" pre-fills.
+  const templateRoleIds = (matchingTemplate?.roles as { roleId: string; position: number }[] | undefined)
+    ?.map((r) => r.roleId)
+    .filter((id) => rolesById.has(id));
+  const activeRoles = templateRoleIds && templateRoleIds.length > 0
+    ? templateRoleIds.map((id) => rolesById.get(id)!)
+    : (allRoles ?? []);
+
+  const peoplePool = people ?? [];
+  if (activeRoles.length === 0) return { error: "Cadastre ao menos uma função antes de gerar uma escala aleatória." };
+  if (peoplePool.length === 0) return { error: "Cadastre ao menos uma pessoa antes de gerar uma escala aleatória." };
+
+  const membershipsByTeam = new Map<string, string[]>();
+  for (const m of memberships ?? []) {
+    (membershipsByTeam.get(m.team_id) ?? membershipsByTeam.set(m.team_id, []).get(m.team_id)!).push(m.person_id);
+  }
+
+  const usedPersonIds = new Set<string>();
+  function pickPerson(role: { team_id: string | null }): { id: string; full_name: string; display_name: string | null } {
+    const teamPool = role.team_id ? peoplePool.filter((p) => membershipsByTeam.get(role.team_id!)?.includes(p.id)) : [];
+    const basePool = teamPool.length > 0 ? teamPool : peoplePool;
+    // Prefer someone not already used elsewhere in this same random scale; once everyone eligible
+    // is already used (small church, more roles than people), allow a repeat rather than fail.
+    const freshPool = basePool.filter((p) => !usedPersonIds.has(p.id));
+    const pool = freshPool.length > 0 ? freshPool : basePool;
+    const chosen = pool[Math.floor(Math.random() * pool.length)];
+    usedPersonIds.add(chosen.id);
+    return chosen;
+  }
+
+  const assignments: ScaleAssignmentInput[] = activeRoles.map((role, index) => {
+    const person = pickPerson(role);
+    return { roleId: role.id, personId: person.id, customPersonName: null, position: index, notes: "" };
+  });
+
+  const weekdayName = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"][weekday];
+  const title = String(formData.get("title") ?? "").trim() || `Escala aleatória de ${weekdayName}`;
+
+  const scaleFormData = new FormData();
+  scaleFormData.set("date", date);
+  scaleFormData.set("start_time", startTime);
+  scaleFormData.set("end_time", formData.get("end_time") ? String(formData.get("end_time")) : "");
+  scaleFormData.set("title", title);
+  scaleFormData.set("notes", "Gerada automaticamente - confira e ajuste os nomes antes de publicar.");
+  scaleFormData.set("is_temporary", "on");
+  scaleFormData.set("assignments", JSON.stringify(assignments));
+
+  return saveScaleAction(null, scaleFormData);
 }
 
 // Doxologies -------------------------------------------------------------

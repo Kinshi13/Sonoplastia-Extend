@@ -68,6 +68,9 @@ create table scales (
   musical_message_person text not null default '',
   notes text not null default '',
   is_special_event boolean not null default false,
+  -- Migração 017: escala fora do ciclo oficial normal (feita "às pressas") - mesmo tipo/default
+  -- de is_special_event, uma flag independente (uma escala pode ser as duas coisas ao mesmo tempo).
+  is_temporary boolean not null default false,
   source_type text not null default 'OFFICIAL',
   -- Epoch millis (bigint), not timestamptz, to match the app's Kotlin Long timestamps 1:1.
   created_at bigint not null,

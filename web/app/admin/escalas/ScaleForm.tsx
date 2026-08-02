@@ -222,6 +222,16 @@ export function ScaleForm({
         Evento especial
       </label>
 
+      <label className="flex items-start gap-2 text-sm">
+        <input type="checkbox" name="is_temporary" className="mt-0.5" defaultChecked={existing?.is_temporary} />
+        <span>
+          Escala temporária
+          <span className="block text-xs text-text-secondary">
+            Fora do ciclo oficial normal - para uma escala montada às pressas, sem seguir o padrão.
+          </span>
+        </span>
+      </label>
+
       {error && <p className="text-sm text-error">{error}</p>}
 
       <button type="submit" disabled={pending} className="self-start rounded-full bg-primary px-5 py-2 text-sm font-medium text-white disabled:opacity-60">

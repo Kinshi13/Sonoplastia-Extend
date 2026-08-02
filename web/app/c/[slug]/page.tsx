@@ -91,11 +91,18 @@ function Hero({ church, next, upcomingCount }: { church: string; next: Scale; up
           </div>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <h1 className="font-display text-3xl sm:text-4xl tracking-tight text-balance">{next.title}</h1>
-            {next.is_special_event && (
-              <span className="flex items-center gap-1 shrink-0 rounded-full bg-primary-container px-3 py-1 text-xs font-medium text-on-primary-container">
-                <Sparkles size={12} /> Especial
-              </span>
-            )}
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              {next.is_special_event && (
+                <span className="flex items-center gap-1 shrink-0 rounded-full bg-primary-container px-3 py-1 text-xs font-medium text-on-primary-container">
+                  <Sparkles size={12} /> Especial
+                </span>
+              )}
+              {next.is_temporary && (
+                <span className="flex items-center gap-1 shrink-0 rounded-full bg-amber-500/15 px-3 py-1 text-xs font-medium text-amber-600">
+                  Temporária
+                </span>
+              )}
+            </div>
           </div>
           <p className="flex items-center gap-1.5 text-sm text-text-secondary capitalize">
             <Calendar size={14} className="shrink-0" />
@@ -169,11 +176,18 @@ function ScaleCard({ scale }: { scale: Scale }) {
             {scale.end_time ? ` - ${formatTimePt(scale.end_time)}` : ""}
           </p>
         </div>
-        {scale.is_special_event && (
-          <span className="flex items-center gap-1 shrink-0 rounded-full bg-primary-container px-3 py-1 text-xs font-medium text-on-primary-container">
-            <Sparkles size={12} /> Especial
-          </span>
-        )}
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {scale.is_special_event && (
+            <span className="flex items-center gap-1 shrink-0 rounded-full bg-primary-container px-3 py-1 text-xs font-medium text-on-primary-container">
+              <Sparkles size={12} /> Especial
+            </span>
+          )}
+          {scale.is_temporary && (
+            <span className="flex items-center gap-1 shrink-0 rounded-full bg-amber-500/15 px-3 py-1 text-xs font-medium text-amber-600">
+              Temporária
+            </span>
+          )}
+        </div>
       </div>
 
       {roles.length > 0 && (

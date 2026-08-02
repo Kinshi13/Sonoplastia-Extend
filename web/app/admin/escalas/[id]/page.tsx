@@ -4,7 +4,7 @@ import { getAdminStatus } from "@/lib/supabase/auth";
 import { Scale, OrganizationRole, OrganizationPerson, PersonTeamMembership, ScaleAssignment } from "@/lib/types/database";
 import { ScaleForm } from "../ScaleForm";
 import { recentPersonIdsForChurch } from "../recentPeople";
-import { ensureDefaultRolesAction } from "../../pessoas/actions";
+import { ensureDefaultRolesAction } from "../../pessoas/ensureDefaultRoles";
 
 export default async function EditarEscalaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

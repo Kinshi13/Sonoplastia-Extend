@@ -46,7 +46,7 @@ export async function exportGeneralScaleCsvAction(month?: string): Promise<Expor
   if (error) return { error: error.message };
   const items = (data as Scale[]) ?? [];
 
-  const header = ["Data", "Dia", "Horário", "Título", "Tipo", "Especial", ...ROLE_COLUMNS.map((r) => r.label), "Observações"];
+  const header = ["Data", "Dia", "Horário", "Título", "Tipo", "Especial", "Temporária", ...ROLE_COLUMNS.map((r) => r.label), "Observações"];
   const rows = items.map((scale) => {
     const weekday = new Date(`${scale.date}T00:00:00`).toLocaleDateString("pt-BR", { weekday: "long" });
     return [
@@ -56,6 +56,7 @@ export async function exportGeneralScaleCsvAction(month?: string): Promise<Expor
       scale.title,
       scale.source_type,
       scale.is_special_event ? "Sim" : "Não",
+      scale.is_temporary ? "Sim" : "Não",
       ...ROLE_COLUMNS.map((r) => (scale[r.key] as string) ?? ""),
       scale.notes ?? "",
     ]

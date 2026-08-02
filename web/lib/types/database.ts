@@ -32,6 +32,7 @@ export type Scale = {
   musical_message_person: string;
   notes: string;
   is_special_event: boolean;
+  is_temporary: boolean;
   source_type: string;
   created_at: number;
   updated_at: number;
@@ -128,6 +129,9 @@ export type ScaleTemplate = {
   default_notes: string;
   is_favorite: boolean;
   is_active: boolean;
+  /** Migração 017 - os 3 modelos padrão semeados automaticamente (quarta/sábado/domingo) não podem
+   *  ser excluídos, só editados. */
+  is_protected: boolean;
   created_at: number;
   updated_at: number;
   created_by: string | null;
