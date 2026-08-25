@@ -1,14 +1,19 @@
 -- ===========================================================================
 -- VALIDATE_PENDING_014_016.sql
 --
--- SOMENTE LEITURA. Roda depois de supabase/manual/APPLY_PENDING_014_016_SAFE.sql
--- para confirmar que worship_songs e web_push_subscriptions (com toda a
+-- SOMENTE LEITURA. Atualizado para validar o modelo V2 (ver
+-- supabase/manual/APPLY_PENDING_014_016_SAFE_V2.sql) - depois de uma
+-- revisão de segurança, web_push_subscriptions passou a usar duas funções
+-- `security definer` (upsert_web_push_subscription/delete_web_push_subscription)
+-- em vez de policies públicas de insert/update/delete. worship_songs não
+-- mudou. Confirma que worship_songs e web_push_subscriptions (com toda a
 -- estrutura das migrations 014/015/016) ficaram exatamente como esperado.
 --
 -- Mesmo formato de REMOTE_SCHEMA_REPORT.sql: uma única consulta,
 --   category | object_name | detail | status
--- PRESENT/MISSING por item. Escopo restrito só a worship_songs e
--- web_push_subscriptions - para o resto do banco, use REMOTE_SCHEMA_REPORT.sql.
+-- PRESENT/MISSING (ou SECURE_*/REGRESSION_* nas checagens de segurança) por
+-- item. Escopo restrito só a worship_songs e web_push_subscriptions - para o
+-- resto do banco, use REMOTE_SCHEMA_REPORT.sql.
 --
 -- Não contém CREATE, ALTER, DROP, INSERT, UPDATE, DELETE, TRUNCATE, GRANT,
 -- REVOKE ou NOTIFY como comando real. Seguro rodar quantas vezes quiser.
@@ -67,11 +72,48 @@ select category, object_name, detail, status from (
     ('worship_songs','worship_songs: public read published'),
     ('worship_songs','worship_songs: admin write'),
     ('worship_songs','worship_songs: admin update'),
-    ('worship_songs','worship_songs: admin delete'),
-    ('web_push_subscriptions','web_push_subscriptions: public insert for active church'),
-    ('web_push_subscriptions','web_push_subscriptions: public update own endpoint'),
-    ('web_push_subscriptions','web_push_subscriptions: public delete own endpoint')
+    ('worship_songs','worship_songs: admin delete')
   ) as x(table_name, policy_name)
+
+  union all
+
+  -- ===== web_push_subscriptions: modelo V2 (RPCs, não policies) ==============
+  -- Desde a revisão de segurança, web_push_subscriptions NÃO tem nenhuma policy
+  -- de insert/update/delete para anon/authenticated - toda escrita passa pelas
+  -- duas funções abaixo. Ver supabase/manual/APPLY_PENDING_014_016_SAFE_V2.sql.
+
+  select 'RPC', 'public.' || x.name, 'security definer, deve existir',
+    case when exists (
+      select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+      where n.nspname='public' and p.proname=x.name and p.prosecdef
+    ) then 'PRESENT' else 'MISSING' end
+  from (values ('upsert_web_push_subscription'), ('delete_web_push_subscription')) as x(name)
+
+  union all
+
+  -- Confirma que NENHUMA policy de escrita pública foi criada para
+  -- web_push_subscriptions (por design - se aparecer PRESENT aqui, é uma
+  -- regressão de segurança, não algo esperado).
+  select 'SECURITY_CHECK', 'public.web_push_subscriptions: nenhuma policy pública de insert/update/delete',
+    'deve estar ausente por design',
+    case when exists (
+      select 1 from pg_policies
+      where schemaname='public' and tablename='web_push_subscriptions'
+        and cmd in ('INSERT','UPDATE','DELETE')
+    ) then 'REGRESSION_POLICY_FOUND' else 'SECURE_NO_POLICY' end
+
+  union all
+
+  -- Confirma que anon/authenticated NÃO têm grant direto de
+  -- insert/update/delete na tabela (só EXECUTE nas duas funções acima).
+  select 'SECURITY_CHECK', 'public.web_push_subscriptions: sem GRANT direto de insert/update/delete para anon/authenticated',
+    'deve estar ausente por design',
+    case when exists (
+      select 1 from information_schema.role_table_grants
+      where table_schema='public' and table_name='web_push_subscriptions'
+        and grantee in ('anon','authenticated')
+        and privilege_type in ('INSERT','UPDATE','DELETE')
+    ) then 'REGRESSION_GRANT_FOUND' else 'SECURE_NO_GRANT' end
 
   union all
 
