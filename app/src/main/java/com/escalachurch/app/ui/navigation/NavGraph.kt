@@ -172,7 +172,9 @@ private fun EscalaChurchAppNavGraph() {
         currentRoute == SecondaryDestination.SONOPLASTIA_ROUTE ||
         currentRoute == SecondaryDestination.SETTINGS_ROUTE ||
         currentRoute == SecondaryDestination.BULLETINS_ROUTE ||
-        currentRoute == SecondaryDestination.PLANS_ROUTE
+        currentRoute == SecondaryDestination.PLANS_ROUTE ||
+        currentRoute == SecondaryDestination.WORSHIP_ROUTE ||
+        currentRoute == SecondaryDestination.SCALE_IMPORT_ROUTE
 
     fun navigateToTab(route: String) {
         navController.navigate(route) {
@@ -226,7 +228,9 @@ private fun EscalaChurchAppNavGraph() {
                     onOpenBulletins = { navController.navigate(SecondaryDestination.BULLETINS_ROUTE) },
                     onOpenSonoplastia = { navController.navigate(SecondaryDestination.SONOPLASTIA_ROUTE) },
                     onOpenPlans = { navController.navigate(SecondaryDestination.PLANS_ROUTE) },
-                    onOpenAnnouncements = { navigateToTab(AppDestination.Announcements.route) }
+                    onOpenAnnouncements = { navigateToTab(AppDestination.Announcements.route) },
+                    onOpenWorship = { navController.navigate(SecondaryDestination.WORSHIP_ROUTE) },
+                    onOpenScaleImport = { navController.navigate(SecondaryDestination.SCALE_IMPORT_ROUTE) }
                 )
             }
             composable(AppDestination.Doxology.route) { DoxologyScreen() }
@@ -288,6 +292,22 @@ private fun EscalaChurchAppNavGraph() {
                 popExitTransition = { popExitToRight() }
             ) {
                 PlansScreen(onBack = { navController.popBackStack() })
+            }
+            composable(
+                SecondaryDestination.WORSHIP_ROUTE,
+                enterTransition = { pushEnter() },
+                exitTransition = { pushExit() },
+                popExitTransition = { popExitToRight() }
+            ) {
+                com.escalachurch.app.ui.screens.worship.WorshipScreen(onBack = { navController.popBackStack() })
+            }
+            composable(
+                SecondaryDestination.SCALE_IMPORT_ROUTE,
+                enterTransition = { pushEnter() },
+                exitTransition = { pushExit() },
+                popExitTransition = { popExitToRight() }
+            ) {
+                com.escalachurch.app.ui.screens.scaleimport.ScaleImportScreen(onBack = { navController.popBackStack() })
             }
         }
         }

@@ -16,7 +16,9 @@ import androidx.compose.material.icons.automirrored.filled.EventNote
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.EventBusy
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -57,7 +59,9 @@ fun HomeScreen(
     onOpenBulletins: () -> Unit = {},
     onOpenSonoplastia: () -> Unit = {},
     onOpenPlans: () -> Unit = {},
-    onOpenAnnouncements: () -> Unit = {}
+    onOpenAnnouncements: () -> Unit = {},
+    onOpenWorship: () -> Unit = {},
+    onOpenScaleImport: () -> Unit = {}
 ) {
     val viewModel = appViewModel { container ->
         HomeViewModel(
@@ -141,6 +145,14 @@ fun HomeScreen(
                 color = MaterialTheme.colorScheme.onBackground
             )
             Row {
+                IconButton(onClick = onOpenWorship) {
+                    Icon(Icons.Filled.MusicNote, contentDescription = "Música e Louvor", tint = MaterialTheme.colorScheme.primary)
+                }
+                if (state.isAdmin) {
+                    IconButton(onClick = onOpenScaleImport) {
+                        Icon(Icons.Filled.UploadFile, contentDescription = "Importar escala por texto", tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
                 IconButton(onClick = onOpenSonoplastia) {
                     Icon(Icons.Filled.Computer, contentDescription = "Sonoplastia (arquivos remotos)", tint = MaterialTheme.colorScheme.primary)
                 }
