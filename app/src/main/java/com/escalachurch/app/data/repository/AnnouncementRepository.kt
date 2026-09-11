@@ -15,7 +15,6 @@ import com.escalachurch.app.domain.model.Announcement
 import com.escalachurch.app.domain.model.MediaType
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.postgrest
-import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -58,7 +57,18 @@ class AnnouncementRepository(private val client: SupabaseClient, private val act
     suspend fun save(item: Announcement): String {
         val churchId = activeChurchManager.activeChurchId.first()
         val id = if (item.id.isBlank()) {
-            table.insert(item.toDto(churchId)) { select(Columns.list("id")) }.decodeSingle<AnnouncementDto>().id!!
+            // Homologação (correção de criação de anúncios): the id is generated here, client-side,
+            // instead of relying on `select(Columns.list("id"))` reading the row back right after
+            // insert. `announcements` only has a public SELECT policy scoped to `is_active` - saving
+            // a draft (Publicado desmarcado) inserts a row RLS then refuses to hand back to the very
+            // same INSERT, since Postgres also applies the SELECT policy to a RETURNING clause. That
+            // turned "salvar rascunho" into a guaranteed failure with no rows returned, regardless of
+            // church_id/is_admin being perfectly correct. A client-generated id sidesteps this
+            // without touching RLS - `id` still gets Postgres's own `gen_random_uuid()` default type,
+            // just supplied instead of relied upon.
+            val newId = UUID.randomUUID().toString()
+            table.insert(item.toDto(churchId).copy(id = newId))
+            newId
         } else {
             table.update(item.toDto(churchId)) { filter { eq("id", item.id) } }
             item.id

@@ -1,6 +1,7 @@
 package com.escalachurch.app.ui.screens.announcements
 
 import com.escalachurch.app.domain.util.friendlyErrorMessage
+import com.escalachurch.app.domain.util.SupabaseErrorLogger
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.escalachurch.app.data.repository.AnnouncementRepository
@@ -72,7 +73,11 @@ class AnnouncementViewModel(
      *  before Supabase confirmed anything, so a failed save looked identical to a successful one. */
     suspend fun save(item: Announcement): Result<Unit> =
         runCatching { announcementRepository.save(item) }
-            .onFailure { _errorMessage.value = friendlyErrorMessage(it, "Falha ao salvar o anúncio.") }
+            .onFailure {
+                val stage = if (item.id.isBlank()) "INSERT_ANNOUNCEMENT" else "UPDATE_ANNOUNCEMENT"
+                SupabaseErrorLogger.log(stage, it)
+                _errorMessage.value = friendlyErrorMessage(it, "Falha ao salvar o anúncio.")
+            }
             .map {}
 
     suspend fun uploadMedia(context: android.content.Context, uri: android.net.Uri) =

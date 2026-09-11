@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import com.escalachurch.app.data.repository.UploadedMedia
 import com.escalachurch.app.domain.model.Announcement
 import com.escalachurch.app.domain.model.MediaType
+import com.escalachurch.app.domain.util.SupabaseErrorLogger
 import com.escalachurch.app.ui.components.AppTextField
 import com.escalachurch.app.ui.components.ConfirmDialog
 import com.escalachurch.app.ui.components.DatePickerField
@@ -68,7 +69,11 @@ fun AnnouncementEditScreen(
     existing: Announcement?,
     isAdmin: Boolean,
     onUpload: suspend (Uri) -> UploadedMedia,
-    onSave: suspend (Announcement) -> Boolean,
+    /** Returns null on success, or the real user-facing message to show on failure - Homologação
+     *  (correção de anúncios): this used to return a bare Boolean, so any failure - RLS, payload,
+     *  network, anything - showed this screen's own hardcoded generic text, discarding whatever
+     *  more specific message the ViewModel had already computed via friendlyErrorMessage(). */
+    onSave: suspend (Announcement) -> String?,
     onDelete: (() -> Unit)?,
     onBack: () -> Unit
 ) {
@@ -125,7 +130,8 @@ fun AnnouncementEditScreen(
                     mediaFileName = uploaded.fileName
                 }
                 .onFailure { error ->
-                    uploadError = "Falha ao enviar o arquivo: ${error.message ?: error::class.simpleName}"
+                    SupabaseErrorLogger.log("UPLOAD_MEDIA", error)
+                    uploadError = "Não foi possível enviar o arquivo. Verifique sua conexão e tente novamente."
                 }
             isUploading = false
         }
@@ -140,9 +146,9 @@ fun AnnouncementEditScreen(
         saveError = null
         scope.launch {
             val item = buildAnnouncementFromDraft(existing, currentDraft.copy(title = title.trim()))
-            val succeeded = onSave(item)
+            val failureMessage = onSave(item)
             isSaving = false
-            if (succeeded) onBack() else saveError = "Não foi possível salvar. Verifique sua conexão e tente novamente."
+            if (failureMessage == null) onBack() else saveError = failureMessage
         }
     }
 

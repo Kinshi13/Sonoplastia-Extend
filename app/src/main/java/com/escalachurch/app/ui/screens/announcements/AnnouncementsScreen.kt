@@ -98,8 +98,13 @@ fun AnnouncementsScreen(
                 if (result.isSuccess) {
                     val message = if (isNewAnnouncement) "Anúncio publicado" else "Anúncio atualizado"
                     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                    null
+                } else {
+                    // The real cause is already logged (SupabaseErrorLogger, DEBUG builds only) -
+                    // this is the same short, honest message the ViewModel already computed via
+                    // friendlyErrorMessage(), not a second, unrelated hardcoded string.
+                    viewModel.errorMessage.value ?: "Não foi possível salvar. Verifique sua conexão e tente novamente."
                 }
-                result.isSuccess
             },
             onDelete = editingTarget?.item?.let { item -> { viewModel.delete(item); isEditing = false } },
             onBack = { isEditing = false }
