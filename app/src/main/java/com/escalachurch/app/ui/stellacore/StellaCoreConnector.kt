@@ -59,26 +59,37 @@ private fun actionsForRoute(
     onNavigateTab: (AppDestination) -> Unit,
     onNavigateRoute: (String) -> Unit
 ): List<StellaCoreAction> = when {
-    route == AppDestination.Home.route -> listOf(
-        StellaCoreAction("home_new_personal", "Nova escala pessoal", Icons.AutoMirrored.Filled.EventNote) {
+    route == AppDestination.Home.route -> buildList {
+        add(StellaCoreAction("home_new_personal", "Nova escala pessoal", Icons.AutoMirrored.Filled.EventNote) {
             onNavigateTab(AppDestination.Program); StellaCoreBus.send(StellaCoreCommand.NewPersonalEvent)
-        },
-        StellaCoreAction("home_general_scale", "Escala Geral", Icons.Filled.CalendarViewDay) {
+        })
+        add(StellaCoreAction("home_general_scale", "Escala Geral", Icons.Filled.CalendarViewDay) {
             onNavigateRoute(SecondaryDestination.generalScaleRoute(null))
-        },
-        StellaCoreAction("home_next_program", "Próxima programação", Icons.Filled.MusicNote) {
+        })
+        add(StellaCoreAction("home_worship", "Música e Louvor", Icons.Filled.MusicNote) {
+            onNavigateRoute(SecondaryDestination.WORSHIP_ROUTE)
+        })
+        add(StellaCoreAction("home_next_program", "Doxologia", Icons.Filled.MusicNote) {
             onNavigateTab(AppDestination.Doxology)
-        },
-        StellaCoreAction("home_new_event", "Novo evento", Icons.Filled.Add) {
+        })
+        add(StellaCoreAction("home_new_event", "Novo evento", Icons.Filled.Add) {
             onNavigateTab(AppDestination.Calendar); StellaCoreBus.send(StellaCoreCommand.GoToTodayCalendar)
-        },
-        StellaCoreAction("home_share_church", "Compartilhar acesso", Icons.Filled.Share, requiresRole = AccessLevel.ADMIN) {
-            StellaCoreBus.send(StellaCoreCommand.ShareChurchAccess)
-        },
-        StellaCoreAction("home_share_schedule", "Compartilhar escala", Icons.Filled.Share, requiresRole = AccessLevel.ADMIN) {
-            StellaCoreBus.send(StellaCoreCommand.ShareSchedule)
+        })
+        if (role == AccessLevel.ADMIN) {
+            add(StellaCoreAction("home_scale_import", "Importar escala", Icons.Filled.CalendarViewDay, requiresRole = AccessLevel.ADMIN) {
+                onNavigateRoute(SecondaryDestination.SCALE_IMPORT_ROUTE)
+            })
+            add(StellaCoreAction("home_new_announcement", "Novo anúncio", Icons.Filled.Add, requiresRole = AccessLevel.ADMIN) {
+                onNavigateTab(AppDestination.Announcements); StellaCoreBus.send(StellaCoreCommand.NewAnnouncement)
+            })
+            add(StellaCoreAction("home_share_church", "Compartilhar acesso", Icons.Filled.Share, requiresRole = AccessLevel.ADMIN) {
+                StellaCoreBus.send(StellaCoreCommand.ShareChurchAccess)
+            })
+            add(StellaCoreAction("home_share_schedule", "Compartilhar escala", Icons.Filled.Share, requiresRole = AccessLevel.ADMIN) {
+                StellaCoreBus.send(StellaCoreCommand.ShareSchedule)
+            })
         }
-    )
+    }
 
     route == SecondaryDestination.GENERAL_SCALE_ROUTE -> listOf(
         StellaCoreAction("scale_new", "Nova escala", Icons.Filled.Add, requiresRole = AccessLevel.ADMIN) {

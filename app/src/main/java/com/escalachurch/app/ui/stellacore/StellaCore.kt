@@ -39,8 +39,8 @@ private val CORE_SIZE = 56.dp
  * Standalone floating variant of the Stella Core star, used only on secondary/pushed screens
  * (Escala Geral, Configurações, ...) that hide the bottom nav bar entirely, so there's no bar to
  * embed a star into (see [com.escalachurch.app.ui.components.EscalaBottomNavBar] for the
- * bar-embedded variant used on the five main tabs). Same interaction model either way: a single
- * tap opens the fan menu, a quick double tap jumps straight to Início.
+ * bar-embedded variant used on the main tabs). Same interaction model either way: a single,
+ * immediate tap opens/closes the fan menu - it never navigates (Fase 11.11 - "★ NÃO É HOME").
  *
  * [reducedMotion] mirrors AppSettings.animationsEnabled: when true, the menu appears/disappears
  * immediately with no progressive line-draw or stagger (Fase 5 Section 7).
@@ -50,7 +50,6 @@ fun StellaCore(
     actions: List<ResolvedStellaCoreAction>,
     reducedMotion: Boolean,
     onLockedActionClick: (StellaCoreAction) -> Unit,
-    onNavigateHome: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var isOpen by remember { mutableStateOf(false) }
@@ -94,13 +93,12 @@ fun StellaCore(
                 .background(tokens.polarisSoft.copy(alpha = if (isOpen) 0.9f else 0.55f), CircleShape)
                 .semantics {
                     role = androidx.compose.ui.semantics.Role.Button
-                    contentDescription = if (isOpen) "Fechar menu de ações" else "Stella Core - toque para abrir o menu, toque duas vezes para ir ao Início"
+                    contentDescription = if (isOpen) "Fechar Stella Core" else "Stella Core - toque para abrir o menu de ações"
                 }
                 .pointerInput(Unit) {
-                    detectTapGestures(
-                        onTap = { isOpen = !isOpen },
-                        onDoubleTap = { isOpen = false; onNavigateHome() }
-                    )
+                    // Fase 11.11 - single tap, immediate: no onDoubleTap means Compose no longer
+                    // has to wait out a possible second tap before honoring the first.
+                    detectTapGestures(onTap = { isOpen = !isOpen })
                 },
             contentAlignment = Alignment.Center
         ) {

@@ -10,10 +10,10 @@ import com.escalachurch.app.data.remote.observeTable
 import com.escalachurch.app.domain.model.WorshipSong
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.postgrest
-import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import java.util.UUID
 
 /** "Música e Louvor" - reuses `public.worship_songs`, already shipped for the web site (see
  *  supabase/migrations/014-016). No new table/column added here - same RLS, same RPC-free model
@@ -47,7 +47,14 @@ class WorshipSongRepository(private val client: SupabaseClient, private val acti
     suspend fun save(item: WorshipSong): String {
         val churchId = activeChurchManager.activeChurchId.first()
         val id = if (item.id.isBlank()) {
-            table.insert(item.toDto(churchId)) { select(Columns.list("id")) }.decodeSingle<WorshipSongDto>().id!!
+            // Fase 11.11 (correção preventiva) - same fix as AnnouncementRepository.save(): id
+            // generated client-side instead of relying on `select(Columns.list("id"))` reading the
+            // freshly-inserted row back. `worship_songs` only has a public SELECT policy scoped to
+            // `is_published` - saving a draft (Publicado desmarcado) would insert successfully and
+            // then fail to read it back, since RETURNING is also filtered by the SELECT policy.
+            val newId = UUID.randomUUID().toString()
+            table.insert(item.toDto(churchId).copy(id = newId))
+            newId
         } else {
             table.update(item.toDto(churchId)) { filter { eq("id", item.id) } }
             item.id

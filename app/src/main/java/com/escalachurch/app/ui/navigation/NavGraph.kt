@@ -51,12 +51,14 @@ import com.escalachurch.app.ui.stellacore.StellaCoreAction
 import com.escalachurch.app.ui.stellacore.StellaCoreMenu
 import com.escalachurch.app.ui.stellacore.rememberStellaCoreActions
 
-// Same left-to-right order as the bottom nav bar (see BottomNavBar.kt's navEntries) - used to
-// decide which way a tab-to-tab transition should slide, so it always matches the swipe direction.
+// Fase 11.11 - HOME | ESCALAS | ANÚNCIOS | CALENDÁRIO (same left-to-right order as the bottom nav
+// bar's navEntries, minus the star - it isn't a route). Used to decide which way a tab-to-tab
+// transition should slide, so it always matches the swipe direction. Escalas is compared by its
+// route *template* (SecondaryDestination.GENERAL_SCALE_ROUTE), not a filled-in value - that's what
+// NavBackStackEntry.destination.route actually reports for a parameterized destination.
 private val tabOrder = listOf(
-    AppDestination.Program.route,
-    AppDestination.Doxology.route,
     AppDestination.Home.route,
+    SecondaryDestination.GENERAL_SCALE_ROUTE,
     AppDestination.Announcements.route,
     AppDestination.Calendar.route
 )
@@ -160,16 +162,13 @@ private fun EscalaChurchAppNavGraph() {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
 
-    val currentDestination = when (currentRoute) {
-        AppDestination.Doxology.route -> AppDestination.Doxology
-        AppDestination.Program.route -> AppDestination.Program
-        AppDestination.Calendar.route -> AppDestination.Calendar
-        AppDestination.Announcements.route -> AppDestination.Announcements
-        else -> AppDestination.Home
-    }
+    // Fase 11.11 - the bottom bar/Stella Core now key off the raw route string (currentRoute)
+    // instead of an AppDestination, since Escalas (GENERAL_SCALE_ROUTE) is a bottom-bar tab now
+    // but was never an AppDestination case - see BottomNavBar.kt's NavEntry.matchRoute.
 
-    val isSecondaryScreen = currentRoute == SecondaryDestination.GENERAL_SCALE_ROUTE ||
-        currentRoute == SecondaryDestination.SONOPLASTIA_ROUTE ||
+    // Fase 11.11 - Escalas removed from this list: it now keeps the bottom bar visible and reads
+    // as a true tab (GeneralScaleScreen's own internal chrome/back arrow is untouched either way).
+    val isSecondaryScreen = currentRoute == SecondaryDestination.SONOPLASTIA_ROUTE ||
         currentRoute == SecondaryDestination.SETTINGS_ROUTE ||
         currentRoute == SecondaryDestination.BULLETINS_ROUTE ||
         currentRoute == SecondaryDestination.PLANS_ROUTE ||
@@ -204,8 +203,8 @@ private fun EscalaChurchAppNavGraph() {
             bottomBar = {
                 if (!isSecondaryScreen) {
                     EscalaBottomNavBar(
-                        currentDestination = currentDestination,
-                        onNavigate = { destination -> navigateToTab(destination.route) },
+                        currentRoute = currentRoute,
+                        onNavigate = { route -> navigateToTab(route) },
                         stellaOpen = stellaOpen,
                         onStellaOpenChange = { stellaOpen = it }
                     )
@@ -230,6 +229,7 @@ private fun EscalaChurchAppNavGraph() {
                     onOpenPlans = { navController.navigate(SecondaryDestination.PLANS_ROUTE) },
                     onOpenAnnouncements = { navigateToTab(AppDestination.Announcements.route) },
                     onOpenWorship = { navController.navigate(SecondaryDestination.WORSHIP_ROUTE) },
+                    onOpenDoxology = { navigateToTab(AppDestination.Doxology.route) },
                     onOpenScaleImport = { navController.navigate(SecondaryDestination.SCALE_IMPORT_ROUTE) }
                 )
             }
@@ -243,11 +243,11 @@ private fun EscalaChurchAppNavGraph() {
                 )
             }
             composable(
+                // Fase 11.11 - Escalas is a bottom-bar tab now (see isSecondaryScreen above): no
+                // enter/exit override here, so it inherits the NavHost's tabEnter/tabExit default
+                // instead of reading as a screen pushed on top of another.
                 SecondaryDestination.GENERAL_SCALE_ROUTE,
-                arguments = listOf(navArgument("date") { type = NavType.StringType; defaultValue = "" }),
-                enterTransition = { pushEnter() },
-                exitTransition = { pushExit() },
-                popExitTransition = { popExitToRight() }
+                arguments = listOf(navArgument("date") { type = NavType.StringType; defaultValue = "" })
             ) { entry ->
                 val dateArg = entry.arguments?.getString("date").orEmpty()
                 GeneralScaleScreen(
@@ -314,12 +314,11 @@ private fun EscalaChurchAppNavGraph() {
 
         if (isSecondaryScreen) {
             // No bottom bar here to embed a star into - fall back to the floating standalone
-            // variant (still single-tap-to-open / double-tap-to-Início, same as the bar).
+            // variant (still a pure single-tap open/close, same as the bar).
             StellaCore(
                 actions = stellaCoreActions,
                 reducedMotion = !appSettings.animationsEnabled,
                 onLockedActionClick = { action -> lockedActionPreview = action },
-                onNavigateHome = { navigateToTab(AppDestination.Home.route) },
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
         } else if (stellaOpen && stellaCoreActions.isNotEmpty()) {

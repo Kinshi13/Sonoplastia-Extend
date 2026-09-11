@@ -33,6 +33,7 @@ data class ScaleDto(
     @SerialName("musical_message_person") val musicalMessagePerson: String = "",
     val notes: String = "",
     @SerialName("is_special_event") val isSpecialEvent: Boolean = false,
+    @SerialName("is_temporary") val isTemporary: Boolean = false,
     @SerialName("source_type") val sourceType: String = SourceType.OFFICIAL.name,
     @SerialName("created_at") val createdAt: Long = 0L,
     @SerialName("updated_at") val updatedAt: Long = 0L
@@ -53,6 +54,7 @@ fun ScaleItem.toDto(churchId: String = BuildConfig.CHURCH_ID) = ScaleDto(
     musicalMessagePerson = musicalMessagePerson,
     notes = notes,
     isSpecialEvent = isSpecialEvent,
+    isTemporary = isTemporary,
     sourceType = sourceType.name,
     createdAt = createdAt,
     updatedAt = updatedAt
@@ -72,6 +74,7 @@ fun ScaleDto.toScaleItem(): ScaleItem? { return ScaleItem(
     musicalMessagePerson = musicalMessagePerson,
     notes = notes,
     isSpecialEvent = isSpecialEvent,
+    isTemporary = isTemporary,
     sourceType = runCatching { SourceType.valueOf(sourceType) }.getOrDefault(SourceType.OFFICIAL),
     createdAt = createdAt,
     updatedAt = updatedAt

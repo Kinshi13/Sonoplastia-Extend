@@ -20,22 +20,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.EditCalendar
-import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -48,32 +43,36 @@ import com.escalachurch.app.audio.AppSoundPlayer
 import com.escalachurch.app.di.rememberAppContainer
 import com.escalachurch.app.domain.model.AppSettings
 import com.escalachurch.app.ui.navigation.AppDestination
+import com.escalachurch.app.ui.navigation.SecondaryDestination
 import com.escalachurch.app.ui.stellacore.FourPointStar
 import com.escalachurch.app.ui.theme.ConstellationColors
 import com.escalachurch.app.ui.theme.ConstellationMotion
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlin.math.abs
 
-private data class NavEntry(val destination: AppDestination?, val label: String, val icon: ImageVector?)
+/**
+ * [navigateRoute] is the concrete route passed to [onNavigate] when this slot is tapped/swiped
+ * into; [matchRoute] is what a real current route is compared against to decide if this slot is
+ * selected. They differ only for Escalas: Navigation Compose reports a parameterized
+ * destination's *template* as the current route (e.g. "general_scale?date={date}"), never the
+ * filled-in value actually navigated to - see [SecondaryDestination.GENERAL_SCALE_ROUTE].
+ */
+private data class NavEntry(val navigateRoute: String?, val matchRoute: String?, val label: String, val icon: ImageVector?)
 
-// Início's old slot is now Stella Core itself (destination/icon = null - it's not a plain nav
-// button anymore, see the STELLA_CORE_INDEX handling below). Same left-to-right order still
-// defines swipe-navigation order: swiping into this slot still lands on Início, only a *tap*
-// there behaves differently (open the menu / double-tap home) - see the shared gesture handler.
+// Fase 11.11 - HOME | ESCALAS | (Stella Core) | ANÚNCIOS | CALENDÁRIO. The star is no longer a
+// stand-in for Início: it has no route of its own (navigateRoute/matchRoute = null) and never
+// navigates - see STELLA_CORE_INDEX handling below. Início now owns its own slot, reachable with
+// a single, immediate tap like every other slot.
 private val navEntries = listOf(
-    NavEntry(AppDestination.Program, "Programar", Icons.Filled.EditCalendar),
-    NavEntry(AppDestination.Doxology, "Doxologia", Icons.Filled.MusicNote),
-    NavEntry(AppDestination.Home, "Início", null),
-    NavEntry(AppDestination.Announcements, "Anúncios", Icons.Filled.Campaign),
-    NavEntry(AppDestination.Calendar, "Calendário", Icons.Filled.CalendarMonth)
+    NavEntry(AppDestination.Home.route, AppDestination.Home.route, "Início", Icons.Filled.Home),
+    NavEntry(SecondaryDestination.generalScaleRoute(null), SecondaryDestination.GENERAL_SCALE_ROUTE, "Escalas", Icons.Filled.EditCalendar),
+    NavEntry(null, null, "Stella Core", null),
+    NavEntry(AppDestination.Announcements.route, AppDestination.Announcements.route, "Anúncios", Icons.Filled.Campaign),
+    NavEntry(AppDestination.Calendar.route, AppDestination.Calendar.route, "Calendário", Icons.Filled.CalendarMonth)
 )
 private const val STELLA_CORE_INDEX = 2
 
 private const val TAP_SLOP_DP = 12f
 private const val SWIPE_THRESHOLD_DP = 56f
-private const val DOUBLE_TAP_WINDOW_MS = 300L
 private val REGULAR_INDICATOR_SIZE = 40.dp
 private val STELLA_CORE_SIZE = 40.dp
 
@@ -86,15 +85,15 @@ private val STELLA_CORE_SIZE = 40.dp
  * per-item clickables plus a separate swipe detector, since a child's click-cancel-on-move and a
  * parent's drag detector fight over the same touch stream otherwise.
  *
- * The center slot (previously a plain Início icon) is now Stella Core itself: a single tap there
- * opens its contextual action fan instead of navigating, and a quick double tap goes straight to
- * Início - see the [STELLA_CORE_INDEX] branch inside the shared gesture handler below. Every
- * other slot's tap/swipe behavior is unchanged.
+ * The center slot is Stella Core itself, not a destination: a single, immediate tap there opens
+ * its contextual action fan, tapping again closes it - it never navigates anywhere, Início included
+ * (see the [STELLA_CORE_INDEX] branch inside the shared gesture handler below). Every other slot
+ * (Início among them) is a normal single-tap destination.
  */
 @Composable
 fun EscalaBottomNavBar(
-    currentDestination: AppDestination,
-    onNavigate: (AppDestination) -> Unit,
+    currentRoute: String?,
+    onNavigate: (String) -> Unit,
     stellaOpen: Boolean = false,
     onStellaOpenChange: (Boolean) -> Unit = {}
 ) {
@@ -105,10 +104,6 @@ fun EscalaBottomNavBar(
     val container = rememberAppContainer()
     val settings by container.settingsRepository.settingsFlow.collectAsState(initial = AppSettings())
     val context = androidx.compose.ui.platform.LocalContext.current
-    val scope = rememberCoroutineScope()
-
-    var lastStellaTapAt by remember { mutableLongStateOf(0L) }
-    var pendingOpenJob by remember { mutableStateOf<Job?>(null) }
 
     Surface(
         color = MaterialTheme.colorScheme.surface,
@@ -117,7 +112,8 @@ fun EscalaBottomNavBar(
     ) {
             BoxWithConstraints(modifier = Modifier.fillMaxSizeCompat()) {
                 val slotWidth = maxWidth / navEntries.size
-                val selectedIndex = navEntries.indexOfFirst { it.destination == currentDestination }.let { if (it == -1) STELLA_CORE_INDEX else it }
+                val selectedIndex = navEntries.indexOfFirst { it.matchRoute != null && it.matchRoute == currentRoute }
+                    .let { if (it == -1) STELLA_CORE_INDEX else it }
                 val showIndicator = selectedIndex != STELLA_CORE_INDEX
                 val indicatorX by animateDpAsState(
                     targetValue = slotWidth * selectedIndex + slotWidth / 2 - REGULAR_INDICATOR_SIZE / 2,
@@ -145,7 +141,7 @@ fun EscalaBottomNavBar(
                     modifier = Modifier
                         .fillMaxWidth()
                         .fillMaxHeight()
-                        .pointerInput(navEntries, currentDestination) {
+                        .pointerInput(navEntries, currentRoute) {
                             var startX = 0f
                             var totalDx = 0f
                             detectHorizontalTapOrSwipe(
@@ -154,38 +150,27 @@ fun EscalaBottomNavBar(
                                 onRelease = { widthPx ->
                                     when {
                                         abs(totalDx) > swipeThresholdPx -> {
-                                            val currentIndex = navEntries.indexOfFirst { it.destination == currentDestination }
+                                            val currentIndex = navEntries.indexOfFirst { it.matchRoute != null && it.matchRoute == currentRoute }
                                                 .let { if (it == -1) 0 else it }
                                             val nextIndex = if (totalDx < 0) currentIndex + 1 else currentIndex - 1
-                                            navEntries.getOrNull(nextIndex)?.destination?.let { destination ->
+                                            navEntries.getOrNull(nextIndex)?.navigateRoute?.let { route ->
                                                 onStellaOpenChange(false)
                                                 AppSoundPlayer.playSwipeEffect(context, settings.effectsVolume)
-                                                onNavigate(destination)
+                                                onNavigate(route)
                                             }
                                         }
                                         abs(totalDx) <= tapSlopPx -> {
                                             val tapSlotWidth = widthPx / navEntries.size
                                             val index = (startX / tapSlotWidth).toInt().coerceIn(0, navEntries.size - 1)
                                             if (index == STELLA_CORE_INDEX) {
-                                                if (stellaOpen) {
-                                                    onStellaOpenChange(false)
-                                                } else {
-                                                    val now = System.currentTimeMillis()
-                                                    if (now - lastStellaTapAt < DOUBLE_TAP_WINDOW_MS) {
-                                                        pendingOpenJob?.cancel()
-                                                        lastStellaTapAt = 0L
-                                                        onNavigate(AppDestination.Home)
-                                                    } else {
-                                                        lastStellaTapAt = now
-                                                        pendingOpenJob = scope.launch {
-                                                            delay(DOUBLE_TAP_WINDOW_MS)
-                                                            onStellaOpenChange(true)
-                                                        }
-                                                    }
-                                                }
+                                                // Fase 11.11 - "A ESTRELA NÃO É HOME": a pure, immediate
+                                                // toggle. No timing window, no double-tap-to-Início - that
+                                                // delay used to be the whole reason a single tap here felt
+                                                // slow. Início now has its own slot (index 0).
+                                                onStellaOpenChange(!stellaOpen)
                                             } else {
                                                 onStellaOpenChange(false)
-                                                navEntries[index].destination?.let(onNavigate)
+                                                navEntries[index].navigateRoute?.let(onNavigate)
                                             }
                                         }
                                         else -> Unit // ambiguous drag distance - ignore to avoid accidental navigation
@@ -198,10 +183,10 @@ fun EscalaBottomNavBar(
                     navEntries.forEachIndexed { index, entry ->
                         if (index == STELLA_CORE_INDEX) {
                             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                StellaCoreBarButton(isOpen = stellaOpen, isOnHome = currentDestination == AppDestination.Home)
+                                StellaCoreBarButton(isOpen = stellaOpen)
                             }
                         } else {
-                            val selected = currentDestination == entry.destination
+                            val selected = entry.matchRoute != null && entry.matchRoute == currentRoute
                             val tint by animateColorAsState(
                                 targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 label = "navIconTint"
@@ -240,7 +225,7 @@ fun EscalaBottomNavBar(
  *  other icons (not the oversized floating orb from before), so it visually replaces rather than
  *  hovers above the button it took over. */
 @Composable
-private fun StellaCoreBarButton(isOpen: Boolean, isOnHome: Boolean) {
+private fun StellaCoreBarButton(isOpen: Boolean) {
     val isDark = MaterialTheme.colorScheme.background.let { (0.299f * it.red + 0.587f * it.green + 0.114f * it.blue) < 0.5f }
     val tokens = if (isDark) ConstellationColors.Dark else ConstellationColors.Light
     val starRotation by androidx.compose.animation.core.animateFloatAsState(
@@ -252,12 +237,13 @@ private fun StellaCoreBarButton(isOpen: Boolean, isOnHome: Boolean) {
         modifier = Modifier
             .size(STELLA_CORE_SIZE)
             .background(
-                tokens.polarisSoft.copy(alpha = if (isOpen || isOnHome) 0.7f else 0.35f),
+                tokens.polarisSoft.copy(alpha = if (isOpen) 0.7f else 0.35f),
                 CircleShape
             )
             .semantics {
                 role = androidx.compose.ui.semantics.Role.Button
-                contentDescription = if (isOpen) "Fechar menu de ações" else "Stella Core - toque para abrir o menu, toque duas vezes para ir ao Início"
+                // Fase 11.11 - "★ NÃO É HOME": the star only ever opens/closes Stella Core.
+                contentDescription = if (isOpen) "Fechar Stella Core" else "Stella Core - toque para abrir o menu de ações"
             },
         contentAlignment = Alignment.Center
     ) {

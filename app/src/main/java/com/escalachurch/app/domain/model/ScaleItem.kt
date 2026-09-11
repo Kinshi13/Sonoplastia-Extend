@@ -21,6 +21,11 @@ data class ScaleItem(
     val musicalMessagePerson: String = "",
     val notes: String = "",
     val isSpecialEvent: Boolean = false,
+    /** Fase 11.11 - `scales.is_temporary`, already live in the database (added for the web site)
+     *  but never modeled on Android until now - no migration needed, the column already exists.
+     *  A scale made "às pressas", outside the normal official cycle. Never shown to the user as
+     *  the raw column name - see HomeContentModels.specialLabelFor. */
+    val isTemporary: Boolean = false,
     /** OFFICIAL scales come from Escala Geral and are admin-only; PERSONAL ones belong to a member. */
     val sourceType: SourceType = SourceType.OFFICIAL,
     val createdAt: Long = System.currentTimeMillis(),
