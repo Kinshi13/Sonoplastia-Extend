@@ -1,3 +1,4 @@
+import java.util.Base64
 import java.util.Properties
 
 plugins {
@@ -33,6 +34,19 @@ val gitCommit: String = providers.exec {
     isIgnoreExitValue = true
 }.standardOutput.asText.get().trim().ifBlank { "unknown" }
 
+// Release signing - never from local.properties/the repo, only from CI secrets (GitHub Actions:
+// ANDROID_RELEASE_KEYSTORE_BASE64/_PASSWORD, ANDROID_RELEASE_KEY_ALIAS/_PASSWORD). Local/manual
+// builds without these env vars simply get an unsigned release build, exactly like before this
+// was added - nothing breaks when the secrets aren't present (e.g. this sandbox, or any clone
+// that isn't the CI runner).
+val releaseKeystoreBase64: String? = System.getenv("ANDROID_RELEASE_KEYSTORE_BASE64")
+val releaseSigningFile = if (!releaseKeystoreBase64.isNullOrBlank()) {
+    layout.buildDirectory.file("release-keystore.jks").get().asFile.apply {
+        parentFile.mkdirs()
+        writeBytes(Base64.getDecoder().decode(releaseKeystoreBase64))
+    }
+} else null
+
 android {
     namespace = "com.escalachurch.app"
     compileSdk = 34
@@ -58,9 +72,23 @@ android {
         buildConfigField("String", "SITE_URL", "\"$siteUrl\"")
     }
 
+    signingConfigs {
+        if (releaseSigningFile != null) {
+            create("release") {
+                storeFile = releaseSigningFile
+                storePassword = System.getenv("ANDROID_RELEASE_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_RELEASE_KEY_ALIAS")
+                keyPassword = System.getenv("ANDROID_RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (releaseSigningFile != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
