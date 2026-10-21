@@ -112,7 +112,9 @@ fun ScaleImportScreen(onBack: () -> Unit) {
                     Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         OutlinedButton(onClick = { result = null }, modifier = Modifier.weight(1f)) { Text("Cancelar") }
                         Button(
-                            onClick = { viewModel.createSchedules(drafts) { onBack() } },
+                            onClick = {
+                                viewModel.createSchedules(drafts) { saved -> drafts.remove(saved) }
+                            },
                             enabled = drafts.isNotEmpty() && saveState !is ScaleImportSaveState.Saving,
                             modifier = Modifier.weight(1f)
                         ) {
@@ -120,8 +122,25 @@ fun ScaleImportScreen(onBack: () -> Unit) {
                             else Text("Criar escalas (${drafts.size})")
                         }
                     }
-                    (saveState as? ScaleImportSaveState.Error)?.let {
-                        Text(it.message, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp))
+                    // Fase 11.14 - only an empty list (every draft already removed as it saved,
+                    // see onDraftSaved above) means "nothing left to do here" - leave automatically.
+                    // A skip or a failure always leaves at least one draft on screen, on purpose.
+                    androidx.compose.runtime.LaunchedEffect(drafts.size, saveState) {
+                        if (drafts.isEmpty() && saveState is ScaleImportSaveState.Done) onBack()
+                    }
+                    when (val state = saveState) {
+                        is ScaleImportSaveState.Error -> Text(
+                            state.message, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                        is ScaleImportSaveState.Done -> if (state.skipped > 0) {
+                            Text(
+                                "${state.created} escala(s) criada(s). ${state.skipped} ficaram na lista " +
+                                    "(data ou horário inválido) - corrija e toque em \"Criar escalas\" de novo.",
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
+                        } else Unit
+                        else -> Unit
                     }
                 }
             }
@@ -139,6 +158,16 @@ private fun ScheduleDraftCard(draft: ScheduleDraft, onRemove: () -> Unit) {
             }
             if (draft.dateAssumedYear) {
                 Text("Ano assumido automaticamente - confira a data.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+            }
+            if (draft.hasMultiPersonRole()) {
+                // Fase 11.14 - this used to be the exact point where extra names vanished without
+                // any trace; now every name is kept, but the admin still needs to know they'll be
+                // saved together as one text ("Ana e Pedro"), not as separate people.
+                Text(
+                    "Funções com mais de um nome serão salvas juntas em um só campo (ex.: \"Ana e Pedro\").",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(value = draft.date, onValueChange = { draft.date = it }, label = { Text("Data (AAAA-MM-DD)") }, modifier = Modifier.weight(1f))

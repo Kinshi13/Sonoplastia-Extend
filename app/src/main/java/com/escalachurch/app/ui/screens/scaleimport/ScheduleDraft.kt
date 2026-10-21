@@ -27,17 +27,31 @@ class RoleDraft(val roleName: String, peopleText: String) {
     private val peopleTextState = mutableStateOf(peopleText)
     var peopleText: String get() = peopleTextState.value; set(value) { peopleTextState.value = value }
 
-    fun firstPersonOrBlank(): String = peopleText.split("|").map { it.trim() }.firstOrNull { it.isNotBlank() }.orEmpty()
+    /** All names typed for this role, trimmed, blanks dropped - in the order the admin typed them. */
+    fun people(): List<String> = peopleText.split("|").map { it.trim() }.filter { it.isNotBlank() }
+
+    /** Fase 11.14 - every name, not just the first (see [ScheduleDraft.firstPersonFor]'s removal
+     *  below): joined the same way `web/app/admin/actions.ts` already aggregates multiple
+     *  `scale_assignments` rows back into a legacy column ("Ana e Pedro"), so a schedule saved
+     *  from Android reads the same way a schedule saved from the site already does. */
+    fun peopleOrBlank(): String = people().joinToString(" e ")
 }
 
 /** Maps a draft's canonical role names back onto the five legacy `scales` columns Android still
- *  writes (see ScaleItem) - only the first name per role, since the legacy schema has one slot per
- *  function. Extra names beyond the first are dropped with a warning surfaced by the caller. */
-fun ScheduleDraft.firstPersonFor(roleName: String): String =
-    roles.firstOrNull { it.roleName == roleName }?.firstPersonOrBlank().orEmpty()
+ *  writes (see ScaleItem). Fase 11.14 - used to keep only the first name per role, silently
+ *  dropping everyone else the admin had already seen and confirmed in the preview; now every name
+ *  is preserved (joined with "e", same convention the web admin already uses for the same
+ *  columns) - see [RoleDraft.peopleOrBlank]. */
+fun ScheduleDraft.allPeopleFor(roleName: String): String =
+    roles.firstOrNull { it.roleName == roleName }?.peopleOrBlank().orEmpty()
 
-val ScheduleDraft.receptionPerson get() = firstPersonFor(RoleAliasResolver.RECEPCAO)
-val ScheduleDraft.soundPerson get() = firstPersonFor(RoleAliasResolver.SONOPLASTIA)
-val ScheduleDraft.preachingPerson get() = firstPersonFor(RoleAliasResolver.PREGACAO)
-val ScheduleDraft.conductingPerson get() = firstPersonFor(RoleAliasResolver.REGENCIA)
-val ScheduleDraft.musicalMessagePerson get() = firstPersonFor(RoleAliasResolver.MENSAGEM_MUSICAL)
+/** True when any role on this draft has more than one name - the preview surfaces this so the
+ *  admin knows those names will be saved together in one legacy field, not as separate people
+ *  (Fase 11.14: no longer silent either way). */
+fun ScheduleDraft.hasMultiPersonRole(): Boolean = roles.any { it.people().size > 1 }
+
+val ScheduleDraft.receptionPerson get() = allPeopleFor(RoleAliasResolver.RECEPCAO)
+val ScheduleDraft.soundPerson get() = allPeopleFor(RoleAliasResolver.SONOPLASTIA)
+val ScheduleDraft.preachingPerson get() = allPeopleFor(RoleAliasResolver.PREGACAO)
+val ScheduleDraft.conductingPerson get() = allPeopleFor(RoleAliasResolver.REGENCIA)
+val ScheduleDraft.musicalMessagePerson get() = allPeopleFor(RoleAliasResolver.MENSAGEM_MUSICAL)
