@@ -34,4 +34,31 @@ class NameMatcherTest {
         // "Ana" vs "Maria" shouldn't be treated as a typo of one another.
         assertEquals(NameMatch.NotFound, NameMatcher.match("Ana", listOf("Maria")))
     }
+
+    // Fase 11.15 - the exact scenario Fase 11.13's audit called out: a bare first name that
+    // matches more than one full name on file must never resolve to just one of them.
+    private val threeJoaos = listOf("João Pedro Almeida", "João Carlos Ferreira", "João Batista Santos")
+
+    @Test
+    fun `a first name matching several known people is Ambiguous, never auto-picked`() {
+        val result = NameMatcher.match("João", threeJoaos)
+        assertEquals(NameMatch.Ambiguous(threeJoaos), result)
+    }
+
+    @Test
+    fun `a first name matching exactly one known person is a Suggestion`() {
+        assertEquals(NameMatch.Suggestion("João Pedro Almeida"), NameMatcher.match("João", listOf("João Pedro Almeida", "Maria")))
+    }
+
+    @Test
+    fun `a full name still resolves normally when only one first-name collision exists`() {
+        // "João Pedro Almeida" (full, with space) skips the first-name branch entirely and still
+        // exact-matches - the Ambiguous path must never swallow a fully-qualified name.
+        assertEquals(NameMatch.Exact("João Pedro Almeida"), NameMatcher.match("João Pedro Almeida", threeJoaos))
+    }
+
+    @Test
+    fun `accents and case do not affect the ambiguity check`() {
+        assertEquals(NameMatch.Ambiguous(threeJoaos), NameMatcher.match("JOAO", threeJoaos))
+    }
 }

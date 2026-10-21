@@ -17,6 +17,8 @@ import com.escalachurch.app.data.repository.ChurchRepository
 import com.escalachurch.app.data.repository.CustomEventRepository
 import com.escalachurch.app.data.repository.DoxologyRepository
 import com.escalachurch.app.data.repository.GeneralScaleRepository
+import com.escalachurch.app.data.repository.OrganizationPersonRepository
+import com.escalachurch.app.data.repository.OrganizationRoleRepository
 import com.escalachurch.app.data.repository.PlanRepository
 import com.escalachurch.app.data.repository.WorshipSongRepository
 import com.escalachurch.app.data.repository.ProfileRepository
@@ -90,4 +92,9 @@ class AppContainer(context: Context) {
     )
 
     val adminSession = AdminSession(supabase, userProfileRepository, planRepository, profileRepository, churchRepository, activeChurchManager)
+
+    // Fase 11.15 (Importação Inteligente V2) - read-only so far, see each repository's own doc
+    // comment. Nothing in the existing publish flow calls these yet.
+    val organizationRoleRepository = OrganizationRoleRepository(supabase, activeChurchManager)
+    val organizationPersonRepository = OrganizationPersonRepository(supabase, activeChurchManager)
 }

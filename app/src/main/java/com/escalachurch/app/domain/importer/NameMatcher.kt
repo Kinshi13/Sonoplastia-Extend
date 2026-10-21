@@ -6,9 +6,14 @@ package com.escalachurch.app.domain.importer
 sealed class NameMatch {
     /** Exact match (case/accent-insensitive) - safe to auto-link without asking. */
     data class Exact(val personName: String) : NameMatch()
-    /** Close but not exact (e.g. "Robsonn" vs "Robson") - shown as a suggestion, never applied
-     *  automatically. */
+    /** Close but not exact (e.g. "Robsonn" vs "Robson", or "João" vs the single "João Pedro" on
+     *  file) - shown as a suggestion, never applied automatically. */
     data class Suggestion(val personName: String) : NameMatch()
+    /** Fase 11.15 (Etapa F) - a bare first name ("João") matches more than one known person's
+     *  first name ("João Pedro Almeida", "João Carlos Ferreira", "João Batista Santos") equally
+     *  well. Never pick one - the preview must show every [candidates] and let the admin choose,
+     *  per the exact scenario the Fase 11.13 audit called out. */
+    data class Ambiguous(val candidates: List<String>) : NameMatch()
     /** No known person is close enough - the preview offers "usar como nome avulso" /
      *  "selecionar pessoa existente" / "cadastrar pessoa". */
     data object NotFound : NameMatch()
@@ -27,6 +32,20 @@ object NameMatcher {
         if (normalizedInput.isBlank() || knownNames.isEmpty()) return NameMatch.NotFound
 
         knownNames.firstOrNull { normalize(it) == normalizedInput }?.let { return NameMatch.Exact(it) }
+
+        // Fase 11.15 - a bare first name (no space) is checked against every candidate's own
+        // first name before falling back to generic edit distance - "João" should never resolve
+        // via Levenshtein proximity to an unrelated "Joana", but it does need to recognize
+        // "João Pedro Almeida" as a first-name match, and recognize when more than one person
+        // shares that first name (Ambiguous) instead of guessing.
+        if (!normalizedInput.contains(' ')) {
+            val firstNameMatches = knownNames.filter { normalize(it).split(' ').firstOrNull() == normalizedInput }
+            when (firstNameMatches.size) {
+                0 -> Unit
+                1 -> return NameMatch.Suggestion(firstNameMatches.first())
+                else -> return NameMatch.Ambiguous(firstNameMatches)
+            }
+        }
 
         val closest = knownNames
             .map { it to levenshtein(normalizedInput, normalize(it)) }
