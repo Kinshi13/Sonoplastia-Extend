@@ -59,6 +59,7 @@ nem essa nota-ponteiro** — ver linha "NEEDS_REVIEW" na tabela.
 | 015 | `worship_songs` colunas de recomendação/notificação + tabela `web_push_subscriptions` | `015_worship_recommendation_and_push.sql` | SUPERSEDED (já em schema.sql) | **NOT_APPLIED** — `web_push_subscriptions` confirmada ausente | SAFE, mas depende de 014 | Idem 014 — mesmo script consolidado cobre as três. |
 | 016 | `worship_songs.recommendation_message` + índice único (1 recomendação/dia) | `016_worship_recommendation_message.sql` | SUPERSEDED | **NOT_APPLIED** — depende de `worship_songs` (014) | REVIEW→SAFE no script consolidado (idempotência corrigida ali) | Idem 014. |
 | 017 | `scales.is_temporary`, `scale_templates.is_protected` | `017_scale_templates_and_temporary.sql` | SUPERSEDED (já em schema.sql) | **APPLIED** — ambas as colunas confirmadas presentes | SAFE | Nenhuma — já está feito. |
+| 018 | Tabela `import_operations` (idempotência) + RPC `import_schedule_with_assignments` (escala+atribuições atômicas, para a Importação Inteligente V2 Android) | `018_import_transactional_rpc.sql` | **LOCAL_ONLY**, ausente de `schema.sql` | **CREATED** — nunca executada contra produção | **REVIEW** — RPC SECURITY DEFINER nova com side-effects (insere dados), não SAFE pela própria definição de MIGRATION_POLICY.md §3 | Aguardando autorização explícita e específica do usuário para colar `supabase/manual/APPLY_018_IMPORT_TRANSACTIONAL_RPC.sql` no SQL Editor. Depois de aplicada, confirmar com `supabase/validation/VALIDATE_018_IMPORT_TRANSACTIONAL_RPC.sql`. |
 
 ## NEEDS_REVIEW (não é uma migration pendente, é uma lacuna de documentação)
 
@@ -73,7 +74,7 @@ nem essa nota-ponteiro** — ver linha "NEEDS_REVIEW" na tabela.
 ## Resumo por risco
 
 - **SAFE** (13): 002, 003, 004, 005, 006, 007, 008, 009, 012, 013, 014, 015, 017
-- **REVIEW** (3): 010 (FKs novas), 011 (backfill em massa, idempotente), 016 (unique index)
+- **REVIEW** (4): 010 (FKs novas), 011 (backfill em massa, idempotente), 016 (unique index), 018 (RPC SECURITY DEFINER com side-effects, nunca aplicada)
 - **DANGEROUS** (0): nenhuma migration existente hoje é destrutiva.
 
 ## Resumo do estado remoto (confirmado ao vivo)
@@ -85,6 +86,8 @@ nem essa nota-ponteiro** — ver linha "NEEDS_REVIEW" na tabela.
 - **NOT_APPLIED** (3): 014, 015, 016 — script pronto em
   `supabase/manual/APPLY_PENDING_014_016_SAFE.sql`, ainda não executado
 - **UNKNOWN** (1): 005 — só falta confirmar `doxologies.end_time`
+- **CREATED (nunca aplicada)** (1): 018 — proposta pronta, aguardando
+  autorização explícita (ver `supabase/manual/APPLY_018_IMPORT_TRANSACTIONAL_RPC.sql`)
 
 Ver `supabase/MIGRATION_RECONCILIATION_REPORT.md` para a análise completa
 por trás de cada uma.

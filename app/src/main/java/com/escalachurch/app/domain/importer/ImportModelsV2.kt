@@ -126,6 +126,11 @@ data class CanonicalSchedule(
     val endTime: String? = null,
     val type: String = "",
     val isSpecialEvent: Boolean = false,
+    /** Fase 11.15-B - `scales.is_temporary` (Home 2.0's "Programação extraordinária", distinct
+     *  from [isSpecialEvent]'s "Programação especial" - see HomeContentModels.specialLabelFor).
+     *  V1 text has no field for this; the adapter always defaults it to false, same as it always
+     *  did implicitly before this field existed. */
+    val isTemporary: Boolean = false,
     val notes: String = "",
     val source: ImportSource = ImportSource.MANUAL_TEXT_V1,
     val roles: List<CanonicalRole> = emptyList(),

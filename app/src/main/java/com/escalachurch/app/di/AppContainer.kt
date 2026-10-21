@@ -22,6 +22,7 @@ import com.escalachurch.app.data.repository.OrganizationRoleRepository
 import com.escalachurch.app.data.repository.PlanRepository
 import com.escalachurch.app.data.repository.WorshipSongRepository
 import com.escalachurch.app.data.repository.ProfileRepository
+import com.escalachurch.app.data.repository.ScaleAssignmentImportRepository
 import com.escalachurch.app.data.repository.ScaleRepository
 import com.escalachurch.app.data.repository.SettingsRepository
 import com.escalachurch.app.data.repository.SonoplastiaFileRepository
@@ -97,4 +98,7 @@ class AppContainer(context: Context) {
     // comment. Nothing in the existing publish flow calls these yet.
     val organizationRoleRepository = OrganizationRoleRepository(supabase, activeChurchManager)
     val organizationPersonRepository = OrganizationPersonRepository(supabase, activeChurchManager)
+    // Fase 11.15-B - calls an RPC that does not exist in production yet (migration 018, state
+    // CREATED, not applied). Not called from anywhere in the app yet - see its own doc comment.
+    val scaleAssignmentImportRepository = ScaleAssignmentImportRepository(supabase, activeChurchManager)
 }
