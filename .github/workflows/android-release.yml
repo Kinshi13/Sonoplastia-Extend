@@ -69,17 +69,36 @@ jobs:
 
       - name: Confirma se o APK ficou assinado, e com qual certificado
         run: |
-          APK=app/build/outputs/apk/release/app-release.apk
+          # Sem nenhum signingConfig aplicado (os 4 secrets vazios/ausentes), o Android Gradle
+          # Plugin nomeia a saída "app-release-unsigned.apk", não "app-release.apk" - procurar os
+          # dois nomes em vez de presumir qual existe.
+          APK=""
+          for CANDIDATE in app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/app-release-unsigned.apk; do
+            if [ -f "$CANDIDATE" ]; then APK="$CANDIDATE"; break; fi
+          done
+
+          if [ -z "$APK" ]; then
+            echo "RESULTADO: nenhum APK de release encontrado em app/build/outputs/apk/release/ - o build falhou antes de empacotar."
+            ls -la app/build/outputs/apk/release/ 2>/dev/null || echo "(diretório não existe)"
+            exit 1
+          fi
+
+          echo "Arquivo: $APK"
           echo "SHA-256 do APK: $(sha256sum "$APK" | cut -d' ' -f1)"
-          if "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs "$APK" 2>/dev/null; then
+          if [ "$(basename "$APK")" = "app-release-unsigned.apk" ]; then
+            echo "RESULTADO: APK SEM ASSINATURA (nome do arquivo já confirma: *-unsigned.apk) - os 4 secrets ANDROID_RELEASE_* vieram vazios nesta execução. Confira os nomes exatos em Settings > Secrets and variables > Actions."
+          elif "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs "$APK" 2>/dev/null; then
             echo "RESULTADO: APK assinado (ver certificado acima)."
           else
-            echo "RESULTADO: APK SEM ASSINATURA - os 4 secrets ANDROID_RELEASE_* não estão cadastrados (ou estão incompletos/incorretos) neste repositório."
+            echo "RESULTADO: arquivo chamado app-release.apk mas apksigner não confirma uma assinatura válida - investigar."
+            exit 1
           fi
+
+          echo "apk_path=$APK" >> "$GITHUB_ENV"
 
       - name: Publica o APK como artifact do run
         uses: actions/upload-artifact@v4
         with:
           name: app-release
-          path: app/build/outputs/apk/release/app-release.apk
+          path: ${{ env.apk_path }}
           retention-days: 14
